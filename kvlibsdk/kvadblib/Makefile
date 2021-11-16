@@ -82,7 +82,8 @@ CPPFLAGS += -std=c++11
 
 # Flags for reentrant, position independent code
 LIBCFLAGS = $(CFLAGS) -D_REENTRANT -fPIC
-LDFLAGS   = -lc -lstdc++
+# LDFLAGS   = -lc -lstdc++
+LDFLAGS   = -lstdc++
 
 OBJDIR = so.ndb
 

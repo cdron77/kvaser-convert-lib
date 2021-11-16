@@ -1,6 +1,9 @@
 # Makefile to build the Kvaser conversion library for LynXLog.
 
-# CFLAGS="-I$(PWD)/linuxcan/include -fpermissive"
+# CROSS_LIBRARY_DIR=$(HOME)/
+CC=i686-w64-mingw32-gcc
+CFLAGS="-I$(PWD)/linuxcan/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
+LDFLAGS="-lstdc++"
 DESTDIR=
 PREFIX=usr
 
@@ -24,7 +27,7 @@ canlib:
 	@cd ./linuxcan; $(MAKE) canlib
 
 kvlclib:
-	CFLAGS=-I$(PWD)/linuxcan/include $(MAKE) -C kvlibsdk kvlclib
+	CC=$(CC) CFLAGS=$(CFLAGS) LDFLAGS=$(LDFLAGS) $(MAKE) -C kvlibsdk kvlclib
 
 clean:
 	$(MAKE) -C linuxcan clean

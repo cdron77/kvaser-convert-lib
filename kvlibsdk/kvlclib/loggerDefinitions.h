@@ -245,7 +245,9 @@ typedef struct
     } payload;
 } logStruct;
 
+#ifndef __MINGW32__
 CompilerAssert(sizeof(logStruct) == 16);
+#endif
 
 
 #include <poppack.h>

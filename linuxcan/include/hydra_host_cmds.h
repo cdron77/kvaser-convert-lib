@@ -64,7 +64,9 @@
 #ifndef HYDRA_HOST_CMDS_H_
 #define HYDRA_HOST_CMDS_H_
 
+#ifndef __MINGW32__
 # include <linux/types.h>
+#endif
 
 
 #   include "hydra_host_private_cmds.h"

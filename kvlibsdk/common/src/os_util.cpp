@@ -67,19 +67,25 @@
 */
 
 #include "os_util.h"
+#ifndef _WIN32
 #include "vcan_ioctl.h"
+#endif
 #include <libgen.h>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>
+#ifndef _WIN32
 #include <sys/ioctl.h>
+#endif
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
 #include <time.h>
+#ifndef _WIN32
 #include <dlfcn.h>
+#endif
 #include <algorithm>
 //===========================================================================
 //                           L I N U X
@@ -185,13 +191,18 @@ std::string os_filesep()
 //===========================================================================
 int os_ioctl(IoctlHandle hnd, unsigned int code, void * buf, size_t /* len */)
 {
+#ifndef _WIN32
   return !ioctl(hnd, code, buf);
+#else
+	return -1;
+#endif
 }
 
 //===========================================================================
 IoctlHandle os_open_device(int card)
 {
   IoctlHandle hnd = INVALID_IOCTL_HANDLE;
+#ifndef _WIN32
   char drv_name [100] = {0};
   const char *driver_base = "mhydra";
   int count = 1;
@@ -223,6 +234,7 @@ IoctlHandle os_open_device(int card)
     hnd = INVALID_IOCTL_HANDLE;
     dev_no++;
   }
+#endif
 
   return hnd;
 }
@@ -238,6 +250,7 @@ void os_close_device(IoctlHandle hnd)
 //---------------------------------------------------------------------------
 // Locks
 //---------------------------------------------------------------------------
+#ifndef _WIN32
 static void debug_named_lock(int code)
 {
   switch (code) {
@@ -267,7 +280,7 @@ static void debug_named_lock(int code)
       break;
   }
 }
-
+#endif
 
 //===========================================================================
 LockHandle os_create_named_lock(const char * name)
@@ -291,11 +304,12 @@ LockHandle os_create_named_lock(const char * name)
     }
   }
 
-
+#ifndef _WIN32
   if (flock(fd, LOCK_EX | LOCK_NB)) {
     debug_named_lock(errno);
     return INVALID_LOCK_HANDLE;
   }
+#endif
 
   return fd;
 }
@@ -304,12 +318,14 @@ LockHandle os_create_named_lock(const char * name)
 //===========================================================================
 void os_destroy_named_lock(LockHandle lock)
 {
+#ifndef _WIN32
   if (lock != INVALID_LOCK_HANDLE) {
     if ( flock(lock, LOCK_UN) ) {
       debug_named_lock(errno);
     }
     close(lock);
   }
+#endif
 }
 
 //===========================================================================
@@ -371,7 +387,11 @@ FILE* os_open_tmp_file(char* /* prefix */, char **filename)
 //       process' file creation mask.
 int os_mkdir(const char *path)
 {
+#ifdef _WIN32
+  return mkdir(path);
+#else
   return mkdir(path, 0777);
+#endif
 }
 
 // ===========================================================================
@@ -397,6 +417,7 @@ int os_fgetpos(FILE *stream, fpos_t *pos)
 // Libraries
 //---------------------------------------------------------------------------
 //===========================================================================
+#ifndef _WIN32
 InstanceHandle os_load_library(const std::string &name)
 {
   std::string fullname = "lib" + name + ".so";
@@ -414,3 +435,4 @@ InstanceAdress os_get_symbol_adress(InstanceHandle hnd, const char *symbol)
 {
   return dlsym(hnd, symbol);
 }
+#endif

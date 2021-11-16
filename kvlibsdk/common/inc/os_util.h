@@ -135,10 +135,12 @@ int os_fgetpos(FILE *stream, fpos_t *pos);
 //---------------------------------------------------------------------------
 // Libraries
 //---------------------------------------------------------------------------
+#ifndef _WIN32
 InstanceHandle os_load_library(const std::string &name);
 
 void os_unload_library(InstanceHandle hnd);
 
 InstanceAdress os_get_symbol_adress(InstanceHandle hnd, const char *symbol);
+#endif
 
 #endif

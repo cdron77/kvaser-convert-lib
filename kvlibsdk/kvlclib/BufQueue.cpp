@@ -65,7 +65,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <malloc.h>
-#include <string>
+#include <string.h>
 #include "BufQueue.h"
 #include "kvdebug.h"
 #include "kvassert.h"

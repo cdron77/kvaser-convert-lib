@@ -110,6 +110,11 @@
      /* Do nothing */
 #  elif defined(__GCC__)
 #    pragma pack(pop)
+	/* MINGW32 and MINGW64 act as GCC */
+#  elif defined(__MINGW32__)
+/* #    pragma pack(pop) */
+#  elif defined(__MINGW64__)
+/*#    pragma pack(pop) */
 #  else
 #    error Unsupported compiler.
 #  endif

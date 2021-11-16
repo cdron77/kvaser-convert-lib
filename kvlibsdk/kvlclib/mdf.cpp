@@ -505,7 +505,8 @@ void print_mdf(MDFfile *mdf)
 
   printf("\n");
   printf("dt: %f\n", mdf->ccBlock->dt);
-  printf("Event count: %" PRIu64 "\n", mdf->eventCount());
+  /* printf("Event count: %" PRIu64 "\n", mdf->eventCount()); */
+  printf("Event count: %llu\n", (unsigned long long) mdf->eventCount());
 
   {
     uint64_t i;
@@ -513,7 +514,8 @@ void print_mdf(MDFfile *mdf)
       mdf_event_block *evtBlock;
       
       evtBlock = mdf->readEvent(i);
-      printf("%3" PRIu64 " %12.4f: ", i, evtBlock->time*0.00001);
+      /* printf("%3" PRIu64 " %12.4f: ", i, evtBlock->time*0.00001); */
+      printf("%3llu %12.4f: ", (unsigned long long) i, evtBlock->time*0.00001);
       
       if (evtBlock->type == MDF_EVTTYPE_MESSAGE) {
 	mdf_evtMsg_block *msgBlock = (mdf_evtMsg_block*)evtBlock;

@@ -542,7 +542,8 @@ uint32_t KvaLogWriter_VectorJ1587Asc::localGetEventTime(time_int64 time, char* t
   if (isNegative) t1 = -t1;
 
   char *p = timerow;
-  p += sprintf(p, "%9" PRId64 "%c", t1, get_property_decimal_char());
+  /* p += sprintf(p, "%9" PRId64 "%c", t1, get_property_decimal_char()); */
+  p += sprintf(p, "%9lld%c", t1, get_property_decimal_char());
 
   switch (get_property_time_decimals()) {
     case 9: p += sprintf(p, "%09u", (unsigned int) t2); break;

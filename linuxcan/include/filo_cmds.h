@@ -73,7 +73,9 @@
 #include <pshpack1.h>
 #include "compilerassert.h"
 
+#ifndef __MINGW32__
 #include <linux/types.h>
+#endif
 
 #ifdef FILO_PRIVATE
 #   include "filo_private.h"

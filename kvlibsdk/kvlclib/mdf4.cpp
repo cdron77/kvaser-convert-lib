@@ -665,7 +665,11 @@ fhNode::fhNode(int version)
   struct tm newtime;
   localtime_r(&aclock, &newtime);
   fh.fh_time_ns = mktime(&newtime) * 1000000000LL;
+#ifdef _BSD_SOURCE
   fh.fh_tz_offset_min = (MDF_INT16) (newtime.tm_gmtoff / 60);
+#else
+	fh.fh_tz_offset_min = 0;
+#endif
   if (newtime.tm_isdst > 0) {
     // Turn off day light saving to get fh_tz_offset_min
     newtime.tm_isdst = 0;

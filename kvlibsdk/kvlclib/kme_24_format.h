@@ -220,7 +220,9 @@ typedef struct
     } payload;
 } kme24_logStruct;
 
+#ifndef __MINGW32__
 CompilerAssert(sizeof(kme24_logStruct) == 16);
+#endif
 
 
 #include <poppack.h>

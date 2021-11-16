@@ -153,8 +153,13 @@ KvlcStatus KvaLogReader::read_line(char *string, int num)
   // (No _ftelli64 in VS6 or .NET.)
   os_fgetpos(infile, &position);
 
-// Move to os_util.h in the future
+	// Move to os_util.h in the future
+	// On MINGW, fpos_t is long long int, so it could be casted directy
+#ifndef __MINGW32__
   file_position = position.__pos;
+#else 
+  file_position = (int64_t) position;
+#endif
 
   return kvlcOK;
 }
@@ -186,7 +191,12 @@ KvlcStatus KvaLogReader::read_file(char *string, size_t num)
   os_fgetpos(infile, &position);
   // Move to os_util.h in the future
 
+	// On MINGW, fpos_t is long long int, so it could be casted directy
+#ifndef __MINGW32__
   file_position = position.__pos;
+#else 
+  file_position = (int64_t) position;
+#endif
   return kvlcOK;
 }
 
