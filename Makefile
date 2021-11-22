@@ -11,6 +11,12 @@ LIBRARY_CAN := $(LIBNAME).$(MAJOR).$(MINOR).$(BUILD)
 LIBNAME_CAN := $(LIBNAME)
 SONAME_CAN  := $(LIBNAME).$(MAJOR)
 
+include kvlibsdk/kvadblib/version.mk
+
+LIBRARY_KVADB := $(LIBNAME).$(MAJOR).$(MINOR).$(BUILD)
+LIBNAME_KVADB := $(LIBNAME)
+SONAME_KVADB  := $(LIBNAME).$(MAJOR)
+
 include kvlibsdk/kvlclib/version.mk
 
 LIBRARY_KVLC := $(LIBNAME).$(MAJOR).$(MINOR).$(BUILD)
@@ -44,13 +50,26 @@ install_canlib: canlib
 	install -m 644 linuxcan/include/obsolete.h $(DESTDIR)/$(PREFIX)/include
 	mkdir -p $(DESTDIR)/$(PREFIX)/doc/canlib
 	cp -r linuxcan/doc/HTMLhelp $(DESTDIR)/$(PREFIX)/doc/canlib
-	
-install_kvlclib: kvlclib
+
+install_kvadblib: kvlclib
+	# Create subdirs
 	mkdir -p $(DESTDIR)/$(PREFIX)/lib
 	mkdir -p $(DESTDIR)/$(PREFIX)/include
+	# Install kvadblib
+	install  -m 644 kvlibsdk/kvadblib/so.ndb/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB)
+	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVADB)
+	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVADB)
+	install -m 644 kvlibsdk/include/kvaDbLib.h $(DESTDIR)/$(PREFIX)/include
+
+install_kvlclib: kvlclib install_kvadblib
+	# Create subdirs
+	mkdir -p $(DESTDIR)/$(PREFIX)/lib
+	mkdir -p $(DESTDIR)/$(PREFIX)/include
+	# Install kvlclib
 	install  -m 644 kvlibsdk/kvlclib/so.ndb/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC)
 	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVLC)
 	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVLC)
 	install -m 644 kvlibsdk/include/kvlclib.h $(DESTDIR)/$(PREFIX)/include
+	
 
 install: install_canlib install_kvlclib

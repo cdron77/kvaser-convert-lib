@@ -82,7 +82,9 @@ CPPFLAGS += -std=c++11
 
 # Flags for reentrant, position independent code
 LIBCFLAGS = $(CFLAGS) -D_REENTRANT -fPIC
-LDFLAGS   = -lc -lstdc++ -lz -ldl -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib
+# LDFLAGS   = -lc -lstdc++ -lz -ldl -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib
+# LDFLAGS   += -lstdc++ -lz -ldl -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib
+LDFLAGS   += -lz -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib -lstdc++
 
 OBJDIR = so.ndb
 

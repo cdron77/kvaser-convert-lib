@@ -1,9 +1,10 @@
 # Makefile to build the Kvaser conversion library for LynXLog.
 
-# CROSS_LIBRARY_DIR=$(HOME)/
+CROSS_LIBRARY_DIR=$(HOME)/Documents/Lavoro/Codice/mingw_deps/install/
+STDCPP_LIBRARY_DIR=/usr/lib/gcc/i686-w64-mingw32/7.3-win32
 CC=i686-w64-mingw32-gcc
-CFLAGS="-I$(PWD)/linuxcan/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
-LDFLAGS="-lstdc++"
+CFLAGS="-I$(PWD)/linuxcan/include -I$(CROSS_LIBRARY_DIR)/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
+LDFLAGS="-L$(CROSS_LIBRARY_DIR)/lib -L$(STDCPP_LIBRARY_DIR)"
 DESTDIR=
 PREFIX=usr
 
@@ -13,6 +14,12 @@ include linuxcan/canlib/version.mk
 LIBRARY_CAN := $(LIBNAME).$(MAJOR).$(MINOR).$(BUILD)
 LIBNAME_CAN := $(LIBNAME)
 SONAME_CAN  := $(LIBNAME).$(MAJOR)
+
+include kvlibsdk/kvadblib/version.mk
+
+LIBRARY_KVADB := $(LIBNAME).$(MAJOR).$(MINOR).$(BUILD)
+LIBNAME_KVADB := $(LIBNAME)
+SONAME_KVADB  := $(LIBNAME).$(MAJOR)
 
 include kvlibsdk/kvlclib/version.mk
 
@@ -48,12 +55,20 @@ install_canlib: canlib
 	mkdir -p $(DESTDIR)/$(PREFIX)/doc/canlib
 	cp -r linuxcan/doc/HTMLhelp $(DESTDIR)/$(PREFIX)/doc/canlib
 	
-install_kvlclib: kvlclib
+install_kvadblib: kvlclib
+	# Create subdirs
 	mkdir -p $(DESTDIR)/$(PREFIX)/lib
 	mkdir -p $(DESTDIR)/$(PREFIX)/include
-	install  -m 644 kvlibsdk/kvlclib/so.ndb/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVLC)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVLC)
+	# Install kvadblib
+	install -m 644 kvlibsdk/kvadblib/so.ndb/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/`basename $(LIBNAME_KVADB) .so`.dll
+	install -m 644 kvlibsdk/include/kvaDbLib.h $(DESTDIR)/$(PREFIX)/include
+
+install_kvlclib: kvlclib install_kvadblib
+	# Create subdirs
+	mkdir -p $(DESTDIR)/$(PREFIX)/lib
+	mkdir -p $(DESTDIR)/$(PREFIX)/include
+	# Install kvlclib
+	install -m 644 kvlibsdk/kvlclib/so.ndb/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/`basename $(LIBNAME_KVLC) .so`.dll
 	install -m 644 kvlibsdk/include/kvlclib.h $(DESTDIR)/$(PREFIX)/include
 
 install: install_canlib install_kvlclib

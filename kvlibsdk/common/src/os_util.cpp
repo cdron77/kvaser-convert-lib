@@ -331,6 +331,7 @@ void os_destroy_named_lock(LockHandle lock)
 //===========================================================================
 void os_sleep(unsigned int ms)
 {
+#ifndef _WIN32
   struct timespec req;
   struct timespec rem;
 
@@ -340,6 +341,7 @@ void os_sleep(unsigned int ms)
   if (nanosleep(&req, &rem)) {
     // Ignore result
   }
+#endif
 }
 
 //---------------------------------------------------------------------------
