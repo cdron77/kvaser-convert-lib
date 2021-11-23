@@ -1162,7 +1162,7 @@ KvlcStatus WINAPI kvlcResetDlcMismatch(KvlcHandle handle);
 KvlcStatus WINAPI kvlcGetDlcMismatchList(KvlcHandle handle, unsigned int* MsgIds, unsigned int* MsgDlc, unsigned int* MsgOccurance, unsigned int* length);
 
 #ifdef __cplusplus
-};
+}
 #endif
 
 #endif // KVLCLIB_H
