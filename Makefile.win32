@@ -1,7 +1,8 @@
 # Makefile to build the Kvaser conversion library for LynXLog.
 
 CROSS_LIBRARY_DIR=$(HOME)/Documents/Lavoro/Codice/mingw_deps/install/
-STDCPP_LIBRARY_DIR=/usr/lib/gcc/i686-w64-mingw32/7.3-win32
+COMPILER_VERSION=`ls -1 mingw_build_release/sys-path2/ | grep win32 | cut -f 1 -d- `
+STDCPP_LIBRARY_DIR=/usr/lib/gcc/i686-w64-mingw32/$(COMPILER_VERSION)-win32
 CC=i686-w64-mingw32-gcc
 CFLAGS="-I$(PWD)/linuxcan/include -I$(CROSS_LIBRARY_DIR)/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
 LDFLAGS="-L$(CROSS_LIBRARY_DIR)/lib -L$(STDCPP_LIBRARY_DIR)"

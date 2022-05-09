@@ -30,7 +30,7 @@ canlib:
 	@cd ./linuxcan; $(MAKE) canlib
 
 kvlclib:
-	CFLAGS=-I$(PWD)/linuxcan/include $(MAKE) -C kvlibsdk kvlclib
+	CFLAGS="-I$(PWD)/linuxcan/include -DOPENSSL_API_COMPAT=0x10100000L" $(MAKE) -C kvlibsdk kvlclib
 
 clean:
 	$(MAKE) -C linuxcan clean
