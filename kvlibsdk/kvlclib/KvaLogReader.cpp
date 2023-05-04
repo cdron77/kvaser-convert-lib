@@ -171,8 +171,11 @@ KvlcStatus KvaLogReader::move_fpos(size_t num) {
   if (os_fgetpos(infile, &pos)){
     return kvlcFail;
   }
-
+#ifndef __MINGW32__
   pos.__pos += num;
+#else
+  pos += num;
+#endif
 
   if (os_fsetpos(infile, &pos)){
     return kvlcFail;
