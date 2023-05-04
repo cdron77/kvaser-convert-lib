@@ -41,7 +41,7 @@ only in accordance with the terms of such license. See file COPYING.
 
   The package libxml2 is needed by libkvamemolibxml.
 
-  The packages libssl and zlib1g are needed by kvlclib.
+  The package zlib1g is needed by kvlclib.
 
 
 3 Install and Uninstall

@@ -71,6 +71,8 @@ KVMLIB_COMMON_SRC = $(KVMLIB_COMMON)/src
 SDK_COMMON     = ../../common
 SDK_COMMON_SRC = $(SDK_COMMON)/src
 
+include $(SDK_COMMON)/make/gflags.mk
+
 CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer $(XTRA_CFLAGS)
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
@@ -115,12 +117,12 @@ DEPS += $(patsubst %.c,   $(OBJDIR)/%.d, $(filter %.c,   $(SRCS)))
 
 .PHONY:	all uninstall clean install
 
-all: dirs $(OBJDIR)/$(LIBRARY)
+all: $(OBJDIR) $(OBJDIR)/$(LIBRARY)
 
-dirs:
+$(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
-$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
+$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS) $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Building $(LIBRARY) $(IS_DEBUG)"
 	$(CC) $(CPPFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $(OBJS) -Bsymbolic $(LDFLAGS)
@@ -140,15 +142,18 @@ clean:
 	rm -rf $(OBJDIR)
 
 install:
-	rm -f /usr/lib/$(LIBNAME)
-	rm -f /usr/lib/$(SONAME)
-	install  -m 644 $(OBJDIR)/$(LIBRARY) /usr/lib/
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(LIBNAME)
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(SONAME)
-	/sbin/ldconfig
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+	rm -f $(DESTDIR)$(libdir)/$(SONAME)
+	rm -f $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(INSTALL_LIB) -D $(OBJDIR)/$(LIBRARY) $(DESTDIR)$(libdir)/$(LIBRARY)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(SONAME)
+	$(LDCONFIG)
 
 uninstall:
-	rm -f /usr/lib/$(LIBNAME) /usr/lib/$(SONAME) /usr/lib/$(LIBRARY)
-	/sbin/ldconfig
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME) $(DESTDIR)$(libdir)/$(SONAME) $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(LDCONFIG)
+
+include $(SDK_COMMON)/make/pkgconfig.mk
 
 -include $(DEPS)

@@ -426,7 +426,7 @@ class MdfChannelGroup {
     MdfDataChannel *mCurrentDataChannel;
     void setFrameType(const char *str);
     void addDataChannel(const CNBLOCK* cn);
-    void getChannelData(const char *name, void *data, void *buf, size_t len);
+    bool getChannelData(const char *name, void *data, void *buf, size_t len);
     void PRINTF_CG();
     bool getFirstSignalChannelData(void *data, string& name, int *value);
     bool getNextSignalChannelData(void *data, string& name, int *value);
@@ -647,11 +647,11 @@ void MdfChannelGroup::addDataChannel(const CNBLOCK* cn)
   }
 }
 
-void MdfChannelGroup::getChannelData(const char *name, void *data, void *buf, size_t len)
+bool MdfChannelGroup::getChannelData(const char *name, void *data, void *buf, size_t len)
 {
   MdfDataChannel *ch = mDataChannels;
   string str;
-
+  bool found = false;
   // Time is the same for all frame types
   if (strcmp("t", name) != 0) {
     switch (mType) {
@@ -673,10 +673,12 @@ void MdfChannelGroup::getChannelData(const char *name, void *data, void *buf, si
   while (ch != NULL) {
     if (ch->mName == str) {
       ch->getData(data, buf, len);
+      found = true;
       break;
     }
     ch = ch->mNextChannel;
   }
+  return found;
 }
 
 bool MdfChannelGroup::getFirstSignalChannelData(void *data, string& name, int *value)
@@ -860,7 +862,7 @@ KvlcStatus KvaLogReader_Mdf4::interpret_event(imLogData *logEvent)
 }
 
 /* Will return kvlcERR_UNSUPPORTED_VERSION if the MDF file is not from kvlclib. */
-KvlcStatus verifyIdBlock(IDBLOCK *idBlock)
+KvlcStatus KvaLogReader_Mdf4::verifyIdBlock(IDBLOCK *idBlock)
 {
   MDF_CHAR    id_file[9] = {0};         // "MDF     "
   MDF_CHAR    id_vers[9] = {0};         // "4.10    "
@@ -869,12 +871,44 @@ KvlcStatus verifyIdBlock(IDBLOCK *idBlock)
   strncpy(id_file, idBlock->id_file, 8);
   strncpy(id_vers, idBlock->id_vers, 8);
   strncpy(id_prog, idBlock->id_prog, 8);
-  PRINTF(("%s %s %s\n", id_prog, id_file, id_vers));
-  if (strcmp(id_file, "MDF     ") ||
-      strcmp(id_vers, "4.10    ") ||
-      strcmp(id_prog, "Kvaser")) {
+  PRINTF(("'%s' '%s' '%s'\n", id_prog, id_file, id_vers));
+  if (strncmp(id_file, MDF_FILE_ID, 8) ||
+      strncmp(id_vers, MDF_VERSION_STRING_410, 8) ||
+      strncmp(id_prog, MDF_PROGRAM_ID, 6)) {
+    PRINTF(("Version strings don't match.\n"));
     return kvlcERR_UNSUPPORTED_VERSION;
   }
+
+  // Get Kvaser's file version, e.g. Kvaser10 is major 1 and minor 0
+  unsigned int major = 0;
+  unsigned int minor = 0;
+
+
+  if (strnlen(id_prog, 8) == 6) {
+    // Old program id without version
+    PRINTF(("Old version detected.\n"));
+    major = 1;
+    minor = 0;
+  } else {
+    PRINTF(("New version detected.\n"));
+    // New program id [major][minor]
+    if (isdigit (id_prog[6])) major =  id_prog[6] - '0';
+    if (isdigit (id_prog[7])) minor =  id_prog[7] - '0';
+  }
+
+  PRINTF(("Kvaser version is %d.%d\n", major, minor));
+  PRINTF(("Supported version is %d.%d\n", MDF_PROGRAM_ID_MAJOR, MDF_PROGRAM_ID_MINOR));
+
+  // Unsupported major version
+  if (major == 0 || major > MDF_PROGRAM_ID_MAJOR) {
+    return kvlcERR_UNSUPPORTED_VERSION;
+  }
+
+  // Unsupported minor version
+  if (major == MDF_PROGRAM_ID_MAJOR && minor > MDF_PROGRAM_ID_MINOR) {
+    return kvlcERR_UNSUPPORTED_VERSION;
+  }
+
   return kvlcOK;
 }
 
@@ -1303,6 +1337,7 @@ KvlcStatus MdfChannelGroup::getEvent()
   char data[256] = {0};
   unsigned int dataLength = 0;
   KvlcStatus status = kvlcOK;
+  bool channelFound;
 
   PRINTF(("KvlcStatus MdfChannelGroup::getEvent()"));
   PRINTF_CG();
@@ -1323,7 +1358,19 @@ KvlcStatus MdfChannelGroup::getEvent()
   getChannelData("DLC", &data, &mEvent.msg.dlc, sizeof(mEvent.msg.dlc));
   getChannelData("ID", &data, &mEvent.msg.id, sizeof(mEvent.msg.id));
   getChannelData("DataLength", &data, &dataLength, sizeof(dataLength));
-  getChannelData("Flags", &data, &mEvent.msg.flags, sizeof(mEvent.msg.flags));
+
+
+  channelFound = getChannelData("KvaserFlags", &data, &mEvent.msg.flags, sizeof(mEvent.msg.flags));
+  if (!channelFound) {
+    // Fallback to old version
+    channelFound = getChannelData("Flags", &data, &mEvent.msg.flags, sizeof(mEvent.msg.flags));
+  }
+
+  if (!channelFound) {
+    PRINTF(("Could not find 'Flags' or 'KvaserFlags'. This format is not supported.\n"));
+    return kvlcERR_UNSUPPORTED_VERSION;
+  }
+
 
   if (mSDBlock) {
     status = mSDBlock->getData(mEvent.msg.data, dataLength);

@@ -76,6 +76,8 @@
 #include <stdarg.h>
 #include <math.h>
 #include <clocale>
+#include <float.h>
+#include <climits>
 
 #include "CANdb.h"
 #include "CANdbDbc.h"
@@ -658,10 +660,10 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
     // If we have a motorola message, we have to convert the start bit.
     // See the relating comment in the header file.
     int sb = signal->get_start_bit ();
-    sb = 64 - candb_reflect (sb) - signal->get_length ();
+    sb = 64*8 - candb_reflect (sb) - signal->get_length ();
     int bit = sb % 8,
         byte = sb / 8;
-    sb = (7 - byte) * 8 + bit;
+    sb = (63 - byte) * 8 + bit;
     signal->set_start_bit (sb);
   }
 
@@ -1285,19 +1287,23 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
     else if ((at == CANDB_ATTR_TYPE_INTEGER) || (at == CANDB_ATTR_TYPE_HEX)) {
 
       if (t != T_INT_CONST) {
-        error ("Attribute min value expected");
-        delete a;
-        return -1;
+        warning ("Integer attribute min value expected");
+        // set default value.  
+        a->set_integer_min (INT_MIN);
       }
-      a->set_integer_min (token.int_const);
+      else {
+        a->set_integer_min (token.int_const);
+      }
       t = lex (token);
 
       if (t != T_INT_CONST) {
-        error ("Attribute max value expected");
-        delete a;
-        return -1;
+        warning ("Integer attribute max value expected");
+        // set default value.  
+        a->set_integer_max (INT_MAX);
       }
-      a->set_integer_max (token.int_const);
+      else {
+        a->set_integer_max (token.int_const);
+      }
       t = lex (token);
     }
 
@@ -1313,9 +1319,8 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
       if (t == T_DOUBLE_CONST) a->set_float_min (token.double_const);
       else if (t == T_INT_CONST) a->set_float_min (token.int_const);
       else {
-        error ("Attributes min value expected");
-        delete a;
-        return -1;
+        warning ("Attributes min value expected");
+        a->set_float_min (-FLT_MAX);
       }
 
       t = lex (token);
@@ -1323,9 +1328,8 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
       if (t == T_DOUBLE_CONST) a->set_float_max (token.double_const);
       else if (t == T_INT_CONST) a->set_float_max (token.int_const);
       else {
-        error ("Attributes max value expected");
-        delete a;
-        return -1;
+        warning ("Attributes max value expected");
+        a->set_float_max (FLT_MAX);
       }
 
       t = lex (token);
@@ -1668,7 +1672,7 @@ int CANdbDBC::read_file (CANdb *db)
       set_read_ok (false);
     }
 
-  } while (t != T_EOF && n_err < 2);
+  } while (t != T_EOF && n_err == 0);
 
   if (init_locale != NULL) {
     std::setlocale(LC_NUMERIC, init_locale);
@@ -1677,42 +1681,23 @@ int CANdbDBC::read_file (CANdb *db)
   fclose (file);
   file = NULL;
 
-  current_db->update_j1939_flag ();
+  if (n_err == 0) 
+  {
+    current_db->update_j1939_flag ();
 
-  //bool is_j1939 = current_db->is_j1939 ();
-  //bool rebuild_hash_table_required = false;
+    // Setup internal data structures
+    CANdbMessage *message = current_db->get_first_message ();
+    while (message) {
+      message->setup ();
 
-  //info ("setup dbc: is_j1939=%d\n", is_j1939);
-
-  // Setup internal data structures
-  CANdbMessage *message = current_db->get_first_message ();
-  while (message) {
-    message->setup ();
-
-    //if (is_j1939) {
-    //
-    //  unsigned int id = message->get_id_and_ext ();
-    //  if (message->is_extended () && ((id & 0x8001ffff) != id)) {
-    //    info ("setup message: '%s', id=%08x\n", message->get_name (), id);
-    //
-    //    id &= 0x0001ffff;
-    //    message->set_id (id);
-    //    rebuild_hash_table_required = true;
-    //  }
-    //}
-
-    message = message->get_next ();
+      message = message->get_next ();
+    }
   }
-
-  //if (rebuild_hash_table_required) {
-  //  current_db->rebuild_hash_table ();
-  //}
 
   if (keyword_hash_table) delete [] keyword_hash_table;
   keyword_hash_table = NULL;
   keyword_hash_table_size = 0;
-
-  //return 0;
+  
   return (is_read_ok ()) ? 0: -1;
 } // CANdbDBC::read_file
 

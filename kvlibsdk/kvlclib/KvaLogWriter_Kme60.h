@@ -82,14 +82,14 @@ class KvaLogWriter_Kme60 : public KvaLogWriter {
   static const int WRITE_VERSION               = 1;
   static const int WRITE_RTC                   = 2;
   static const int WRITE_ANY                   = 3;
-  static const int DEFAULT_HI_RES_TIMER_FQ_MHZ = 80;
+  static const int DEFAULT_HI_RES_TIMER_FQ_MHZ = 1000;
   static const unsigned char CHANNEL_UNDEFINED = 0xff;
 
   Kme60Msg_t syslog;
   int            state;
 
   uint64_t toTicks(uint64_t ns) {
-    return (DEFAULT_HI_RES_TIMER_FQ_MHZ * ns)/1000LL;
+    return ns;
   }
 
   void eventToVersion (imLogData *logEvent, Kme60Msg_t* msg);

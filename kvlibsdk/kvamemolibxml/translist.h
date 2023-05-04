@@ -96,7 +96,7 @@ class Translist : public Xmlref {
     std::vector<TransMsg*> mMessages;
 
     Translist(std::string);
-    ~Translist(){};
+    ~Translist();
     void print();
     int createBinary(unsigned char *buffer, unsigned char version);
     int parseBinary(const char *buffer, const unsigned char version);

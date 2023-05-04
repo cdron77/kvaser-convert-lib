@@ -53,9 +53,9 @@ only in accordance with the terms of such license. See file COPYING.
 2 Requirements
 ==============
 
-  The package libxml2-dev is needed in order to build kvamemolibxml.
+  The packages libxml2-dev pkg-config are needed in order to build kvamemolibxml.
 
-  The packages libssl-dev and zlib1g-dev are needed to build kvlclib.
+  The package zlib1g-dev is needed to build kvlclib.
 
 
 

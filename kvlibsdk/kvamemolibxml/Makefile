@@ -65,14 +65,22 @@ include version.mk
 
 ARCH := $(shell getconf LONG_BIT)
 
+PKG_CONFIG ?= pkg-config
+
+ifeq (, $(shell which $(PKG_CONFIG)))
+$(error "'$(PKG_CONFIG)' not found")
+endif
+
 SDK_COMMON     = ../common
 SDK_COMMON_SRC = $(SDK_COMMON)/src
+
+include $(SDK_COMMON)/make/gflags.mk
 
 GENERATED_SRC = ./generated
 
 CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer $(XTRA_CFLAGS)
 CFLAGS  += $(ccflags-y)
-CFLAGS  += -I/usr/include/libxml2
+CFLAGS  += $(shell $(PKG_CONFIG) --cflags libxml-2.0)
 CFLAGS  += -I. -I$(SDK_COMMON)/inc -I../include -I./generated -I../common/inc -I./include
 
 ifeq ($(KV_DEBUG_ON),1)
@@ -130,12 +138,12 @@ DEPS += $(patsubst %.c,   $(OBJDIR)/%.d, $(filter %.c,   $(SRCS)))
 
 .PHONY: all clean check
 
-all: dirs $(OBJDIR)/$(LIBRARY)
+all: $(OBJDIR) $(OBJDIR)/$(LIBRARY)
 
-dirs:
+$(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
-$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
+$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS) $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Building $(LIBRARY) $(IS_DEBUG)"
 	$(CC) $(CFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $(OBJS) $(LDFLAGS)
@@ -168,17 +176,20 @@ clean:
 	rm -rf $(OBJDIR)
 
 install:
-	rm -f /usr/lib/$(LIBNAME)
-	rm -f /usr/lib/$(SONAME)
-	install  -m 644 $(OBJDIR)/$(LIBRARY) /usr/lib/
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(LIBNAME)
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(SONAME)
-	/sbin/ldconfig
-	install -m 644 ../include/kvaMemoLibXML.h /usr/include
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+	rm -f $(DESTDIR)$(libdir)/$(SONAME)
+	rm -f $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(INSTALL_LIB) -D $(OBJDIR)/$(LIBRARY) $(DESTDIR)$(libdir)/$(LIBRARY)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(SONAME)
+	$(LDCONFIG)
+	$(INSTALL_DATA) -D ../include/kvaMemoLibXML.h $(DESTDIR)$(includedir)/kvaMemoLibXML.h
 
 uninstall:
-	rm -f /usr/lib/$(LIBNAME) /usr/lib/$(SONAME) /usr/lib/$(LIBRARY)
-	/sbin/ldconfig
-	rm -f /usr/include/kvaMemoLibXML.h
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME) $(DESTDIR)$(libdir)/$(SONAME) $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(LDCONFIG)
+	rm -f $(DESTDIR)$(includedir)/kvaMemoLibXML.h
+
+include $(SDK_COMMON)/make/pkgconfig.mk
 
 -include $(DEPS)

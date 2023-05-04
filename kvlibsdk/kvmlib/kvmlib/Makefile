@@ -70,6 +70,9 @@ KVMLIB_COMMON_SRC = $(KVMLIB_COMMON)/src
 
 SDK_COMMON     = ../../common
 SDK_COMMON_SRC = $(SDK_COMMON)/src
+SDK_COMMON_INC = $(SDK_COMMON)/inc
+
+include $(SDK_COMMON)/make/gflags.mk
 
 KVLCLIB       = ../../kvlclib
 KVADBLIB      = ../../kvadblib/so.ndb
@@ -141,12 +144,12 @@ DEPS += $(patsubst %.c,   $(OBJDIR)/%.d, $(filter %.c,   $(SRCS)))
 
 .PHONY: all uninstall clean install check
 
-all: dirs $(OBJDIR)/$(LIBRARY)
+all: $(OBJDIR) $(OBJDIR)/$(LIBRARY)
 
-dirs:
+$(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
-$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
+$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS) $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Building $(LIBRARY) $(IS_DEBUG)"
 	$(CC) $(CPPFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $(OBJS) -Wl,-Bstatic -fPIC -Wl,-rpath=. -L$(KVADBLIB) -lkvadblib -Wl,-Bdynamic $(LDFLAGS) -lkvamemolib
@@ -179,28 +182,31 @@ clean:
 	rm -rf $(OBJDIR)
 
 install:
-	rm -f /usr/lib/$(LIBNAME)
-	rm -f /usr/lib/$(SONAME)
-	install  -m 644 $(OBJDIR)/$(LIBRARY) /usr/lib/
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(LIBNAME)
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(SONAME)
-	/sbin/ldconfig
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+	rm -f $(DESTDIR)$(libdir)/$(SONAME)
+	rm -f $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(INSTALL_LIB) -D $(OBJDIR)/$(LIBRARY) $(DESTDIR)$(libdir)/$(LIBRARY)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(SONAME)
+	$(LDCONFIG)
 
 	#change name on pshpack1 and poppack to kvpshpack and kvpoppack
 	cp -p ../../include/kvmlib.h            tmp_kvmlib.h	
 	sed -r -i 's,pshpack1\.h,kvpshpack\.h,' tmp_kvmlib.h
 	sed -r -i 's,poppack\.h,kvpoppack\.h,'  tmp_kvmlib.h
 
-	install -m 644  tmp_kvmlib.h                  /usr/include/kvmlib.h
-	install -m 644  ../../common/inc/poppack.h    /usr/include/kvpoppack.h
-	install -m 644  ../../common/inc/pshpack1.h   /usr/include/kvpshpack.h
+	$(INSTALL_DATA) -D tmp_kvmlib.h $(DESTDIR)$(includedir)/kvmlib.h
+	$(INSTALL_DATA) -D $(SDK_COMMON_INC)/poppack.h $(DESTDIR)$(includedir)/kvpoppack.h
+	$(INSTALL_DATA) -D $(SDK_COMMON_INC)/pshpack1.h $(DESTDIR)$(includedir)/kvpshpack.h
 
 uninstall:
-	rm -f /usr/lib/$(LIBNAME) /usr/lib/$(SONAME) /usr/lib/$(LIBRARY)
-	/sbin/ldconfig
-	rm -f /usr/include/kvmlib.h
-	rm -f /usr/include/kvpoppack.h
-	rm -f /usr/include/kvpshpack.h
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME) $(DESTDIR)$(libdir)/$(SONAME) $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(LDCONFIG)
+	rm -f $(DESTDIR)$(includedir)/kvmlib.h
+	rm -f $(DESTDIR)$(includedir)/kvpoppack.h
+	rm -f $(DESTDIR)$(includedir)/kvpshpack.h
+
+include $(SDK_COMMON)/make/pkgconfig.mk
 
 -include $(DEPS)
 

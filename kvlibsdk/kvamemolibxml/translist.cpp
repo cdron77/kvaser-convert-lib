@@ -119,6 +119,14 @@ Translist::Translist(std::string name)
     mAutostart  = false;
 }
 
+Translist::~Translist()
+{
+  for(std::vector<TransMsg*>::iterator it = mMessages.begin(); it != mMessages.end(); ++it) {
+    if ((*it)) delete (*it);
+  }
+  mMessages.clear();
+}
+
 void Translist::print()
 {
   PRINTF(("%d %s [", mIdx, mName.c_str()));

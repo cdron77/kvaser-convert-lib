@@ -566,9 +566,9 @@ int hdNode::createMdf4Channel(int channel, int type, MDF_UINT32 id, const std::s
     /* Mandatory members: "ID", "DLC", "DataLength", and "DataBytes". */
 
     cn = newChannel(&cn->next, type, ID, 0, 8, 32);
-    cn = newChannel(&cn->next, type, FLAGS, 0, 12, 32);
+    cn = newChannel(&cn->next, type, KVASER_FLAGS, 0, 12, 32);
     cn = newChannel(&cn->next, type, DIR, 7, 12, 1);
-    cn = newChannel(&cn->next, type, IDE, 3, 12, 1);
+    cn = newChannel(&cn->next, type, IDE, 7, 11, 1);
     cn = newChannel(&cn->next, type, EDL, 0, 14, 1);
     cn = newChannel(&cn->next, type, BRS, 1, 14, 1);
     cn = newChannel(&cn->next, type, ESI, 2, 14, 1);
@@ -605,7 +605,7 @@ int hdNode::createMdf4Channel(int channel, int type, MDF_UINT32 id, const std::s
   if (MDF_REMOTE_FRAME_TYPE == type) {
     /* Mandatory: ID, DLC */
     cn = newChannel(&cn->next, type, ID, 0, 8, 32);
-    cn = newChannel(&cn->next, type, FLAGS, 0, 12, 32);
+    cn = newChannel(&cn->next, type, KVASER_FLAGS, 0, 12, 32);
     cn = newChannel(&cn->next, type, DLC, 0, 16, 8);
     cn = newChannel(&cn->next, type, DATA_LENGTH, 0, 17, 8);
     cn_data = cn;
@@ -618,7 +618,7 @@ int hdNode::createMdf4Channel(int channel, int type, MDF_UINT32 id, const std::s
   if (MDF_ERROR_FRAME_TYPE == type) {
     /* Mandatory: None */
     cn = newChannel(&cn->next, type, ID, 0, 8, 32);
-    cn = newChannel(&cn->next, type, FLAGS, 0, 12, 32);
+    cn = newChannel(&cn->next, type, KVASER_FLAGS, 0, 12, 32);
     cn = newChannel(&cn->next, type, DLC, 0, 16, 8);
     cn = newChannel(&cn->next, type, DATA_LENGTH, 0, 17, 8);
     cn_data = cn;
@@ -974,6 +974,9 @@ int cnNode::write(FILE *mdfFile)
 
   if (cc) {
     cn.cn_cc_conversion = cc->getCurrentFilePos();
+    if (cc->md_unit){
+      cn.cn_md_unit = cc->md_unit->getCurrentFilePos();
+    }
   }
   FWRITE((&cn, 1, (size_t)cn.Head.length, mdfFile));
   if (next) {
@@ -2554,7 +2557,7 @@ ccNode::ccNode(int version, const char *unit, MDF_UINT16 type, MDF_REAL p1, MDF_
 
   md_unit = NULL;
   if (unit) {
-    md_unit = new mdNode(version, mdNode::CC_MD_UNIT, unit);
+    md_unit = new txNode(version, unit);
   }
 
   switch (type) {
@@ -2630,7 +2633,7 @@ idNode::idNode(int version)
   if (version == 410) {
     memcpy(id.id_vers, MDF_VERSION_STRING_410, sizeof(id.id_vers));
   }
-  memcpy(id.id_prog,MDF_PROGRAM_ID, sizeof(MDF_PROGRAM_ID));
+  memcpy(id.id_prog,MDF_PROGRAM_ID_STRING, sizeof(MDF_PROGRAM_ID_STRING));
   id.id_ver = (MDF_UINT16) version;
 }
 

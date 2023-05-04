@@ -148,7 +148,7 @@ namespace Mdf4Nodes {
   typedef struct {
     MDF_CHAR    id_file[8];         // "MDF     "
     MDF_CHAR    id_vers[8];         // "4.00    "
-    MDF_CHAR    id_prog[8];         // "Kvaser  "
+    MDF_CHAR    id_prog[8];         // Kvaser + Major version + Minor version, e.g. "Kvaser10"
     MDF_BYTE   id_reserved1[4];     // 0
     MDF_UINT16 id_ver; // Version number of the MDF format, i.e. 400 for this version
     MDF_BYTE   id_reserved2[34];    // Reserved
@@ -503,24 +503,25 @@ namespace Mdf4Nodes {
     uint64_t size();
   };
 
-  class ccNode : public NodeBase {
-  public:
-    CCBLOCK     cc;
-    static const MDF_UINT8 CC_TYPE_CONVERSION_TYPE_ONE_TO_ONE = 0;
-    static const MDF_UINT8 CC_TYPE_CONVERSION_TYPE_PARAMETRIC_LINEAR = 1;
-    mdNode    *md_unit;
-    ccNode(int version, const char *unit, MDF_UINT16 type, MDF_REAL p1=0.0, MDF_REAL p2=1.0);
-    ~ccNode();
-
-    int write(FILE *mdfFile);
-    uint64_t size();
-  };
-
   class txNode : public NodeBase {
   public:
     TXBLOCK   tx;
     txNode(int version, const char *str);
     ~txNode();
+
+    int write(FILE *mdfFile);
+    uint64_t size();
+  };
+
+  class ccNode : public NodeBase {
+  public:
+    CCBLOCK     cc;
+    static const MDF_UINT8 CC_TYPE_CONVERSION_TYPE_ONE_TO_ONE = 0;
+    static const MDF_UINT8 CC_TYPE_CONVERSION_TYPE_PARAMETRIC_LINEAR = 1;
+    txNode    *md_unit;
+
+    ccNode(int version, const char *unit, MDF_UINT16 type, MDF_REAL p1=0.0, MDF_REAL p2=1.0);
+    ~ccNode();
 
     int write(FILE *mdfFile);
     uint64_t size();
@@ -596,6 +597,7 @@ namespace Mdf4Nodes {
     cnNode    *cn_data;
     NodeBase  *cn_data_sd;
     siNode    *cn_si_source;
+
 
     cnNode(int version,
            char *long_name,
@@ -833,7 +835,7 @@ namespace Mdf4Nodes {
   // Channel types
   const int CH_SINGLE_WIRE = 0;
 
-  enum ChannelType {SINGLE_WIRE, FLAGS, FLAGS_EX, DIR, WAKE_UP, SRR, R0, R1, EDL,
+  enum ChannelType {SINGLE_WIRE, KVASER_FLAGS, FLAGS_EX, DIR, WAKE_UP, SRR, R0, R1, EDL,
   BRS, ESI, ID, IDE, FRAME_DURATION, BIT_COUNT, DLC, DATA_LENGTH, DATA_BYTES,
   TIME_OFFSET_BRS, TIME_OFFSET_CRC, TX_ATTEMPTS_REQ, TX_ATTEMPTS_MAX, CRC, BTR_EXT_CFG
 
@@ -855,9 +857,9 @@ namespace Mdf4Nodes {
       ch() {
         mName   [SINGLE_WIRE] = "SingleWire";
         mComment[SINGLE_WIRE] = "Bit flag indicating a single wire operation.";
-        mName   [FLAGS] = "Flags";
-        mComment[FLAGS] = "Combination of bit flags for the message.";
-        mName   [FLAGS_EX] = "FlagsEx";
+        mName   [KVASER_FLAGS] = "KvaserFlags";
+        mComment[KVASER_FLAGS] = "Combination of Kvaser specific bit flags for the message.";
+        mName   [FLAGS_EX] = "KvaserFlagsEx";
         mComment[FLAGS_EX] = "Combination of bit flags for the message.";
         mName   [DIR] = "Dir";
         mComment[DIR] = "Bit signal indicating the direction (Rx, Tx).";

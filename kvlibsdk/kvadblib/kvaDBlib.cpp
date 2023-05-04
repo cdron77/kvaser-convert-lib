@@ -834,6 +834,25 @@ KvaDbStatus WINAPI kvaDbGetMsgFlags(KvaDbMessageHnd mh, unsigned int *flags)
 }
 
 //===========================================================================
+KvaDbStatus WINAPI kvaDbGetCanMsgFlags(KvaDbMessageHnd mh, unsigned int *flags)
+{
+  RegisterDeletionCallbacks();
+  if (!kvadbmessagehnd.is_valid(mh)) return kvaDbErr_Param;
+  if (!flags)                        return kvaDbErr_Param;
+
+  CANdbMessage *m = kvadbmessagehnd.convert(mh);
+
+  *flags = canMSG_STD;
+  if (m->is_extended()) *flags = canMSG_EXT;
+  if (m->is_canfd()) {
+    *flags |= canFDMSG_FDF;
+    if (m->is_brs())      *flags |= canFDMSG_BRS;
+  }
+
+  return kvaDbOK;
+}
+
+//===========================================================================
 KvaDbStatus WINAPI kvaDbGetMsgDlc(KvaDbMessageHnd mh, int *dlc)
 {
   RegisterDeletionCallbacks();

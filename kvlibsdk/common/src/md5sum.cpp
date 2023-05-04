@@ -69,7 +69,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <openssl/md5.h>
+#include "md5.h"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -79,8 +79,8 @@
 
 int md5sum16(const char * filename, void* buf, size_t len)
 {
-  MD5_CTX c;
-  char tmp[BUFSIZE];
+  md5_state_t pms;
+  unsigned char tmp[BUFSIZE];
   size_t bytes;
   unsigned char out[MD5_DIGEST_LENGTH];
 
@@ -97,19 +97,16 @@ int md5sum16(const char * filename, void* buf, size_t len)
 
   }
 
-  MD5_Init(&c);
-
+  md5_init(&pms);
   bytes=read(fd, tmp, BUFSIZE);
   while(bytes > 0) {
-    MD5_Update(&c, tmp, bytes);
+    md5_append(&pms, tmp, bytes);
     bytes=read(fd, tmp, BUFSIZE);
   }
   close(fd);
 
-  MD5_Final(out, &c);
-
+  md5_finish(&pms, out);
   memcpy(buf, out, MD5_DIGEST_LENGTH);
-
   return 0;
 }
 

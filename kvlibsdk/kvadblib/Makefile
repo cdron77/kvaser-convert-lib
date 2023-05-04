@@ -68,6 +68,8 @@ ARCH := $(shell getconf LONG_BIT)
 SDK_COMMON     = ../common
 SDK_COMMON_SRC = $(SDK_COMMON)/src
 
+include $(SDK_COMMON)/make/gflags.mk
+
 CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer -fno-strict-aliasing $(XTRA_CFLAGS)
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
@@ -105,12 +107,12 @@ DEPS += $(patsubst %.c,   $(OBJDIR)/%.d, $(filter %.c,   $(SRCS)))
 
 .PHONY:	all uninstall clean install archive
 
-all: dirs $(OBJDIR)/$(LIBRARY) archive
+all: $(OBJDIR) $(OBJDIR)/$(LIBRARY) archive
 
-dirs:
+$(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
-$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
+$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS) $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Building $(LIBRARY) $(IS_DEBUG)"
 	$(CC) $(CPPFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $(OBJS) $(LDFLAGS)
@@ -118,26 +120,26 @@ $(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
 	ln -sf $(LIBRARY) $(OBJDIR)/$(SONAME)
 	@echo --------------------------------------------------------------------
 
-archive:
+archive: $(OBJDIR) $(OBJS)
 	ar rcs libkvadblib.a $(OBJS)
 	mv libkvadblib.a $(OBJDIR)
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(OBJDIR)
 	$(CC) $(CFLAGS) $(LIBCFLAGS) -c -o $@ $<
 	$(CC) $(CFLAGS) $(LIBCFLAGS) -MM $< | sed -r '1 s/^/$(OBJDIR)\//' > $(patsubst %.c, $(OBJDIR)/%.d, ${<F})
 
-$(OBJDIR)/%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp $(OBJDIR)
 	$(CC) $(CPPFLAGS) $(LIBCFLAGS) -c -o $@ $<
 	$(CC) $(CPPFLAGS) $(LIBCFLAGS) -MM $< | sed -r '1 s/^/$(OBJDIR)\//' > $(patsubst %.cpp, $(OBJDIR)/%.d, ${<F})
 
-$(OBJDIR)/check.o: check.cpp
+$(OBJDIR)/check.o: check.cpp $(OBJDIR)
 	$(CC) $(CPPFLAGS) $(LIBCFLAGS) -c -o $@ $<
 	$(CC) $(CPPFLAGS) $(LIBCFLAGS) -MM $< | sed -r '1 s/^/$(OBJDIR)\//' > $(patsubst %.cpp, $(OBJDIR)/%.d, ${<F})
 
 $(OBJDIR)/check: $(OBJDIR)/check.o
 	$(CC) $(CPPFLAGS) $(LIBCFLAGS) check.cpp -o $@ -L./$(OBJDIR) $(LDFLAGS) -lkvadblib
 
-check: $(OBJDIR)/check
+check: $(OBJDIR)/check $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Running test program"
 	@echo --------------------------------------------------------------------
@@ -147,17 +149,20 @@ clean:
 	rm -rf $(OBJDIR)
 
 install:
-	rm -f /usr/lib/$(LIBNAME)
-	rm -f /usr/lib/$(SONAME)
-	install  -m 644 $(OBJDIR)/$(LIBRARY) /usr/lib/
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(LIBNAME)
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(SONAME)
-	/sbin/ldconfig
-	install -m 644 ../include/kvaDbLib.h /usr/include
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+	rm -f $(DESTDIR)$(libdir)/$(SONAME)
+	rm -f $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(INSTALL_LIB) -D $(OBJDIR)/$(LIBRARY) $(DESTDIR)$(libdir)/$(LIBRARY)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(SONAME)
+	$(LDCONFIG)
+	$(INSTALL_DATA) -D ../include/kvaDbLib.h $(DESTDIR)$(includedir)/kvaDbLib.h
 
 uninstall:
-	rm -f /usr/lib/$(LIBNAME) /usr/lib/$(SONAME) /usr/lib/$(LIBRARY)
-	/sbin/ldconfig
-	rm -f /usr/include/kvaDbLib.h
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME) $(DESTDIR)$(libdir)/$(SONAME) $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(LDCONFIG)
+	rm -f $(DESTDIR)$(includedir)/kvaDbLib.h
+
+include $(SDK_COMMON)/make/pkgconfig.mk
 
 -include $(DEPS)

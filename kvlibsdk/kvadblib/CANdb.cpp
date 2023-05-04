@@ -92,6 +92,7 @@
 //that gives error C2864.
 
 const char* Attribute_VFrameFormat      = "VFrameFormat";
+const int   VFrameFormat_ExtendedCAN    = 2;
 const int   VFrameFormat_J1939          = 3;
 const int   VFrameFormat_StandardCAN_FD = 14;
 const int   VFrameFormat_ExtendedCAN_FD = 15;
@@ -2467,6 +2468,8 @@ void CANdbMessage::setup (void)
           if (attr->get_enumeration_value () == VFrameFormat_J1939) {
             update_pgn_mask();
             set_j1939Type(J1939_V2);
+            set_extended(true);
+          } else if (attr->get_enumeration_value() == VFrameFormat_ExtendedCAN_FD || attr->get_enumeration_value() == VFrameFormat_ExtendedCAN) {
             set_extended(true);
           }
         } else { //no attribute found. try the database default value for VFrameFormat

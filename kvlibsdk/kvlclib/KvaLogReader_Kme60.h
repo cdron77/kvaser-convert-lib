@@ -77,13 +77,15 @@ class KvaLogReader_Kme60 : public KvaLogReader {
 
     uint64          current_eventno;
     unsigned long   current_frameno;
-    Kme60Msg_t  current_kmeEvent;
+    Kme60Msg_t      current_kmeEvent;
     int             hiresTimerFqMHz;
 
   protected:
     KvlcStatus interpret_event(Kme60Msg_t *kmeEvent,
                                imLogData      *logEvent);
     uint64_t toNs(uint64_t ticks);
+    KvlcStatus checkEventMsgLength(Kme60Msg_t *kmeEvent);
+    bool should_flush(Kme60Msg_t *kmeEvent);
 
   public:
     KvaLogReader_Kme60();

@@ -145,6 +145,17 @@ typedef enum {
 /** @} */
 
 /**
+ * \name Kvaser CAN Message Flags
+ *
+ * @{
+ */
+#define canMSG_STD              0x0002    ///< Message has a standard (11-bit) identifier
+#define canMSG_EXT              0x0004    ///< Message has an extended (29-bit) identifier
+#define canFDMSG_FDF            0x010000  ///< Message is an FD message (CAN FD)
+#define canFDMSG_BRS            0x020000  ///< Message is sent/received with bit rate switch (CAN FD)
+/** @} */
+
+/**
  * \name CANDBSignalEncoding API Signal Encoding
  *
  * The following values are used by \ref kvaDbGetSignalEncoding() and
@@ -732,7 +743,7 @@ KvaDbStatus WINAPI kvaDbGetMsgIdEx(KvaDbMessageHnd mh, unsigned int *id);
 
 /**
  * \ingroup kvadb_messages
- * Set the message flags, \ref KVADB_MESSAGE_xxx
+ * Get the message flags, \ref KVADB_MESSAGE_xxx
  *
  * \param[in] mh     A message handle
  * \param[out] flags  The message flags, \ref KVADB_MESSAGE_xxx
@@ -744,6 +755,22 @@ KvaDbStatus WINAPI kvaDbGetMsgIdEx(KvaDbMessageHnd mh, unsigned int *id);
  * \sa \ref kvaDbSetMsgFlags()
  */
 KvaDbStatus WINAPI kvaDbGetMsgFlags(KvaDbMessageHnd mh, unsigned int *flags);
+
+/**
+ * \ingroup kvadb_messages
+ * Get relevant message attributes expressed as CAN message flags, see \ref canMSG_xxx and \ref canFDMSG_xxx
+ *
+ * Note that canFDMSG_BRS will never be returned for non-CAN FD frames, even though the CANFD_BRS attribute
+ * was set in the .dbc file.
+ *
+ * \param[in]   mh     A message handle
+ * \param[out]  flags  The message flags, \ref KVADB_MESSAGE_xxx
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ */
+KvaDbStatus WINAPI kvaDbGetCanMsgFlags(KvaDbMessageHnd mh, unsigned int *flags);
 
 /**
  * \ingroup kvadb_messages

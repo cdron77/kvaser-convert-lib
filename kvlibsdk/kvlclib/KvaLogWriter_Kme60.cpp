@@ -187,34 +187,9 @@ KvlcStatus KvaLogWriter_Kme60::write_row(imLogData *logEvent)
 
       msg.canMsg.dlc = 0x0f & logEvent->msg.dlc;
 
-      if (logEvent->msg.flags & canMSG_NERR) {
-        msg.canMsg.flags |= MSGFLAG_NERR;
-      }
-      else if (logEvent->msg.flags & canMSG_WAKEUP) {
-        msg.canMsg.flags |= MSGFLAG_WAKEUP;
-      }
+      msg.canMsg.flags = logEvent->msg.flags;
 
-      if (logEvent->msg.flags & canMSG_RTR) {
-        msg.canMsg.flags |= MSGFLAG_REMOTE_FRAME;
-      }
-      if (logEvent->msg.flags & canMSG_ERROR_FRAME) {
-        msg.canMsg.flags |= MSGFLAG_ERROR_FRAME;
-      }
-      if (logEvent->msg.flags & canMSGERR_OVERRUN) {
-        msg.canMsg.flags |= MSGFLAG_OVERRUN;
-        overrun_occurred = true;
-      }
-      if (logEvent->msg.flags & canMSG_TXACK) {
-        msg.canMsg.flags |= MSGFLAG_TX;
-      }
-      if (logEvent->msg.flags & canFDMSG_BRS) {
-        msg.canMsg.flags |= MSGFLAG_BRS;
-      }
-      if (logEvent->msg.flags & canFDMSG_ESI) {
-        msg.canMsg.flags |= MSGFLAG_ESI;
-      }
       if (logEvent->msg.flags & canFDMSG_FDF) {
-        msg.canMsg.flags |= MSGFLAG_FDF;
         dataLen = dlcToNumBytesFD(msg.canMsg.dlc);
       }
       else {

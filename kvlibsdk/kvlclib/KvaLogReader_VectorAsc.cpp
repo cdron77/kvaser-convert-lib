@@ -205,6 +205,15 @@ KvlcStatus KvaLogReader_VectorAsc::interpret_event_classic (imLogData *logEvent)
     }
   }
 
+  if (size == 4) {
+    if (strcmp(elements[1].c_str(), "Start") == 0 &&
+        strcmp(elements[2].c_str(), "of") == 0 &&
+        strcmp(elements[3].c_str(), "measurement") == 0) {
+
+      start_of_measurement64 += (time_uint64)(timestamp * ONE_BILLION);
+      return kvlcOK;
+    }
+  }
   if (elements[2].find("Trigger") != string::npos) {
     if (size < 8){
       return kvlcERR_INVALID_LOG_EVENT;
@@ -377,7 +386,7 @@ KvlcStatus KvaLogReader_VectorAsc::interpret_event (char      *line,
 
   strip_extra_spaces(line);
 
-  if (strcmp(line, "Begin Triggerblock") == 0) {
+  if (strncmp(line, "Begin Triggerblock", 18) == 0) {
     not_header();
     return kvlcOK;
   } else if (strcmp(line, "End Triggerblock") == 0) {

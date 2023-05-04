@@ -82,10 +82,22 @@
 // -----------------------------------------------------------------------------
 // String constants
 // -----------------------------------------------------------------------------
-#define MDF_FILE_ID         "MDF     "
-#define MDF_PROGRAM_ID      "Kvaser"
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+
+// -----------------------------------------------------------------------------
+// String constants
+// -----------------------------------------------------------------------------
+#define MDF_FILE_ID             "MDF     "
 #define MDF_VERSION_STRING_410  "4.10    "
 
+
+// Kvaser version
+#define MDF_PROGRAM_ID          "Kvaser"
+#define MDF_PROGRAM_ID_MAJOR 1
+#define MDF_PROGRAM_ID_MINOR 0
+#define MDF_PROGRAM_ID_STRING MDF_PROGRAM_ID TOSTRING(MDF_PROGRAM_ID_MAJOR) TOSTRING(MDF_PROGRAM_ID_MINOR)
 
 // Own definitions
 typedef uint64_t  KVMDF_TIMESTAMP;

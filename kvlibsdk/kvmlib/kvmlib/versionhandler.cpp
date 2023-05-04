@@ -72,6 +72,7 @@
 #define CompilerAssert(e)
 #include "loggerDefinitions.h"
 #include "kme_24_format.h"
+#include "kme_60_format.h"
 #include "filo_cmds.h"
 #include "hydra_host_cmds.h"
 #include "kvdebug.h"
@@ -89,6 +90,7 @@ kvmStatus kmeScanFileType (const char *filename, int32 *fileType)
   uint8_t buf[sizeof(kme24_logStruct)] = {0};
   uint8_t cmdLen  = 0;
   uint8_t cmdNo   = 0;
+  uint16_t kme60MsgLen;
   FILE *fh = NULL;
 
   if (!fileType || !filename) {
@@ -104,6 +106,16 @@ kvmStatus kmeScanFileType (const char *filename, int32 *fileType)
   if (fread (buf, sizeof(buf), 1, fh) != 1) {
     fclose(fh);
     return kvmERR_FILE_ERROR;
+  }
+
+  // KME 6.0 stores length as uint16_t in buf[0-1], and version as uint8_t in buf [2].
+  // If filetype was kme50, buf[2] corresponds to lioMajor which never should be equal to KME60_MSG_VERSION (100)
+  memcpy(&kme60MsgLen, buf, 2);
+  if (kme60MsgLen == sizeof(Kme60_Version_t) + sizeof(Kme60_MsgHead_t) && buf[2] == KME60_MSG_VERSION)
+  {
+      *fileType = kvmFILE_KME60;
+      fclose(fh);
+      return kvmOK;
   }
 
   // KME 5.0 and KME 4.0 use cmdLen and cmdNo

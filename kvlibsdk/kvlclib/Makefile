@@ -68,6 +68,8 @@ ARCH := $(shell getconf LONG_BIT)
 SDK_COMMON     = ../common
 SDK_COMMON_SRC = $(SDK_COMMON)/src
 
+include $(SDK_COMMON)/make/gflags.mk
+
 CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer -fno-strict-aliasing $(XTRA_CFLAGS)
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
@@ -82,9 +84,8 @@ CPPFLAGS += -std=c++11
 
 # Flags for reentrant, position independent code
 LIBCFLAGS = $(CFLAGS) -D_REENTRANT -fPIC
-# LDFLAGS   = -lc -lstdc++ -lz -ldl -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib
-# LDFLAGS   += -lstdc++ -lz -ldl -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib
-LDFLAGS   += -lz -lssl -lcrypto -L../kvadblib/so.ndb -lkvadblib -lstdc++
+# LDFLAGS   = -lc -lstdc++ -lz -ldl -L../kvadblib/so.ndb -lkvadblib
+LDFLAGS   += -lz -ldl -L../kvadblib/so.ndb -lkvadblib -lstdc++
 
 OBJDIR = so.ndb
 
@@ -144,6 +145,7 @@ SRCS += KvaLogWriter_DiademSignal.cpp
 SRCS += os_util.cpp
 SRCS += TimeConv.cpp
 SRCS += kvdebug.cpp
+SRCS += md5.cpp
 SRCS += md5sum.cpp
 
 #look for .cpp-files and .c-files here
@@ -157,12 +159,12 @@ DEPS += $(patsubst %.c,   $(OBJDIR)/%.d, $(filter %.c,   $(SRCS)))
 
 .PHONY:	all uninstall clean install
 
-all: dirs $(OBJDIR)/$(LIBRARY)
+all: $(OBJDIR) $(OBJDIR)/$(LIBRARY)
 
-dirs:
+$(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
-$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS)
+$(OBJDIR)/$(LIBRARY): $(OTHERDEPS) $(OBJS) $(OBJDIR)
 	@echo --------------------------------------------------------------------
 	@echo "Building $(LIBRARY) $(IS_DEBUG)"
 	$(CC) $(CPPFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $(OBJS) $(LDFLAGS)
@@ -195,17 +197,21 @@ clean:
 	rm -rf $(OBJDIR)
 
 install:
-	rm -f /usr/lib/$(LIBNAME)
-	rm -f /usr/lib/$(SONAME)
-	install  -m 644 $(OBJDIR)/$(LIBRARY) /usr/lib/
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(LIBNAME)
-	ln -sf /usr/lib/$(LIBRARY) /usr/lib/$(SONAME)
-	/sbin/ldconfig
-	install -m 644 ../include/kvlclib.h /usr/include
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+	rm -f $(DESTDIR)$(libdir)/$(SONAME)
+	rm -f $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(INSTALL_LIB) -D $(OBJDIR)/$(LIBRARY) $(DESTDIR)$(libdir)/$(LIBRARY)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+	ln -sf $(LIBRARY) $(DESTDIR)$(libdir)/$(SONAME)
+	$(LDCONFIG)
+	$(INSTALL_DATA) -D ../include/kvlclib.h $(DESTDIR)$(includedir)/kvlclib.h
 
 uninstall:
-	rm -f /usr/lib/$(LIBNAME) /usr/lib/$(SONAME) /usr/lib/$(LIBRARY)
-	/sbin/ldconfig
-	rm -f /usr/include/kvlclib.h
+	rm -f $(DESTDIR)$(libdir)/$(LIBNAME) $(DESTDIR)$(libdir)/$(SONAME) $(DESTDIR)$(libdir)/$(LIBRARY)
+	$(LDCONFIG)
+	rm -f $(DESTDIR)$(includedir)/kvlclib.h
+
+PKG_REQUIRES = canlib
+include $(SDK_COMMON)/make/pkgconfig.mk
 
 -include $(DEPS)

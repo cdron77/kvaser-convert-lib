@@ -66,6 +66,7 @@
 
 #include "KvaLogReader.h"
 #include "mdf.h"
+#include "mdf4.h"
 #include "mdf4base.h"
 #include <string>
 #include "kvaDbLib.h"
@@ -117,6 +118,7 @@ class KvaLogReader_Mdf4 : public KvaLogReader {
     bool isBinary() { return true; }
     KvlcStatus next_file();
     KvlcStatus verify_signals();
+    KvlcStatus verifyIdBlock(Mdf4Nodes::IDBLOCK *idBlock);
 
 };
 

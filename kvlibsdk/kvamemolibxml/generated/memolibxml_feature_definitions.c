@@ -80,6 +80,7 @@ int getClockFreqMhz (unsigned ean_hi, unsigned ean_lo)
   case 0x30008694: return 80;
   case 0x30009714: return 80;
   case 0x30010581: return 80;
+  case 0x30012448: return 80;
   default:
     return 0;
   }

@@ -1,4 +1,4 @@
 LIBNAME = libkvamemolib.so
 MAJOR = 1
-MINOR = 4
-BUILD = 5
+MINOR = 5
+BUILD = 3

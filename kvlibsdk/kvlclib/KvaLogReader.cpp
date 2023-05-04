@@ -164,6 +164,23 @@ KvlcStatus KvaLogReader::read_line(char *string, int num)
   return kvlcOK;
 }
 
+// skip ahead filepos by num bytes
+KvlcStatus KvaLogReader::move_fpos(size_t num) {
+  fpos_t pos;
+
+  if (os_fgetpos(infile, &pos)){
+    return kvlcFail;
+  }
+
+  pos.__pos += num;
+
+  if (os_fsetpos(infile, &pos)){
+    return kvlcFail;
+  }
+
+  return kvlcOK;
+}
+
 KvlcStatus KvaLogReader::read_file(char *string, size_t num)
 {
   fpos_t position;

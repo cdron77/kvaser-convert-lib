@@ -71,8 +71,15 @@
 
 uint64_t KvaLogReader_Kme60::toNs(uint64_t ticks) {
   uint64_t ns = 0;
+
   if (hiresTimerFqMHz) {
-    ns = (ticks*1000LL) / hiresTimerFqMHz;
+
+    if (hiresTimerFqMHz == 1000) {
+      ns = ticks;
+    }
+    else {
+      ns = (ticks * 1000LL) / hiresTimerFqMHz;
+    }
   }
   return ns;
 }
@@ -87,6 +94,9 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
   switch (kmeEvent->msgType) {
     case KME60_MSG_CAN:
     {
+      if (checkEventMsgLength(kmeEvent) != kvlcOK) {
+        return kvlcERR_INVALID_LOG_EVENT;
+      }
       logEvent->msg.frame_counter = ++current_frameno;
       logEvent->common.new_data   = true;
       logEvent->common.type       = ILOG_TYPE_MESSAGE;
@@ -107,39 +117,11 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
 
       logEvent->common.time64 = toNs(ticks);
 
-      if (kmeEvent->canMsg.flags & MSGFLAG_OVERRUN) {
-        logEvent->msg.flags |= canMSGERR_HW_OVERRUN;
-        logEvent->msg.flags |= canMSGERR_SW_OVERRUN;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_NERR) {
-          logEvent->msg.flags |= canMSG_NERR;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_WAKEUP) {
-          logEvent->msg.flags |= canMSG_WAKEUP;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_REMOTE_FRAME) {
-        logEvent->msg.flags |= canMSG_RTR;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_ERROR_FRAME) {
-        logEvent->msg.flags |= canMSG_ERROR_FRAME;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_TX) {
-        logEvent->msg.flags |= canMSG_TXACK;
-      }
-
-      if (kmeEvent->canMsg.flags & MSGFLAG_BRS) {
-        logEvent->msg.flags |= canFDMSG_BRS;
-      }
-      if (kmeEvent->canMsg.flags & MSGFLAG_ESI) {
-        logEvent->msg.flags |= canFDMSG_ESI;
-      }
-
+      logEvent->msg.flags = kmeEvent->canMsg.flags;
       {
         int dataLen;
 
         if (kmeEvent->canMsg.flags & canFDMSG_FDF) {
-          logEvent->msg.flags |= canFDMSG_FDF;
-
           dataLen = dlcToNumBytesFD(kmeEvent->canMsg.dlc);
         } else {
           dataLen = MIN(kmeEvent->canMsg.dlc, 8);
@@ -152,6 +134,9 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
     }
     case KME60_MSG_CLOCK:
     {
+      if (checkEventMsgLength(kmeEvent) != kvlcOK) {
+        return kvlcERR_INVALID_LOG_EVENT;
+      }
       logEvent->common.new_data = true;
       logEvent->common.type = ILOG_TYPE_RTC;
 
@@ -175,6 +160,9 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
     }
     case KME60_MSG_VERSION:
     {
+      if (checkEventMsgLength(kmeEvent) != kvlcOK) {
+        return kvlcERR_INVALID_LOG_EVENT;
+      }
       logEvent->common.new_data = true;
       logEvent->common.type = ILOG_TYPE_VERSION;
       logEvent->ver.fwMajor = (kmeEvent->verMsg.firmwareVersion & 0xff000000) >> 24;
@@ -190,6 +178,9 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
     }
     case KME60_MSG_TRIGGER:
     {
+      if (checkEventMsgLength(kmeEvent) != kvlcOK) {
+        return kvlcERR_INVALID_LOG_EVENT;
+      }
       logEvent->common.new_data = true;
       logEvent->common.type = ILOG_TYPE_TRIGGER;
       logEvent->trig.active = true;
@@ -224,6 +215,37 @@ KvlcStatus KvaLogReader_Kme60::interpret_event(Kme60Msg_t *kmeEvent,
 
   return kvlcOK;
 }
+KvlcStatus KvaLogReader_Kme60::checkEventMsgLength(Kme60Msg_t *kmeEvent) {
+  unsigned int msgBytes;
+
+  msgBytes = kmeEvent->msgLen - sizeof(Kme60_MsgHead_t);
+  if (msgBytes <= 0 || msgBytes > sizeof(*kmeEvent)) {
+    PRINTF(("Error: Got msgType=%d and invalid cmdLen=%d.",
+      kmeEvent->msgType,
+      kmeEvent->msgLen));
+    return kvlcERR_INVALID_LOG_EVENT;
+  }
+
+  return kvlcOK;
+}
+
+bool KvaLogReader_Kme60::should_flush(Kme60Msg_t *kmeEvent){
+
+  switch(kmeEvent->msgType){
+    case KME60_MSG_IMU:
+    case KME60_MSG_NMEA:
+    case KME60_MSG_PROPRIETARY:
+    case KME60_MSG_EVENT:
+    case KME60_MSG_METADATA:
+    {
+      return true;
+      break;
+    }
+    default:
+      return false;
+  }
+}
+
 
 KvlcStatus KvaLogReader_Kme60::read_row(imLogData *logEvent) {
   unsigned int msgBytes;
@@ -235,23 +257,23 @@ KvlcStatus KvaLogReader_Kme60::read_row(imLogData *logEvent) {
   }
 
   // Read the event head with msgType and msgLen
-  //status = read_file((char *)&current_kmeEvent, sizeof(hcmdLogHead));
   status = read_file((char *)&current_kmeEvent, sizeof(Kme60_MsgHead_t));
   if (kvlcOK != status) {
     return status;
   }
-
-  //msgBytes = current_kmeEvent.msgLen - sizeof(hcmdLogHead);
   msgBytes = current_kmeEvent.msgLen - sizeof(Kme60_MsgHead_t);
-  if (msgBytes <= 0 || msgBytes > sizeof(current_kmeEvent)) {
-    PRINTF(("Error: Got msgType=%d and invalid cmdLen=%d.",
-	    current_kmeEvent.msgType,
-	    current_kmeEvent.msgLen));
-    return kvlcERR_INVALID_LOG_EVENT;
-  }
 
   // Read the rest of the event
-  //status = read_file((char *)&current_kmeEvent + sizeof(hcmdLogHead), msgBytes);
+  if (should_flush(&current_kmeEvent)) {
+
+    status = move_fpos(msgBytes);
+
+    PRINTF(("Unsuported kme60 event %d", current_kmeEvent.msgType));
+    logEvent->common.new_data = false;            // signal skip to kvmlib
+    logEvent->common.type = ILOG_TYPE_EXTERNAL;   // signal skip to kvlclib
+    return kvlcOK;
+  }
+
   status = read_file((char *)&current_kmeEvent + sizeof(Kme60_MsgHead_t), msgBytes);
 
   if (kvlcOK != status) {
