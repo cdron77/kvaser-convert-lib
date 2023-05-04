@@ -488,8 +488,14 @@ int vCanDispatchEvent (VCanChanData *chd, VCAN_EVENT *e)
         if (fileNodePtr->modeNoTxEcho) {
           continue;
         }
+
         // Other receivers (virtual bus extension) should not see the TXACK.
         msg_flags &= ~VCAN_MSG_FLAG_TXACK;
+
+        // if we want them, enable txack on non sending hnd
+        if ((fileNodePtr->modeTx != TXACK_DISABLED) && (fileNodePtr->modeTxLocal)) {
+          msg_flags |= VCAN_MSG_FLAG_LOCAL_TXACK;
+        }
 
         // dont report any SSM NACK's on other handles (on same channel).
         if (msg_flags & VCAN_MSG_FLAG_SSM_NACK) {
@@ -796,6 +802,7 @@ int vCanOpen (struct inode *inode, struct file *filp)
   openFileNodePtr->chanData           = chanData;
   openFileNodePtr->modeTx             = 0;
   openFileNodePtr->modeTxRq           = 0;
+  openFileNodePtr->modeTxLocal        = 0;
   openFileNodePtr->modeNoTxEcho       = 0;
   openFileNodePtr->writeTimeout       = -1;
   openFileNodePtr->transId            = atomic_read(&chanData->chanId);
@@ -2345,6 +2352,25 @@ static inline int vcan_ioctl_set_txack(VCanOpenFileNode *fileNodePtr, int *arg)
   return 0;
 }
 
+static inline int vcan_ioctl_set_local_txack(VCanOpenFileNode *fileNodePtr, uint32_t  *arg)
+{
+  int val;
+
+  ArgPtrIn(sizeof(uint32_t ));
+  copy_from_user_ret(&val, arg, sizeof(uint32_t ), -EFAULT);
+  DEBUGPRINT(3, (TXT("KVASER Try to set VCAN_IOC_SET_LOCAL_TXACK to %d, was %d\n"),
+                 val, fileNodePtr->modeTxLocal));
+  if (val >= TXACK_OFF && val <= TXACK_ON) {
+    fileNodePtr->modeTxLocal = val;
+    DEBUGPRINT(3, (TXT("KVASER setting VCAN_IOC_SET_LOCAL_TXACK to %d\n"),
+                   fileNodePtr->modeTxLocal));
+  } else {
+    return -EFAULT;
+  }
+
+  return 0;
+}
+
 static inline int vcan_ioctl_set_txrq(VCanOpenFileNode *fileNodePtr, int *arg)
 {
   int val;
@@ -2519,6 +2545,8 @@ static inline int kcan_ioctl_objbuf_allocate(VCanChanData *chd,
         *vStat = hwIf->objbufAlloc(chd, OBJBUF_TYPE_PERIODIC_TX,
                                    &io.buffer_number);
       }
+    } else {
+      *vStat = VCAN_STAT_NOT_IMPLEMENTED;
     }
   }
 
@@ -3509,6 +3537,10 @@ static int ioctl_blocking (VCanOpenFileNode *fileNodePtr,
     ret = vcan_ioctl_set_txack(fileNodePtr, (int *)arg);
     break;
   //------------------------------------------------------------------
+  case VCAN_IOC_SET_LOCAL_TXACK:
+    ret = vcan_ioctl_set_local_txack(fileNodePtr, (uint32_t *)arg);
+    break;
+  //------------------------------------------------------------------
   case VCAN_IOC_SET_TXRQ:
     ret = vcan_ioctl_set_txrq(fileNodePtr, (int *)arg);
     break;
@@ -3879,8 +3911,10 @@ static int kvaser_proc_open(struct inode* inode, struct file* file)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
   VCanHWInterface *hwIf = PDE(inode)->data;
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
   VCanHWInterface *hwIf = PDE_DATA(inode);
+#else
+  VCanHWInterface *hwIf = pde_data(inode);
 #endif
   return single_open(file, hwIf->procRead, NULL);
 }

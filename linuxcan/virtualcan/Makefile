@@ -68,6 +68,13 @@
 # module name
 KV_MODULE_NAME = kvvirtualcan
 
+# Number of virtual channels
+ifeq ($(KV_VIRT_CHANNELS),)
+  KV_VIRT_CHANNELS = 2
+endif
+
+ccflags-y += -DKV_VIRT_CHANNELS=$(KV_VIRT_CHANNELS)
+
 # Includes
 INCLUDES := $(src)/../include/
 

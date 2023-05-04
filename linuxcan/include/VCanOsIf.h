@@ -72,6 +72,10 @@
 #define _VCAN_OS_IF_H_
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#include <linux/bitops.h>
+#pragma GCC diagnostic pop
 #include <linux/poll.h>
 #include <asm/atomic.h>
 #include <linux/types.h>
@@ -212,8 +216,8 @@ typedef struct VCanChanData
     unsigned char            driverMode;
     unsigned char            analyzerAttached;
     int                      linMode;  // _STATUS_LIN_MASTER or _STATUS_LIN_SLAVE
-		  
-		  
+
+
     /* Transmit buffer */
     CAN_MSG                  txChanBuffer[TX_CHAN_BUF_SIZE];
     Queue                    txChanQueue;
@@ -365,12 +369,13 @@ typedef struct VCanOpenFileNode {
     struct VCanOpenFileNode *next;
     uint8_t                  init_access;
     uint64_t                 time_start_10usec;
-	
-	  // for printf from scripts	
+
+    // for printf from scripts
     unsigned int  message_subscriptions_mask;
     unsigned int  debug_subscriptions_mask;
     unsigned int  error_subscriptions_mask;
-    unsigned int  printf_queue_overrun;	
+    unsigned int  printf_queue_overrun;
+    unsigned  int            modeTxLocal;
 } VCanOpenFileNode;
 
 

@@ -982,6 +982,7 @@ static canStatus vCanReadInternal (HandleData *hData, unsigned int iotcl_cmd,
   int ret;
   VCAN_IOCTL_READ_T ioctl_read_arg;
   VCAN_EVENT msg;
+  memset(&msg, 0, sizeof(msg));
 
   ioctl_read_arg.msg = &msg;
   ioctl_read_arg.read = readOpt;
@@ -1030,6 +1031,9 @@ static canStatus vCanReadInternal (HandleData *hData, unsigned int iotcl_cmd,
       } else {
         if (msg.tagData.msg.flags & VCAN_MSG_FLAG_TXACK) {
           flags |= canMSG_TXACK;
+        }
+        if (msg.tagData.msg.flags & VCAN_MSG_FLAG_LOCAL_TXACK) {
+          flags |= canMSG_LOCAL_TXACK;
         }
       }
 
@@ -1553,7 +1557,7 @@ static canStatus vCanWriteInternal(HandleData *hData, long id, void *msgPtr,
   unsigned int nbytes;
   unsigned int dlcFD;
 
-  msg.flags = 0;
+  memset(&msg, 0, sizeof(msg));
 
   if      (flag & canMSG_STD) sendExtended = 0;
   else if (flag & canMSG_EXT) sendExtended = 1;
@@ -2271,6 +2275,16 @@ static canStatus vCanIoCtl(HandleData *hData, unsigned int func,
     }
 
     if (ioctl(hData->fd, VCAN_IOC_GET_TXACK, buf)) {
+      return errnoToCanStatus(errno);
+    }
+    break;
+  case canIOCTL_SET_LOCAL_TXACK:
+    // buf points at a uint32_t which contains 0/1 to turn local TXACKs on/off
+    if (check_args (buf, buflen, sizeof (uint32_t), ERROR_WHEN_NEQ)) {
+      return canERR_PARAM;
+    }
+
+    if (ioctl(hData->fd, VCAN_IOC_SET_LOCAL_TXACK, buf)) {
       return errnoToCanStatus(errno);
     }
     break;

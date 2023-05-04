@@ -63,6 +63,10 @@
 
 // Linux USBcanII driver
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#include <linux/bitops.h>
+#pragma GCC diagnostic pop
 #include <linux/version.h>
 #include <linux/usb.h>
 #include <linux/types.h>
@@ -448,8 +452,12 @@ static int usbcan_rx_thread (void *context)
 
   DEBUGPRINT(3, (TXT("rx thread Ended - finalised\n")));
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
   module_put(THIS_MODULE);
   do_exit(result);
+#else
+  module_put_and_kthread_exit(result);
+#endif
 
   return result;
 } // _rx_thread
