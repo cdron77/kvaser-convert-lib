@@ -102,6 +102,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#ifdef WINAPI
+#undef WINAPI
+#endif
 #define WINAPI
 
 #include "kvaDbLib.h"

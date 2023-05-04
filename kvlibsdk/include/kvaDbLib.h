@@ -90,6 +90,9 @@
  * \ingroup grp_kvadb
  */
 
+#ifdef WINAPI
+#undef WINAPI
+#endif
 #define WINAPI
 
 #ifdef __cplusplus
