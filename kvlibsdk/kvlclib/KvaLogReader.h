@@ -78,6 +78,7 @@ class KvaLogReader {
     int64_t get_file_size(const char *filename);
     KvlcStatus read_file(char *string, size_t num);
     KvlcStatus read_line(char *string, int num);
+    KvlcStatus move_fpos(size_t num);
     time_uint64 start_of_measurement64;
     time_uint64 last_clock_event;
     time_uint64 first_timestamp;
