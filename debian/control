@@ -1,0 +1,37 @@
+Source: kvaser-convert-lib
+Priority: optional
+Maintainer: Davide Rondini <cdron77@drondini.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.0
+Section: libs
+Homepage: https://github.com/cdron77/kvaser-convert-lib
+#Vcs-Browser: https://salsa.debian.org/debian/kvaser-convert-lib
+#Vcs-Git: https://salsa.debian.org/debian/kvaser-convert-lib.git
+Rules-Requires-Root: no
+
+Package: kvaser-convert-lib-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: kvaser-convert-lib (= ${binary:Version}), ${misc:Depends}
+Description: Kvaser SDK conversion library - dev files
+ Build of Kvaser SDK conversion library, which implements
+ data format conversion between CAN bus data acquisitions.
+ This contains development header files.
+
+Package: kvaser-convert-lib-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: Kvaser SDK conversion library - documentation
+ Build of Kvaser SDK conversion library, which implements
+ data format conversion between CAN bus data acquisitions.
+ This contains HTML documentation.
+
+Package: kvaser-convert-lib
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Kvaser SDK conversion library
+ Build of Kvaser SDK conversion library, which implements
+ data format conversion between CAN bus data acquisitions.

@@ -1,0 +1,13 @@
+The Debian Package kvaser-convert-lib
+----------------------------
+
+This project is based on Kvaser CANLib SDK.
+Original source is available at https://www.kvaser.com/download/.
+
+The project goals are:
+
+- Maintain a version which is buildable both on Linux (using gcc as compiler) and Windows (using MinGW as compiler).
+- Build of deb packages for Debian-based distributions.
+- Keep up to date with upstream code provided by Kvaser, but with git tracked source (source is currently only distributed as tarball).
+
+ -- Davide Rondini <cdron77@drondini.com>  Mon, 08 May 2023 10:01:11 +0200

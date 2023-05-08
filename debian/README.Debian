@@ -1,0 +1,8 @@
+kvaser-convert-lib for Debian
+----------------------------
+
+Debian packaging files are maintained in this project:
+https://github.com/cdron77/kvaser-convert-lib
+Original upstream does not include debian/ directory.
+
+ -- Davide Rondini <cdron77@drondini.com>  Mon, 08 May 2023 10:01:11 +0200

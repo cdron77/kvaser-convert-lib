@@ -30,7 +30,7 @@ canlib:
 	@cd ./linuxcan; $(MAKE) canlib
 
 kvlclib:
-	CFLAGS="-I$(PWD)/linuxcan/include -DOPENSSL_API_COMPAT=0x10100000L" $(MAKE) -C kvlibsdk kvlclib
+	CFLAGS="-I$(CURDIR)/linuxcan/include -DOPENSSL_API_COMPAT=0x10100000L" $(MAKE) -C kvlibsdk kvlclib
 
 clean:
 	$(MAKE) -C linuxcan clean
@@ -43,8 +43,8 @@ install_canlib: canlib
 	mkdir -p $(DESTDIR)/$(PREFIX)/lib
 	mkdir -p $(DESTDIR)/$(PREFIX)/include
 	install -m 644 linuxcan/canlib/$(LIBRARY_CAN) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_CAN)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_CAN) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_CAN)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_CAN) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_CAN)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_CAN) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_CAN)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_CAN) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_CAN)
 	install -m 644 linuxcan/include/canlib.h $(DESTDIR)/$(PREFIX)/include
 	install -m 644 linuxcan/include/canstat.h $(DESTDIR)/$(PREFIX)/include
 	install -m 644 linuxcan/include/obsolete.h $(DESTDIR)/$(PREFIX)/include
@@ -57,8 +57,8 @@ install_kvadblib: kvlclib
 	mkdir -p $(DESTDIR)/$(PREFIX)/include
 	# Install kvadblib
 	install  -m 644 kvlibsdk/kvadblib/so.ndb/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVADB)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVADB)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVADB)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVADB) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVADB)
 	install -m 644 kvlibsdk/include/kvaDbLib.h $(DESTDIR)/$(PREFIX)/include
 
 install_kvlclib: kvlclib install_kvadblib
@@ -67,9 +67,9 @@ install_kvlclib: kvlclib install_kvadblib
 	mkdir -p $(DESTDIR)/$(PREFIX)/include
 	# Install kvlclib
 	install  -m 644 kvlibsdk/kvlclib/so.ndb/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVLC)
-	ln -sf $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVLC)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(LIBNAME_KVLC)
+	ln -sfr $(DESTDIR)/$(PREFIX)/lib/$(LIBRARY_KVLC) $(DESTDIR)/$(PREFIX)/lib/$(SONAME_KVLC)
 	install -m 644 kvlibsdk/include/kvlclib.h $(DESTDIR)/$(PREFIX)/include
-	
+
 
 install: install_canlib install_kvlclib

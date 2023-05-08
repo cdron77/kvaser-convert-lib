@@ -1,0 +1,5 @@
+kvaser-convert-lib (5.40.102) unstable; urgency=medium
+
+  * Initial Release of deb package, based ok Kvaser code version 5.40.102.
+
+ -- Davide Rondini <cdron77@drondini.com>  Mon, 08 May 2023 10:03:12 +0200
