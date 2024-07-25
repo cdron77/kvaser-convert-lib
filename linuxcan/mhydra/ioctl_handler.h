@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -68,10 +68,7 @@
 
 #include "VCanOsIf.h"
 
-
-int mhydra_special_ioctl_handler(VCanOpenFileNode *fileNodePtr, unsigned int ioctl_cmd, unsigned long arg);
-
-
-
+int mhydra_special_ioctl_handler(VCanOpenFileNode *fileNodePtr, unsigned int ioctl_cmd,
+                                 unsigned long arg);
 
 #endif // _SPECIAL_IOCTL_H

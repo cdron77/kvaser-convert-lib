@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -65,70 +65,41 @@
 
 MODNAME=mhydra
 DEPMOD=`which depmod`
-UDEVCTRL=`which udevcontrol`
-UDEVADM=`which udevadm`
-UDEVD=`which udevd`
+KERNEL_VER=`uname -r` # Kernel version at install time
+SOCKETCAN_DRIVER=kvaser_usb
+MODPROBE_DIR=/etc/modprobe.d
+BLACKLIST_FILE=$MODPROBE_DIR/blacklist-$SOCKETCAN_DRIVER.conf
 
-# Determine wether or not this is called by DKMS
+# Determine whether or not this is called by DKMS
 DKMS_HOOK=0
 if [ "$1" = "dkms-install" -o "$1" = "dkms-load" ]; then
   DKMS_HOOK=1
 fi
 
 if [ $DKMS_HOOK -eq 0 ]; then
-  install -D -m 644 $MODNAME.ko /lib/modules/`uname -r`/kernel/drivers/usb/misc/$MODNAME.ko
+  install -d -m 755 /lib/modules/$KERNEL_VER/kernel/drivers/usb/misc/
+  install -m 644 $MODNAME.ko /lib/modules/$KERNEL_VER/kernel/drivers/usb/misc/$MODNAME.ko
   if [ "$?" -ne 0 ] ; then
     exit 1
   fi
 fi
-install -m 755 $MODNAME.sh /usr/sbin/
-if [ "$?" -ne 0 ] ; then
-  exit 1
-fi
-install -m 644 ../10-kvaser.rules /etc/udev/rules.d
-if [ "$?" -ne 0 ] ; then
-  exit 1
-fi
 
-if [ -z $UDEVD ] ; then
-  $UDEVADM control --reload-rules ;
-else
-  if [ `udevd --version` -lt 128 ] ; then
-    $UDEVCTRL reload_rules ;
-  else
-    $UDEVADM control --reload-rules ;
-  fi
+# Remove previously installed obsolete driver script, modprobe config and
+# udev rules
+rm -f /usr/sbin/$MODNAME.sh $MODPROBE_DIR/kvaser.conf /etc/udev/rules.d/10-kvaser.rules
+
+modprobe -r $MODNAME 2> /dev/null
+rm -f /dev/$MODNAME[0-9]*
+
+if lsmod | grep $SOCKETCAN_DRIVER ; then
+  modprobe -r $SOCKETCAN_DRIVER
 fi
 
-echo Checking for loaded SocketCAN driver for Kvaser USB devices.
-if lsmod | grep kvaser_usb ; then
-  echo Unloading SocketCAN driver...
-  modprobe -r kvaser_usb
-else
-  echo SocketCAN driver not found.
+if [ ! -f $BLACKLIST_FILE ] ; then
+  echo "Blacklisting SocketCAN driver $SOCKETCAN_DRIVER to prevent it from auto-loading."
+  install -m 755 -d $MODPROBE_DIR
+  echo "blacklist $SOCKETCAN_DRIVER" > $BLACKLIST_FILE
 fi
-
-echo Blacklisting SocketCAN Kvaser USB driver to prevent it from auto-loading.
-
-if [ -f /etc/modprobe.conf ] ; then
-  # CentOS/Redhat/RHEL/Fedora Linux...
-  CONF=/etc/modprobe.conf
-  BLACKLIST="alias     kvaser_usb   /dev/null"
-else
-  # Debian/Ubuntu Linux
-  CONF=/etc/modprobe.d/kvaser.conf
-  BLACKLIST="blacklist kvaser_usb"
-  if [ ! -f $CONF ] ; then
-    touch $CONF
-  fi
-fi
-
-# Since it conflicts with mhydra, we disable kvaser_usb (SocketCAN).
-grep -v "^${BLACKLIST}"  < $CONF                         > newconf
-echo "${BLACKLIST}"                                     >> newconf
-
-cat newconf > $CONF
-rm newconf
 
 $DEPMOD -a
 if [ "$?" -ne 0 ] ; then

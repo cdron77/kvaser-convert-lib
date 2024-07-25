@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -61,10 +61,7 @@
 ** -----------------------------------------------------------------------------
 */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
 #include <linux/bitops.h>
-#pragma GCC diagnostic pop
 #include <linux/slab.h>
 #include "ioctl_handler.h"
 #include "debug.h"
@@ -80,32 +77,39 @@
 // modules at load time with a 'pc_debug=#' option to insmod.
 //
 #ifdef MHYDRA_DEBUG
-#   define DEBUGPRINT(n, arg)     if (pc_debug >= (n)) { DEBUGOUT(n, arg); }
+#define DEBUGPRINT(n, arg) \
+    if (pc_debug >= (n)) { \
+        DEBUGOUT(n, arg);  \
+    }
 #else
-#   define DEBUGPRINT(n, arg)     if ((n) == 1) { DEBUGOUT(n, arg); }
+#define DEBUGPRINT(n, arg) \
+    if ((n) == 1) {        \
+        DEBUGOUT(n, arg);  \
+    }
 #endif /* MHYDRA_DEBUG */
 
 //----------------------------------------------------------------------------
-int mhydra_special_ioctl_handler(VCanOpenFileNode *fileNodePtr, unsigned int ioctl_cmd, unsigned long arg)
+int mhydra_special_ioctl_handler(VCanOpenFileNode *fileNodePtr, unsigned int ioctl_cmd,
+                                 unsigned long arg)
 {
-  int            status = VCAN_STAT_NOT_IMPLEMENTED;
-  VCanChanData   *chd   = fileNodePtr->chanData;
-  VCanCardData   *ccd   = chd->vCard;
-  MhydraCardData *hwdata;
+    int status = VCAN_STAT_NOT_IMPLEMENTED;
+    VCanChanData *chd = fileNodePtr->chanData;
+    VCanCardData *ccd = chd->vCard;
+    MhydraCardData *hwdata;
 
-  if ((chd == NULL) || (ccd == NULL)) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-  hwdata = (MhydraCardData*) ccd->hwCardData;
-  if (hwdata == NULL) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if ((chd == NULL) || (ccd == NULL)) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+    hwdata = (MhydraCardData *)ccd->hwCardData;
+    if (hwdata == NULL) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  DEBUGPRINT(3, ("mhydra_special_ioctl_handler (%u)\n", ioctl_cmd));
-  switch (ioctl_cmd) {
+    DEBUGPRINT(3, ("mhydra_special_ioctl_handler (%u)\n", ioctl_cmd));
+    switch (ioctl_cmd) {
     default:
-      DEBUGPRINT(1, ("mhydra_special_ioctl_handler unk: %u\n", ioctl_cmd));
-      status = VCAN_STAT_NOT_IMPLEMENTED;
-  }
-  return status;
+        DEBUGPRINT(1, ("mhydra_special_ioctl_handler unk: %u\n", ioctl_cmd));
+        status = VCAN_STAT_NOT_IMPLEMENTED;
+    }
+    return status;
 }

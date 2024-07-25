@@ -1,5 +1,5 @@
 /*
-**             Copyright 2019 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -61,7 +61,7 @@
 ** -----------------------------------------------------------------------------
 */
 
-// Linux Mhydra driver routines for printf and trp 
+// Linux Mhydra driver routines for printf and trp
 
 #ifndef _MHYDRA_HW_IF_TRP_H_
 #define _MHYDRA_HW_IF_TRP_H_
@@ -79,16 +79,16 @@
 #define DM_ENTITY_MASK_HAS_ID    0x0f000000
 #define DM_ENTITY_MASK_ID        0x000000ff
 #define DM_GROUP(n)              (0x00400000 | (n << 16))
-#define DM_LEVEL(n)              (0x00001000 | (n <<  8))
+#define DM_LEVEL(n)              (0x00001000 | (n << 8))
 #define DM_ALL                   0xff
 
-int mhydra_device_messages_subscription(VCanOpenFileNode *fileNodePtr, KCAN_IOCTL_DEVICE_MESSAGES_SUBSCRIPTION_T *sc);
+int mhydra_device_messages_subscription(VCanOpenFileNode *fileNodePtr,
+                                        KCAN_IOCTL_DEVICE_MESSAGES_SUBSCRIPTION_T *sc);
 
 void printf_msg(VCanCardData *vCard, hydraHostCmd *cmd);
 
-void fatal_msg (VCanCardData *vCard, hydraHostCmd *tmpCmd);
+void fatal_msg(VCanCardData *vCard, hydraHostCmd *tmpCmd);
 
-void trp_msg (VCanCardData *vCard, hydraHostCmd *tmpCmd);
+void trp_msg(VCanCardData *vCard, hydraHostCmd *tmpCmd);
 
-
-#endif  /* _MHYDRA_HW_IF_TRP_H_ */
+#endif /* _MHYDRA_HW_IF_TRP_H_ */
