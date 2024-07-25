@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -79,6 +79,7 @@ ifndef KV_NO_PCI
 DRIVERS   += pcican
 DRIVERS   += pcican2
 DRIVERS   += pciefd
+UTILS     += kvflash
 endif
 
 #---------------------------------
@@ -87,7 +88,7 @@ KV_DEBUG_ON ?= 0
 export KV_DEBUG_ON
 
 #---------------------------------
-SUBDIRS   = $(USERLIBS) $(DRIVERS)
+SUBDIRS   = $(USERLIBS) $(DRIVERS) $(UTILS)
 
 reverse=$(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstword $(1))
 
@@ -170,6 +171,9 @@ pciefd: common
 kvflash: canlib
 	$(MAKE) -C kvflash
 
+kvflash-mmap: canlib
+	$(MAKE) -C kvflash-mmap
+
 install:
 	@for dir in $(DRIVERS) ; do cd $$dir; echo Installing $$dir;./installscript.sh || exit 1; cd ..; done
 	$(MAKE) -C canlib install
@@ -179,15 +183,11 @@ uninstall:
 	@for dir in $(call reverse,$(DRIVERS)) ; do cd $$dir; echo Uninstalling $$dir;./uninstallscript.sh || exit 1; cd ..; done
 	$(MAKE) -C canlib uninstall
 	$(MAKE) -C linlib uninstall
-	rm -f /etc/udev/rules.d/10-kvaser.rules
-	rm -f /etc/modules-load.d/kvaser.conf
 
 purge:
 	@for dir in $(call reverse,$(DRIVERS)) ; do cd $$dir; echo Uninstalling $$dir;./uninstallscript.sh -p || exit 1; cd ..; done
 	$(MAKE) -C canlib uninstall
 	$(MAKE) -C linlib uninstall
-	rm -f /etc/udev/rules.d/10-kvaser.rules
-	rm -f /etc/modules-load.d/kvaser.conf
 
 load:
 	@for dir in $(DRIVERS) ; do cd $$dir; echo Installing $$dir;./installscript.sh load || exit 1; cd ..; done
@@ -285,7 +285,7 @@ ifdef KV_NO_PCI
 else
 	cp dkms/dkms.conf $(KV_DKMS_TMP_SRC_LINUXCAN)/dkms.conf
 endif
-	cp dkms/Makefile 10-kvaser.rules dkms/kv_dkms_script.sh moduleinfo.txt config.mak README COPYING COPYING.BSD COPYING.GPL $(KV_DKMS_TMP_SRC_LINUXCAN)/.
+	cp dkms/Makefile dkms/kv_dkms_script.sh moduleinfo.txt config.mak README COPYING COPYING.BSD COPYING.GPL $(KV_DKMS_TMP_SRC_LINUXCAN)/.
 	cp -r include common $(KV_DKMS_TMP_SRC_LINUXCAN)/.
 	sed -i 's/^KV_INSTALL_TARGET=none/KV_INSTALL_TARGET=$(KV_DKMS_INSTALL_TARGET)/g' $(KV_DKMS_TMP_SRC_LINUXCAN)/dkms.conf
 	fakeroot dkms add --verbose --sourcetree "$(CURDIR)/$(KV_DKMS_TMP_SRC)" --dkmstree "$(CURDIR)/$(KV_DKMS_TMP_DKMSTREE)" $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)
@@ -301,7 +301,7 @@ dkms: print_versions_start $(USERLIBS) $(KV_DKMS_TARBALL)
 dkms_install dkms_load: $(KV_DKMS_TARBALL)
 	$(MAKE) -C canlib install
 	$(MAKE) -C linlib install
-	dkms status $(KV_DKMS_MODULE) | cut -d',' -f 2 | cut -d':' -f 1 | xargs -I theversion dkms remove $(KV_DKMS_MODULE)/theversion --all
+	dkms status $(KV_DKMS_MODULE) | sed 's|,|/|g' | cut -d'/' -f 2 | cut -d':' -f 1 | xargs -I theversion dkms remove $(KV_DKMS_MODULE)/theversion --all
 	dkms add $(KV_DKMS_TARBALL)
 	dkms install $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) -k $(KV_KERNEL_VERSION)
 	dkms status
@@ -311,7 +311,6 @@ dkms_uninstall:
 	$(MAKE) -C linlib uninstall
 	dkms status
 	-dkms remove $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) --all
-	rm -f /etc/udev/rules.d/10-kvaser.rules
-	rm -f /etc/modules-load.d/kvaser.conf
 	rm -rf /usr/src/$(KV_DKMS_MODULE)-$(KV_DKMS_VERSION)
 	dkms status
+

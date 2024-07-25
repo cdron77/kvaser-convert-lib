@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -79,6 +79,8 @@
  -----------+------------------------+-------------
   miniPCIe    Mini PCI Express HS v2   pciefd
               Mini PCI Express 2xHS v2
+              Mini PCI Express 1xCAN v3
+              Mini PCI Express 2xCAN v3
  -----------+------------------------+-------------
   USB         Eagle                    mhydra
               BlackBird v2
@@ -112,6 +114,9 @@
   PCIe        PCIEcan HS v2            pciefd
               PCIEcan 2xHS v2
               PCIEcan 4xHS
+              PCIEcan 1xCAN v3
+              PCIEcan 2xCAN v3
+              PCIEcan 4xCAN v2
  -----------+------------------------+-------------
   PCI         PC104                    pcicanII
               PC104+
@@ -124,7 +129,7 @@ System requirements:
 
 * Linux 2.6.29 or later
 * Header files and compiler for kernel compilation.
-  In Ubuntu 14.04 e.g. this is accomplished by issuing the command:
+  In Ubuntu 22.04 e.g. this is accomplished by issuing the command:
 
     "sudo apt-get install build-essential"
 
@@ -134,6 +139,11 @@ System requirements:
 
   NOTE! Having versions of the linux headers installed other than that of
         the currently running kernel may cause conflicts and faulty drivers.
+
+* pkg-config
+  To install pkg-config on Ubuntu:
+
+    "sudo apt-get install pkg-config"
 
 * DKMS if you want to the drivers to be built whenever the kernel is upgraded.
   To install dkms on Ubuntu:
@@ -242,61 +252,34 @@ Installed Files:
 /lib/modules/`uname -r`/kernel/drivers/usb/misc/leaf.ko     (Leaf)
 /lib/modules/`uname -r`/kernel/drivers/usb/misc/mhydra.ko   (Mhydra)
 
-* Module setup
+* SocketCAN module blacklisting
 ----------------------------------
-On CentOS, RedHat, RHEL, Fedora and simlar systems, the following lines are
-added to /etc/modprobe.conf, on Debian, Ubuntu, Trisquel and similar systems
-they are added to /etc/modprobe.d/kvaser.conf.
-
-for PCIEcan:
-
-    alias pciefd kvpciefd
-    install kvpciefd /usr/sbin/pciefd.sh start
-    remove kvpciefd /usr/sbin/pciefd.sh stop
-
-for PCIcan:
-
-    alias pcican kvpcican
-    install kvpcican /usr/sbin/pcican.sh start
-    remove kvpcican /usr/sbin/pcican.sh stop
-
-for PCIcan II:
-
-    alias pcicanII kvpcicanII
-    install kvpcicanII /usr/sbin/pcicanII.sh start
-    remove kvpcicanII /usr/sbin/pcicanII.sh stop
-
-for Virtualcan:
-
-    alias virtualcan kvvirtualcan
-    install kvvirtualcan /usr/sbin/virtualcan.sh start
-    remove kvvirtualcan /usr/sbin/virtualcan.sh stop
-
-In the same files, the following lines are added to blacklist SocketCAN:
-
-    blacklist kvaser_usb
-    blacklist kvaser_pci
-    blacklist kvaser_pciefd
+When installing modules for devices that got SocketCAN support, the
+corresponding SocketCAN module gets blacklisted.
+This is done via config files put in /etc/modprobe.d:
+  /etc/modprobe.d/blacklist-kvaser_pci.conf
+  /etc/modprobe.d/blacklist-kvaser_pciefd.conf
+  /etc/modprobe.d/blacklist-kvaser_usb.conf
 
 * Module loading
 ----------------------------------
-/usr/sbin/pciefd.sh      (start/stop pciefd driver;      by modprobe or manually)
-/usr/sbin/pcican.sh      (start/stop pcican driver;      by modprobe or manually)
-/usr/sbin/pcicanII.sh    (start/stop pcicanII driver;    by modprobe or manually)
-/usr/sbin/virtualcan.sh  (start/stop virtualcan driver;  by modprobe or manually)
-/usr/sbin/usbcanII.sh    (start/stop usbcanII driver;    by udev or manually)
-/usr/sbin/leaf.sh        (start/stop leaf driver;        by udev or manually)
-/usr/sbin/mhydra.sh      (start/stop mhydra driver;      by udev or manually)
+Kvaser USB modules are automatically loaded by the kernel, when a matching
+interface is plugged in.
+
+For PCI based interfaces and virtual devices, the modules needs to be
+loaded manually with modprobe.
+
+Use modprobe -r <module name> to unload modules.
 
 * Module loading at boot
 ----------------------------------
-If the modules are installed with "sudo make load", the virtual and the PCI
-drivers are added to /etc/modules-load.d/kvaser.conf. This will cause the
-modules to be loaded at boot time.
-
-* udev rules
-----------------------------------
-/etc/udev/rules.d/10-kvaser.rules
+If the modules are installed with "sudo make load", one config file is created
+for each non-USB module, in /etc/modules-load.d:
+  /etc/modules-load.d/kvaser-kvpcican.conf
+  /etc/modules-load.d/kvaser-kvpcicanII.conf
+  /etc/modules-load.d/kvaser-kvpciefd.conf
+  /etc/modules-load.d/kvaser-kvvirtualcan.conf
+This will cause the modules to be loaded at boot time.
 
 * Include files for canlib library
 ----------------------------------
@@ -306,8 +289,8 @@ modules to be loaded at boot time.
 * Canlib library and links
 ----------------------------------
 /usr/lib/libcanlib.so
-/usr/lib/libcanlib.so.1.1.0
 /usr/lib/libcanlib.so.1
+/usr/lib/libcanlib.so.1.x.x
 
 * Canlib documentation
 ----------------------------------

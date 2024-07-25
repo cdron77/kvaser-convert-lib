@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -60,10 +60,6 @@
 #
 #  -----------------------------------------------------------------------------
 #
-
-DEPMOD=`which depmod`
-UDEVCTRL=`which udevcontrol`
-UDEVADM=`which udevadm`
 
 GCC_MAJ_VERSION_GTEQ_4 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 4)
 GCC_MAJ_VERSION_GTEQ_5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
@@ -159,7 +155,9 @@ endif
 obj-m := $(KV_MODULE_NAME).o
 $(KV_MODULE_NAME)-objs := $(OBJS)
 
+ifneq ($(KV_MODULE_NAME), kvcommon)
 KBUILD_EXTRA_SYMBOLS = $(KBUILD_EXTMOD)/../common/Module.symvers
+endif
 
 CHECK_LOGFILE = checklog.txt
 
@@ -191,9 +189,10 @@ endif
 clean:
 	@echo --------------------------------------------------------------------
 	@echo "Cleaning $(KV_MODULE_NAME)" $(IS_DEBUG)
-	rm -f $(foreach suffix, o mod.o ko mod.c, $(KV_MODULE_NAME).$(suffix))                \
-	      $(foreach suffix, o.cmd mod.o.cmd ko.cmd, .$(KV_MODULE_NAME).$(suffix))         \
-	      modules.order Module.symvers new_modules.conf .cache.mk                         \
+	rm -f $(foreach suffix, o mod mod.o ko mod.c, $(KV_MODULE_NAME).$(suffix))            \
+	      $(foreach suffix, o.cmd mod.o.cmd ko.cmd mod.cmd, .$(KV_MODULE_NAME).$(suffix)) \
+	      .modules.order.cmd .Module.symvers.cmd .cache.mk                                \
+	      modules.order Module.symvers new_modules.conf                                   \
 	      $(SRCS:%.c=%.o)                                                                 \
 	      $(join $(dir $(SRCS)),$(addprefix .,$(notdir $(patsubst %.c,%.o.cmd,$(SRCS))))) \
 	      $(join $(dir $(SRCS)),$(addprefix .,$(notdir $(patsubst %.c,%.o.d,$(SRCS)))))
