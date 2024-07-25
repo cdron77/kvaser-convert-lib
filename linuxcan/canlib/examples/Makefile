@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -67,6 +67,7 @@ include ../../make/gflags.mk
 
 CC ?= gcc
 CFLAGS = -Wall -Wextra -Werror -O2  -D_REENTRANT $(XTRA_CFLAGS) -I../../include
+CFLAGS += -DLINUX
 LDFLAGS = -L..
 LDLIBS = -lcanlib -lpthread -lm
 OBJS =\
@@ -80,7 +81,9 @@ OBJS =\
 	simplewrite\
 	timedomains\
 	writeloop\
+	canfdwrite_loop\
 	busstat\
+	getch\
 
 ifeq ($(KV_DEBUG_ON),1)
   KV_XTRA_CFLAGS_DEBUG= -D_DEBUG=1 -DDEBUG=1 -O0 -g

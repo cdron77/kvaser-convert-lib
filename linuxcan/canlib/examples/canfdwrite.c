@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -72,114 +72,113 @@
 #include <errno.h>
 #include <unistd.h>
 
-
-static void check(char* id, canStatus stat)
+static void check(char *id, canStatus stat)
 {
-  if (stat != canOK) {
-    char buf[50];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    if (stat != canOK) {
+        char buf[50];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
 static void printUsageAndExit(char *prgName)
 {
-  printf("Usage: '%s <channel>'\n", prgName);
-  exit(1);
+    printf("Usage: '%s <channel>'\n", prgName);
+    exit(1);
 }
 
 static void sighand(int sig, siginfo_t *info, void *ucontext)
 {
-  (void) sig;
-  (void) info;
-  (void) ucontext;
+    (void)sig;
+    (void)info;
+    (void)ucontext;
 }
 
 int main(int argc, char *argv[])
 {
-  canHandle hnd;
-  canStatus stat;
-  int channel;
-  struct sigaction sigact;
+    canHandle hnd;
+    canStatus stat;
+    int channel;
+    struct sigaction sigact;
 
-  if (argc != 2) {
-    printUsageAndExit(argv[0]);
-  }
-
-  {
-    char *endPtr = NULL;
-    errno = 0;
-    channel = strtol(argv[1], &endPtr, 10);
-    if ( (errno != 0) || ((channel == 0) && (endPtr == argv[1])) ) {
-      printUsageAndExit(argv[0]);
+    if (argc != 2) {
+        printUsageAndExit(argv[0]);
     }
-  }
 
-  printf("Sending a CAN FD message on channel %d\n", channel);
+    {
+        char *endPtr = NULL;
+        errno = 0;
+        channel = strtol(argv[1], &endPtr, 10);
+        if ((errno != 0) || ((channel == 0) && (endPtr == argv[1]))) {
+            printUsageAndExit(argv[0]);
+        }
+    }
 
-  /* Use sighand and allow SIGINT to interrupt syscalls */
-  sigact.sa_flags = SA_SIGINFO;
-  sigemptyset(&sigact.sa_mask);
-  sigact.sa_sigaction = sighand;
-  if (sigaction(SIGINT, &sigact, NULL) != 0) {
-    perror("sigaction SIGINT failed");
-    return -1;
-  }
+    printf("Sending a CAN FD message on channel %d\n", channel);
 
-  canInitializeLibrary();
+    /* Use sighand and allow SIGINT to interrupt syscalls */
+    sigact.sa_flags = SA_SIGINFO;
+    sigemptyset(&sigact.sa_mask);
+    sigact.sa_sigaction = sighand;
+    if (sigaction(SIGINT, &sigact, NULL) != 0) {
+        perror("sigaction SIGINT failed");
+        return -1;
+    }
 
-  /* Open channel, set parameters and go on bus */
-  hnd = canOpenChannel(channel, canOPEN_CAN_FD | canOPEN_EXCLUSIVE | canOPEN_REQUIRE_EXTENDED);
-  if (hnd < 0) {
-    printf("canOpenChannel %d", channel);
-    check("", hnd);
-    return -1;
-  }
-  stat = canSetBusParams(hnd, canFD_BITRATE_1M_80P, 0, 0, 0, 0, 0);
-  check("canSetBusParams", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canSetBusParamsFd(hnd, canFD_BITRATE_2M_80P, 0, 0, 0);
-  check("canSetBusParamsFd", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canBusOn(hnd);
-  check("canBusOn", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
+    canInitializeLibrary();
 
-  stat = canWrite(hnd, 10000,
-                  "Kvaser !"
-                  "01234567"
-                  "89ABCDEF"
-                  "abcdefgh"
-                  "ijklmnop"
-                  "qrstuvwx"
-                  "yz@#$-+*"
-                  "01234567",
-                  64, canMSG_EXT | canFDMSG_FDF | canFDMSG_BRS);
-  check("canWrite", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canWriteSync(hnd, 1000);
-  check("canWriteSync", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
+    /* Open channel, set parameters and go on bus */
+    hnd = canOpenChannel(channel, canOPEN_CAN_FD | canOPEN_EXCLUSIVE | canOPEN_REQUIRE_EXTENDED);
+    if (hnd < 0) {
+        printf("canOpenChannel %d", channel);
+        check("", hnd);
+        return -1;
+    }
+    stat = canSetBusParams(hnd, canFD_BITRATE_1M_80P, 0, 0, 0, 0, 0);
+    check("canSetBusParams", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canSetBusParamsFd(hnd, canFD_BITRATE_2M_80P, 0, 0, 0);
+    check("canSetBusParamsFd", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canBusOn(hnd);
+    check("canBusOn", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+
+    stat = canWrite(hnd, 10000,
+                    "Kvaser !"
+                    "01234567"
+                    "89ABCDEF"
+                    "abcdefgh"
+                    "ijklmnop"
+                    "qrstuvwx"
+                    "yz@#$-+*"
+                    "01234567",
+                    64, canMSG_EXT | canFDMSG_FDF | canFDMSG_BRS);
+    check("canWrite", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canWriteSync(hnd, 1000);
+    check("canWriteSync", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
 
 ErrorExit:
 
-  stat = canBusOff(hnd);
-  check("canBusOff", stat);
-  stat = canClose(hnd);
-  check("canClose", stat);
-  stat = canUnloadLibrary();
-  check("canUnloadLibrary", stat);
+    stat = canBusOff(hnd);
+    check("canBusOff", stat);
+    stat = canClose(hnd);
+    check("canClose", stat);
+    stat = canUnloadLibrary();
+    check("canUnloadLibrary", stat);
 
-  return 0;
+    return 0;
 }

@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -74,191 +74,192 @@
 
 static const long bitrate = canBITRATE_1M;
 
-static void check(char* id, canStatus stat)
+static void check(char *id, canStatus stat)
 {
-  if (stat != canOK) {
-    char buf[50];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    if (stat != canOK) {
+        char buf[50];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
-static const char* busStatToStr(const unsigned long flag)
+static const char *busStatToStr(const unsigned long flag)
 {
-  switch (flag) {
+    switch (flag) {
     case canSTAT_ERROR_PASSIVE:
-      return "canSTAT_ERROR_PASSIVE";
+        return "canSTAT_ERROR_PASSIVE";
 
     case canSTAT_BUS_OFF:
-      return "canSTAT_BUS_OFF";
+        return "canSTAT_BUS_OFF";
 
     case canSTAT_ERROR_WARNING:
-      return "canSTAT_ERROR_WARNING";
+        return "canSTAT_ERROR_WARNING";
 
     case canSTAT_ERROR_ACTIVE:
-      return "canSTAT_ERROR_ACTIVE";
+        return "canSTAT_ERROR_ACTIVE";
 
     default:
-      return "";
-  }
+        return "";
+    }
 }
 
-void callback (canNotifyData *nd)
+void callback(canNotifyData *nd)
 {
-  switch (nd -> eventType) {
+    switch (nd->eventType) {
     case canEVENT_STATUS:
-      printf("canEVENT_STATUS\n");
-      printf("busStatus: %s\n", busStatToStr(nd->info.status.busStatus));
-      printf("TXerror  : %u\n", nd->info.status.txErrorCounter);
-      printf("RXerror  : %u\n", nd->info.status.rxErrorCounter);
-      printf("Time     : %lu\n", nd->info.status.time);
-      break;
+        printf("canEVENT_STATUS\n");
+        printf("busStatus: %s\n", busStatToStr(nd->info.status.busStatus));
+        printf("TXerror  : %u\n", nd->info.status.txErrorCounter);
+        printf("RXerror  : %u\n", nd->info.status.rxErrorCounter);
+        printf("Time     : %lu\n", nd->info.status.time);
+        break;
 
     case canEVENT_ERROR:
-      printf("canEVENT_ERROR\n");
-      break;
+        printf("canEVENT_ERROR\n");
+        break;
 
     case canEVENT_TX:
-      printf("canEVENT_TX\n");
-      break;
+        printf("canEVENT_TX\n");
+        break;
 
     case canEVENT_RX:
-      printf("canEVENT_RX\n");
-      break;
-  }
-  return;
+        printf("canEVENT_RX\n");
+        break;
+    }
+    return;
 }
 
-void incBusLoad (int channel, int flags, int load)
+void incBusLoad(int channel, int flags, int load)
 {
-  canHandle handle;
-  unsigned char msg[8] = "Kvaser!";
-  int i, id = 100, dlc = sizeof(msg);
-  canStatus stat = canERR_PARAM;
-  handle  = canOpenChannel(channel, flags);
-  if (handle < 0) {
-    check("canOpenChannel", handle);
-    return;
-  }
-  stat = canBusOff(handle);
-  check("canBusOff", stat);
-  stat = canSetBusParams(handle, bitrate, 0, 0, 0, 0, 0);
-  check("canSetBusParams", stat);
-  canBusOn(handle);
-  for (i = 0; i < load; i++) {
-    stat = canWrite(handle, id, &msg, dlc, 0);
-    check("canWrite", stat);
-  }
-  stat = canWriteWait(handle, id, &msg, dlc, 0, -1);
-  check("canWriteWait", stat);
-  canBusOff(handle);
-  canClose(handle);
+    canHandle handle;
+    unsigned char msg[8] = "Kvaser!";
+    int i, id = 100, dlc = sizeof(msg);
+    canStatus stat = canERR_PARAM;
+    handle = canOpenChannel(channel, flags);
+    if (handle < 0) {
+        check("canOpenChannel", handle);
+        return;
+    }
+    stat = canBusOff(handle);
+    check("canBusOff", stat);
+    stat = canSetBusParams(handle, bitrate, 0, 0, 0, 0, 0);
+    check("canSetBusParams", stat);
+    canBusOn(handle);
+    for (i = 0; i < load; i++) {
+        stat = canWrite(handle, id, &msg, dlc, 0);
+        check("canWrite", stat);
+    }
+    stat = canWriteWait(handle, id, &msg, dlc, 0, -1);
+    check("canWriteWait", stat);
+    canBusOff(handle);
+    canClose(handle);
 }
 
 void printBusStatistics(canBusStatistics *pbstat)
 {
-  if (!pbstat) return;
-  printf("-----------------\n");
-  printf("stdData = %lu\n", pbstat->stdData);
-  printf("stdRemote = %lu\n", pbstat->stdRemote);
-  printf("extData = %lu\n", pbstat->extData);
-  printf("extRemote = %lu\n", pbstat->extRemote);
-  printf("errFrame = %lu\n", pbstat->errFrame);
-  printf("busLoad = %lu\n", pbstat->busLoad);
-  printf("overruns = %lu\n", pbstat->overruns);
-  printf("-----------------\n");
+    if (!pbstat)
+        return;
+    printf("-----------------\n");
+    printf("stdData = %lu\n", pbstat->stdData);
+    printf("stdRemote = %lu\n", pbstat->stdRemote);
+    printf("extData = %lu\n", pbstat->extData);
+    printf("extRemote = %lu\n", pbstat->extRemote);
+    printf("errFrame = %lu\n", pbstat->errFrame);
+    printf("busLoad = %lu\n", pbstat->busLoad);
+    printf("overruns = %lu\n", pbstat->overruns);
+    printf("-----------------\n");
 }
 
 void testBusLoad(canHandle handle)
 {
-  canStatus stat;
-  canBusStatistics bstat;
-  stat = canRequestBusStatistics(handle);
-  check("canRequestBusStatistics", stat);
-  usleep(500000);
-  stat = canGetBusStatistics(handle, &bstat, sizeof(bstat));
-  check("canGetBusStatistics", stat);
-  printBusStatistics(&bstat);
+    canStatus stat;
+    canBusStatistics bstat;
+    stat = canRequestBusStatistics(handle);
+    check("canRequestBusStatistics", stat);
+    usleep(500000);
+    stat = canGetBusStatistics(handle, &bstat, sizeof(bstat));
+    check("canGetBusStatistics", stat);
+    printBusStatistics(&bstat);
 }
 
 static void printUsageAndExit(char *prgName)
 {
-  printf("Usage: '%s <channel rx> <channel tx>'\n", prgName);
-  exit(1);
+    printf("Usage: '%s <channel rx> <channel tx>'\n", prgName);
+    exit(1);
 }
 
 int main(int argc, char *argv[])
 {
-  canStatus stat;
-  canHandle hnd;
-  int channelRx;
-  int channelTx;
+    canStatus stat;
+    canHandle hnd;
+    int channelRx;
+    int channelTx;
 
-  if (argc != 3) {
-    printUsageAndExit(argv[0]);
-  }
-
-  {
-    char *endPtr = NULL;
-    errno = 0;
-    channelRx = strtol(argv[1], &endPtr, 10);
-    if ( (errno != 0) || ((channelRx == 0) && (endPtr == argv[1])) ) {
-      printUsageAndExit(argv[0]);
+    if (argc != 3) {
+        printUsageAndExit(argv[0]);
     }
-    channelTx = strtol(argv[2], &endPtr, 10);
-    if ( (errno != 0) || ((channelTx == 0) && (endPtr == argv[2])) ) {
-      printUsageAndExit(argv[0]);
+
+    {
+        char *endPtr = NULL;
+        errno = 0;
+        channelRx = strtol(argv[1], &endPtr, 10);
+        if ((errno != 0) || ((channelRx == 0) && (endPtr == argv[1]))) {
+            printUsageAndExit(argv[0]);
+        }
+        channelTx = strtol(argv[2], &endPtr, 10);
+        if ((errno != 0) || ((channelTx == 0) && (endPtr == argv[2]))) {
+            printUsageAndExit(argv[0]);
+        }
     }
-  }
 
-  canInitializeLibrary();
+    canInitializeLibrary();
 
-  hnd  = canOpenChannel(channelRx, canOPEN_REQUIRE_EXTENDED);
-  if (hnd < 0) {
-    printf("canOpenChannel %d", channelRx);
-    check("", hnd);
-    return -1;
-  }
+    hnd = canOpenChannel(channelRx, canOPEN_REQUIRE_EXTENDED);
+    if (hnd < 0) {
+        printf("canOpenChannel %d", channelRx);
+        check("", hnd);
+        return -1;
+    }
 
-  stat = canBusOff(hnd);
-  check("canBusOff", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canSetNotify(hnd, callback, canNOTIFY_ERROR | canNOTIFY_STATUS, NULL);
-  check("canSetNotify", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canSetBusParams(hnd, bitrate, 0, 0, 0, 0, 0);
-  check("canSetBusParams", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
-  stat = canBusOn(hnd);
-  check("canBusOn", stat);
-  if (stat != canOK) {
-    goto ErrorExit;
-  }
+    stat = canBusOff(hnd);
+    check("canBusOff", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canSetNotify(hnd, callback, canNOTIFY_ERROR | canNOTIFY_STATUS, NULL);
+    check("canSetNotify", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canSetBusParams(hnd, bitrate, 0, 0, 0, 0, 0);
+    check("canSetBusParams", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
+    stat = canBusOn(hnd);
+    check("canBusOn", stat);
+    if (stat != canOK) {
+        goto ErrorExit;
+    }
 
-  incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 0);
-  testBusLoad(hnd);
-  incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 100);
-  testBusLoad(hnd);
-  testBusLoad(hnd);
-  incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 300);
-  testBusLoad(hnd);
-  testBusLoad(hnd);
+    incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 0);
+    testBusLoad(hnd);
+    incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 100);
+    testBusLoad(hnd);
+    testBusLoad(hnd);
+    incBusLoad(channelTx, canOPEN_REQUIRE_EXTENDED, 300);
+    testBusLoad(hnd);
+    testBusLoad(hnd);
 
 ErrorExit:
 
-  stat = canBusOff(hnd);
-  check("canBusOff", stat);
-  stat = canClose(hnd);
-  check("canClose", stat);
-  stat = canUnloadLibrary();
-  check("canUnloadLibrary", stat);
+    stat = canBusOff(hnd);
+    check("canBusOff", stat);
+    stat = canClose(hnd);
+    check("canClose", stat);
+    stat = canUnloadLibrary();
+    check("canUnloadLibrary", stat);
 
-  return 0;
+    return 0;
 }

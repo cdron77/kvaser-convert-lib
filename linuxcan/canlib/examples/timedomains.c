@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -71,118 +71,117 @@
 
 #define NUMBER_OF_CHANNELS 5
 
-static void check(char* id, canStatus stat)
+static void check(char *id, canStatus stat)
 {
-  if (stat != canOK) {
-    char buf[50];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    if (stat != canOK) {
+        char buf[50];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
 static void printUsageAndExit(char *prgName)
 {
-  printf("Usage: '%s <channel> <channel> [<channel> ...]'\n", prgName);
-  exit(1);
+    printf("Usage: '%s <channel> <channel> [<channel> ...]'\n", prgName);
+    exit(1);
 }
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  int h[NUMBER_OF_CHANNELS];
-  canStatus stat;
-  int i, n;
-  kvTimeDomain tDomain;
-  kvTimeDomainData tData;
-  n = argc - 1;
+    int h[NUMBER_OF_CHANNELS];
+    canStatus stat;
+    int i, n;
+    kvTimeDomain tDomain;
+    kvTimeDomainData tData;
+    n = argc - 1;
 
-  if (n < 2) {
-    printf("Error: At least two channels required.\n");
-    printUsageAndExit(argv[0]);
-  }
-
-  if (n > NUMBER_OF_CHANNELS) {
-    printf("Error: Too many channels. Got %d, expected no more than %d. "
-           "Increase NUMBER_OF_CHANNELS and rebuild this example.\n",
-           n, NUMBER_OF_CHANNELS);
-    printUsageAndExit(argv[0]);
-  }
-
-  canInitializeLibrary();
-
-  // Create a time domain for my handles.
-  stat = kvTimeDomainCreate(&tDomain);
-  if (stat != canOK) {
-    check("kvTimeDomainCreate", stat);
-    return 1;
-  }
-
-  for (i = 0; i < n; i++) {
-    int ch;
-    ch = atoi(argv[i+1]);
-    h[i] = canOpenChannel(ch, 0);
-    if (h[i] < 0) {
-      printf("canOpenChannel %d failed\n", ch);
-      check("", h[i]);
-      return 1;
+    if (n < 2) {
+        printf("Error: At least two channels required.\n");
+        printUsageAndExit(argv[0]);
     }
-  }
 
-  // Add the handles to the domain.
-  for (i = 0; i < n; i++) {
-    stat = kvTimeDomainAddHandle(tDomain, h[i]);
+    if (n > NUMBER_OF_CHANNELS) {
+        printf("Error: Too many channels. Got %d, expected no more than %d. "
+               "Increase NUMBER_OF_CHANNELS and rebuild this example.\n",
+               n, NUMBER_OF_CHANNELS);
+        printUsageAndExit(argv[0]);
+    }
+
+    canInitializeLibrary();
+
+    // Create a time domain for my handles.
+    stat = kvTimeDomainCreate(&tDomain);
     if (stat != canOK) {
-      printf("Failed to add handle %d to tDomain, ", i);
-      check("kvTimeDomainAddHandle", stat);
-      return 1;
+        check("kvTimeDomainCreate", stat);
+        return 1;
     }
-  }
 
-  // Request some data from the domain and try to interpret it.
-  stat = kvTimeDomainGetData(tDomain, &tData, sizeof(tData));
-  if (stat != canOK) {
-    check("kvTimeDomainGetData", stat);
-    return 1;
-  }
+    for (i = 0; i < n; i++) {
+        int ch;
+        ch = atoi(argv[i + 1]);
+        h[i] = canOpenChannel(ch, 0);
+        if (h[i] < 0) {
+            printf("canOpenChannel %d failed\n", ch);
+            check("", h[i]);
+            return 1;
+        }
+    }
 
-  if (tData.nMagiSyncGroups > 1) {
-    printf("Consider connecting the Kvaser MagiSync enabled ");
-    printf("interfaces through the same USB root hub!\n\n");
-  }
+    // Add the handles to the domain.
+    for (i = 0; i < n; i++) {
+        stat = kvTimeDomainAddHandle(tDomain, h[i]);
+        if (stat != canOK) {
+            printf("Failed to add handle %d to tDomain, ", i);
+            check("kvTimeDomainAddHandle", stat);
+            return 1;
+        }
+    }
 
-  if (tData.nMagiSyncGroups == 1) {
-    printf("All Kvaser MagiSync enabled interfaces are ");
-    printf("connected through the same USB root hub and ");
-    printf("will therefore be synchronized.\n\n");
-  }
+    // Request some data from the domain and try to interpret it.
+    stat = kvTimeDomainGetData(tDomain, &tData, sizeof(tData));
+    if (stat != canOK) {
+        check("kvTimeDomainGetData", stat);
+        return 1;
+    }
 
-  if (tData.nMagiSyncedMembers == n) {
-    printf("All handles have the Kvaser MagiSync feature enabled!\n\n");
-  }
+    if (tData.nMagiSyncGroups > 1) {
+        printf("Consider connecting the Kvaser MagiSync enabled ");
+        printf("interfaces through the same USB root hub!\n\n");
+    }
 
-  // Reset the time on all handles in tDomain.
-  stat = kvTimeDomainResetTime(tDomain);
-  if (stat != canOK) {
-    check("kvTimeDomainResetTime", stat);
-    return 1;
-  }
+    if (tData.nMagiSyncGroups == 1) {
+        printf("All Kvaser MagiSync enabled interfaces are ");
+        printf("connected through the same USB root hub and ");
+        printf("will therefore be synchronized.\n\n");
+    }
 
-  // Final cleanup
-  stat = kvTimeDomainDelete(tDomain);
-  if (stat != canOK) {
-    check("kvTimeDomainDelete", stat);
-    return 1;
-  }
-  else {
-    printf("All resources used by tDomain and its members ");
-    printf("returned to system\n");
-  }
+    if (tData.nMagiSyncedMembers == n) {
+        printf("All handles have the Kvaser MagiSync feature enabled!\n\n");
+    }
 
-  stat = canUnloadLibrary();
-  if (stat != canOK) {
-    check("canUnloadLibrary", stat);
-    return 1;
-  }
+    // Reset the time on all handles in tDomain.
+    stat = kvTimeDomainResetTime(tDomain);
+    if (stat != canOK) {
+        check("kvTimeDomainResetTime", stat);
+        return 1;
+    }
 
-  return 0;
+    // Final cleanup
+    stat = kvTimeDomainDelete(tDomain);
+    if (stat != canOK) {
+        check("kvTimeDomainDelete", stat);
+        return 1;
+    } else {
+        printf("All resources used by tDomain and its members ");
+        printf("returned to system\n");
+    }
+
+    stat = canUnloadLibrary();
+    if (stat != canOK) {
+        check("canUnloadLibrary", stat);
+        return 1;
+    }
+
+    return 0;
 }

@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -75,91 +75,91 @@
 
 static int willExit = 0;
 
-static void check(char* id, canStatus stat)
+static void check(char *id, canStatus stat)
 {
-  if (stat != canOK) {
-    char buf[50];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    if (stat != canOK) {
+        char buf[50];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
 static void printUsageAndExit(char *prgName)
 {
-  printf("Usage: '%s <channel>'\n", prgName);
-  exit(1);
+    printf("Usage: '%s <channel>'\n", prgName);
+    exit(1);
 }
 
 static void sighand(int sig, siginfo_t *info, void *ucontext)
 {
-  (void) sig;
-  (void) info;
-  (void) ucontext;
+    (void)sig;
+    (void)info;
+    (void)ucontext;
 
-  willExit = 1;
+    willExit = 1;
 }
 
 int main(int argc, char *argv[])
 {
-  unsigned int time, last = 0, lastsys = 0;
-  canStatus stat;
-  canHandle hnd;
-  struct timeval tv;
-  int channel;
-  struct sigaction sigact;
+    unsigned int time, last = 0, lastsys = 0;
+    canStatus stat;
+    canHandle hnd;
+    struct timeval tv;
+    int channel;
+    struct sigaction sigact;
 
-  if (argc != 2) {
-    printUsageAndExit(argv[0]);
-  }
-
-  {
-    char *endPtr = NULL;
-    errno = 0;
-    channel = strtol(argv[1], &endPtr, 10);
-    if ( (errno != 0) || ((channel == 0) && (endPtr == argv[1])) ) {
-      printUsageAndExit(argv[0]);
+    if (argc != 2) {
+        printUsageAndExit(argv[0]);
     }
-  }
 
-  /* Use sighand and allow SIGINT to interrupt syscalls */
-  sigact.sa_flags = SA_SIGINFO;
-  sigemptyset(&sigact.sa_mask);
-  sigact.sa_sigaction = sighand;
-  if (sigaction(SIGINT, &sigact, NULL) != 0) {
-    perror("sigaction SIGINT failed");
-    return -1;
-  }
+    {
+        char *endPtr = NULL;
+        errno = 0;
+        channel = strtol(argv[1], &endPtr, 10);
+        if ((errno != 0) || ((channel == 0) && (endPtr == argv[1]))) {
+            printUsageAndExit(argv[0]);
+        }
+    }
 
-  canInitializeLibrary();
+    /* Use sighand and allow SIGINT to interrupt syscalls */
+    sigact.sa_flags = SA_SIGINFO;
+    sigemptyset(&sigact.sa_mask);
+    sigact.sa_sigaction = sighand;
+    if (sigaction(SIGINT, &sigact, NULL) != 0) {
+        perror("sigaction SIGINT failed");
+        return -1;
+    }
 
-  hnd = canOpenChannel(channel, 0);
-  if (hnd < 0) {
-    printf("canOpenChannel %d", channel);
-    check("", hnd);
-    return -1;
-  }
+    canInitializeLibrary();
 
-  while (!willExit) {
-    stat = kvReadTimer(hnd, &time);
+    hnd = canOpenChannel(channel, 0);
+    if (hnd < 0) {
+        printf("canOpenChannel %d", channel);
+        check("", hnd);
+        return -1;
+    }
+
+    while (!willExit) {
+        stat = kvReadTimer(hnd, &time);
+        if (stat != canOK) {
+            check("canReadTimer", stat);
+            break;
+        }
+        printf("Time=%u ms (%u)\n", time, time - last);
+        gettimeofday(&tv, NULL);
+        printf("system:%lu\n", tv.tv_sec * 1000 + tv.tv_usec / 1000 - lastsys);
+        last = time;
+        lastsys = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+        sleep(1);
+    }
+    canClose(hnd);
+
+    stat = canUnloadLibrary();
     if (stat != canOK) {
-      check("canReadTimer", stat);
-      break;
+        check("canUnloadLibrary", stat);
+        return -1;
     }
-    printf("Time=%u ms (%u)\n", time, time - last);
-    gettimeofday(&tv, NULL);
-    printf("system:%lu\n", tv.tv_sec * 1000 + tv.tv_usec / 1000 - lastsys);
-    last = time;
-    lastsys = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-    sleep(1);
-  }
-  canClose(hnd);
 
-  stat = canUnloadLibrary();
-  if (stat != canOK) {
-    check("canUnloadLibrary", stat);
-    return -1;
-  }
-
-  return 0;
+    return 0;
 }

@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -69,51 +69,50 @@
 #include <canlib.h>
 #include <stdio.h>
 
-
-static void check(char* id, canStatus stat)
+static void check(char *id, canStatus stat)
 {
-  if (stat != canOK) {
-    char buf[50];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    if (stat != canOK) {
+        char buf[50];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("%s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
 int main(int argc, char *argv[])
 {
-  canStatus stat = -1;
-  int j;
-  canHandle hnd[2];
-  long freq;
-  unsigned int tseg1, tseg2, sjw, noSamp, syncmode;
+    canStatus stat = -1;
+    int j;
+    canHandle hnd[2];
+    long freq;
+    unsigned int tseg1, tseg2, sjw, noSamp, syncmode;
 
-  (void)argc;
-  (void)argv;
+    (void)argc;
+    (void)argv;
 
-  canInitializeLibrary();
+    canInitializeLibrary();
 
-  for(j = 0 ; j < 2 ; j++) {
-    hnd[j] = canOpenChannel(j, canOPEN_EXCLUSIVE | canOPEN_REQUIRE_EXTENDED);
-    if ((canStatus)hnd[j] < 0) {
-      printf("canOpenChannel (%d) failed\n", j);
-      return -1;
+    for (j = 0; j < 2; j++) {
+        hnd[j] = canOpenChannel(j, canOPEN_EXCLUSIVE | canOPEN_REQUIRE_EXTENDED);
+        if ((canStatus)hnd[j] < 0) {
+            printf("canOpenChannel (%d) failed\n", j);
+            return -1;
+        }
+        stat = canSetBusParams(hnd[j], 500000L, 5, 2, 1, 1, 0);
+        check("canSetBusParams", stat);
     }
-    stat = canSetBusParams(hnd[j], 500000L, 5, 2, 1, 1, 0);
-    check("canSetBusParams", stat);
-  }
 
-  printf("\n");
-  for (j = 0; j < 2; j++) {
-    stat = canGetBusParams(hnd[j], &freq, &tseg1, &tseg2, &sjw, &noSamp, &syncmode);
-    printf("hnd[%d]:freq %ld, tseg1 %u, tseg2 %u, sjw %u, noSamp %u, syncmode %u\n",
-           j, freq, tseg1, tseg2, sjw, noSamp, syncmode);
-    check("canGetBusParams", stat);
-  }
+    printf("\n");
+    for (j = 0; j < 2; j++) {
+        stat = canGetBusParams(hnd[j], &freq, &tseg1, &tseg2, &sjw, &noSamp, &syncmode);
+        printf("hnd[%d]:freq %ld, tseg1 %u, tseg2 %u, sjw %u, noSamp %u, syncmode %u\n", j, freq,
+               tseg1, tseg2, sjw, noSamp, syncmode);
+        check("canGetBusParams", stat);
+    }
 
-  stat = canUnloadLibrary();
+    stat = canUnloadLibrary();
 
-  check("canUnloadLibrary", stat);
+    check("canUnloadLibrary", stat);
 
-  return 0;
+    return 0;
 }

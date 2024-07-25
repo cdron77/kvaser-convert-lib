@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -70,18 +70,42 @@ KV_MODULE_NAME = kvpciefd
 
 # Includes
 INCLUDES := $(src) \
-            $(src)/../include/ \
-            $(src)/altera
+            $(src)/../include \
+            $(src)/hw \
+            $(src)/util \
+            $(src)/drivers/kvaser \
+            $(src)/drivers/kvaser/pwm \
+            $(src)/drivers/kvaser/pciefd \
+            $(src)/drivers/kvaser/spi_flash \
+            $(src)/drivers/kvaser/hydra_flash \
+            $(src)/drivers/altera/inc \
+            $(src)/drivers/altera/inc/sys \
+            $(src)/drivers/altera/HAL/inc \
+            $(src)/drivers/kvaser/spi/sf2_spi \
+            $(src)/drivers/xilinx/common/src \
+            $(src)/drivers/xilinx/spi/src
 
 # source files
 SRCS += pciefd_hwif.c
-SRCS += altera/HAL/src/pciefd.c
-SRCS += altera/HAL/src/pciefd_packet.c
-SRCS += altera/HAL/src/pciefd_rx_fifo.c
-SRCS += altera/HAL/src/altera_avalon_epcs_flash_controller.c
-SRCS += altera/HAL/src/altera_avalon_spi.c
-SRCS += altera/HAL/src/epcs_commands.c
-SRCS += altera/HAL/src/pwm_util.c
+SRCS += hw/pciefd_altera.c
+SRCS += hw/pciefd_sf2.c
+SRCS += hw/pciefd_xilinx.c
+SRCS += drivers/kvaser/pwm/pwm_util.c
+SRCS += drivers/kvaser/pciefd/pciefd.c
+SRCS += drivers/kvaser/pciefd/pciefd_packet.c
+SRCS += drivers/kvaser/pciefd/pciefd_rx_fifo.c
+SRCS += drivers/altera/HAL/src/altera_avalon_epcs_flash_controller.c
+SRCS += drivers/altera/HAL/src/altera_avalon_spi.c
+SRCS += drivers/altera/HAL/src/epcs_commands.c
+SRCS += drivers/kvaser/spi/sf2_spi/sf2_spi.c
+SRCS += drivers/xilinx/spi/src/xspi.c
+SRCS += drivers/xilinx/spi/src/xspi_options.c
+SRCS += drivers/kvaser/spi_flash/spi_flash.c
+SRCS += drivers/kvaser/spi_flash/spi_flash_altera.c
+SRCS += drivers/kvaser/spi_flash/spi_flash_sf2.c
+SRCS += drivers/kvaser/spi_flash/spi_flash_xilinx.c
+SRCS += drivers/kvaser/spi_flash/spi_flash_dummy.c
+SRCS += drivers/kvaser/hydra_flash/hydra_flash.c
 
 ifneq ($(src),)
 	RUNDIR := $(src)

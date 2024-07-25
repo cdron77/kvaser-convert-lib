@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -60,15 +60,22 @@
 **
 ** -----------------------------------------------------------------------------
 */
-
 #ifndef _PCIEFD_CONFIG_H_
 #define _PCIEFD_CONFIG_H_
 
-// Please note that not using DMA is not officially supported, and may lead to
-// unexpected behaviour!
-#define USE_DMA               1
-#define USE_BUS_ANALYZER      0
-#define USE_PATTERN_GENERATOR 0
-#define USE_ADJUSTABLE_PLL    0
 
+#ifndef BUS_LOAD_DBG_MSG_DIVISOR
+#define BUS_LOAD_DBG_MSG_DIVISOR   5000
 #endif
+
+#ifndef CHIP_STATE_DBG_MSG_DIVISOR
+#define CHIP_STATE_DBG_MSG_DIVISOR 5000
+#endif
+
+// Use led triggers, default off (0)
+#ifndef LED_TRIGGERS
+#define LED_TRIGGERS 0
+#endif
+
+#endif //_PCIEFD_CONFIG_H_
+

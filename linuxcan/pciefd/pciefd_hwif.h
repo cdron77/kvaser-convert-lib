@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -68,270 +68,223 @@
 #ifndef _PCIEFD_HWIF_H_
 #define _PCIEFD_HWIF_H_
 
-#include "VCanOsIf.h"
-
-// Common includes for Altera design
-#include "inc/altera.h"
+#include <linux/leds.h>
 #include "pciefd_config.h"
+#include "VCanOsIf.h"
+#include "hydra_flash.h"
+#include "spi_flash.h"
 
 /*****************************************************************************/
 /* defines */
 /*****************************************************************************/
 // Use this to set alternate implementation.
 
-#define DEVICE_NAME_STRING "pciefd"
-#define MAX_CARD_CHANNELS     4
+// Warning:
+// Not using DMA is unsupported, and may lead to unexpected behaviour!
+#define PCIEFD_USE_DMA 1
+
+#define DEVICE_NAME_STRING  "pciefd"
+#define MAX_CARD_CHANNELS   8U
 #define MAX_DRIVER_CHANNELS 128
-#define PCIEFD_FPGA_MAJOR_VER 2
 
 #define MAX_ERROR_COUNT       64 //128
 #define ERROR_DISABLE_TIME_MS 200
 
 #define PCIEFD_SRQ_RESP_WAIT_TIME 100
 
-#define BLP_INTERVAL 400000 // About 5Hz
+#define BLP_INTERVAL  400000 // About 5Hz
 #define BLP_PRESC_MAX 255
 #define BLP_PRESC_MIN 1
-#define BLP_DIVISOR (BLP_INTERVAL/10000) // To get 0.00-100.00%
+#define BLP_DIVISOR   (BLP_INTERVAL / 10000) // To get 0.00-100.00%
 
-// Most of the functionality is placed behind a bus bridge.
-// The bridges adds an offset to all addresses on the bridged segment of the bus.
-//
-#define MM_BRIDGE_OFFSET      (0x00010000) // Bytes address
+#define SUM(a, b) ((a) + (b))
 
-// Memory map (All base addresses are byte adresses)
-#define PCIE_HARD_IP_BASE     0x0000
-#define SYSID_BASE            (0xf020 + MM_BRIDGE_OFFSET)
-#if USE_ADJUSTABLE_PLL
-#define PLL_BASE              (0xf040 + MM_BRIDGE_OFFSET)
-#endif
-#define TIMESTAMP_BASE        (0xf040 + MM_BRIDGE_OFFSET)
-#define BUS_ANALYZER_BASE     (0xf080 + MM_BRIDGE_OFFSET)
-#define PATTERN_GEN_BASE      (0xf100 + MM_BRIDGE_OFFSET)
-#define STATUS_SWITCH_BASE    (0xf180 + MM_BRIDGE_OFFSET)
-#define RECEIVE_BUFFER_BASE   (0xf200 + MM_BRIDGE_OFFSET)
-#define SERIALFLASH_BASE      (0xf800 + MM_BRIDGE_OFFSET)
+#define KCAN_MAX_OUTSTANDING_TX 17
 
-#define CAN_CONTROLLER_0_BASE (0x0000 + MM_BRIDGE_OFFSET)
-#define CAN_CONTROLLER_1_BASE (0x1000 + MM_BRIDGE_OFFSET)
-#define CAN_CONTROLLER_2_BASE (0x2000 + MM_BRIDGE_OFFSET)
-#define CAN_CONTROLLER_3_BASE (0x3000 + MM_BRIDGE_OFFSET)
-
-// Interrupt map
-#define CAN_CONTROLLER_0_IRQ  (1<<0)
-#define CAN_CONTROLLER_1_IRQ  (1<<1)
-#define CAN_CONTROLLER_2_IRQ  (1<<2)
-#define CAN_CONTROLLER_3_IRQ  (1<<3)
-#define RECEIVE_BUFFER_IRQ    (1<<4)
-#define SERIALFLASH_IRQ       (1<<5)
-#define BUS_ANALYZER_IRQ      (1<<6)
-
-// Alias for status stream switch control
-#define IOWR_SSWITCH_BUS_ANALYZER IOWR_SSWITCH_OUTPUT0
-#define IORD_SSWITCH_BUS_ANALYZER IORD_SSWITCH_OUTPUT0
-#define IOWR_SSWITCH_PATTERN_GEN  IOWR_SSWITCH_OUTPUT1
-#define IORD_SSWITCH_PATTERN_GEN  IORD_SSWITCH_OUTPUT1
-
-#define CAN_CONTROLLER_SPAN (CAN_CONTROLLER_1_BASE-CAN_CONTROLLER_0_BASE)
-
-#define OFFSET_FROM_BASE(base,offset) ((void __iomem*)((unsigned char*)(base) + (offset)))
-
-#define ALL_INTERRUPT_SOURCES_MSK ( RECEIVE_BUFFER_IRQ          \
-                                    | CAN_CONTROLLER_0_IRQ      \
-                                    | CAN_CONTROLLER_1_IRQ      \
-                                    | CAN_CONTROLLER_2_IRQ      \
-                                    | CAN_CONTROLLER_3_IRQ )
-
-// The actual max value supported by HW can be read using fifoPacketCountTxMax (altera/HAL/src/pciefd.c)
-#define MAX_OUTSTANDING_TX 17
-
-#define PARAMETER_MAX_SIZE  24
-
-#if USE_DMA
-
-#define DMA_BUFFER_SZ 4096
+// Force 32-bit DMA addresses
+#ifdef KV_PCIEFD_DMA_32BIT
+#undef KV_PCIEFD_DMA_64BIT
+#else
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#define KV_PCIEFD_DMA_64BIT 1
+#endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT */
+#endif /* KV_PCIEFD_DMA_32BIT */
 
 typedef struct {
-  uint32_t *data;
-  dma_addr_t address;
+    uint32_t *data;
+    dma_addr_t address;
 } dmaCtxBuffer_t;
 
 typedef struct {
-  dmaCtxBuffer_t bufferCtx[2];
-  int active;
-  unsigned int position;
-  unsigned int psize;
-  unsigned int enabled;
+    dmaCtxBuffer_t bufferCtx[2];
+    int active;
+    unsigned int enabled;
 } dmaCtx_t;
 
-
-#endif
-typedef uint8_t cust_channel_name_t[PARAMETER_MAX_SIZE];
-
-// Avalon Address Translation Table Address Space Bit Encodings
-enum {
-  AV_ATT_ASBE_MS32 = 0, // 32-bit address (bits 63:32 are ignored)
-  AV_ATT_ASBE_MS64 = 1  // 64 bit address
+struct led_triggers {
+    struct led_trigger *bus_on;
+    struct led_trigger *can_activity;
+    struct led_trigger *can_error;
+    struct led_trigger *buffer_overrun;
 };
 
 /* Channel specific data */
-typedef struct PciCanChanData
-{
-  CAN_MSG current_tx_message[MAX_OUTSTANDING_TX];
+typedef struct PciCanChanData {
+    CAN_MSG current_tx_message[KCAN_MAX_OUTSTANDING_TX];
 
-  atomic_t outstanding_tx;
-  unsigned int nebits;
+    atomic_t outstanding_tx;
 
-  /* Ports and addresses */
-  void __iomem       *canControllerBase;
+    /* Ports and addresses */
+    void __iomem *canControllerBase;
 
-  unsigned long tx_irq_msk;
-  struct  completion busOnCompletion; // Used to make sure that multiple bus on commands in a row is not executed.
+    unsigned long tx_irq_msk;
+    struct completion
+        busOnCompletion; // Used to make sure that multiple bus on commands in a row is not executed.
 
-  spinlock_t lock;
+    spinlock_t lock;
 #if !defined(TRY_RT_QUEUE)
-  struct work_struct txTaskQ;
+    struct work_struct txTaskQ;
 #else
-  struct workqueue_struct *txTaskQ;
-  struct work_struct txWork;
+    struct workqueue_struct *txTaskQ;
+    struct work_struct txWork;
 #endif
 
-  pciefd_packet_t packet;
+    // Flags set if an overrun has been detected
+    int overrun_occured;
 
-  // Flags set if an overrun has been detected
-  int overrun_occured;
+    // Bus load
+    int load;
 
-  // Bus load
-  int load;
-
-  VCanChanData *vChan;
-
-  // Statistics and error checks
-  struct {
-    unsigned char last_seq_no;
-    int got_seq_no;
-
-    int seq_no_mismatch;
-
-    uint64_t max_ts_diff;
-    uint64_t avg_ts_diff;
-    int avg_ts_diff_cnt;
-    int ts_error_cnt;
-    int ts_wrong_order_cnt;
-
-    int packet_count;
-    int ack_packet_count;
-    int trq_packet_count;
-    int err_packet_count;
-    int tx_packet_count;
-
-    int requested_status;
-    int received_status;
-
-    uint32_t max_level; // Maximum receive buffer level
-    uint32_t avg_level;
-    uint32_t avg_level_cnt;
-    uint32_t fifo_full_cnt;
-    uint32_t max_tx_level;
-
-    int unaligned_read;
-
-    int unaligned_transmit;
-    int transmit_overflow;
-    int transmit_underflow;
-
-    int bus_load;
-  } debug;
-
-  // Debug ack packet receiver
-  int compareTransId;
-  int lastTransId;
-  uint64_t last_ts;
-
-  unsigned int delay_vec[60*8];
-
-#ifdef PCIEFD_DEBUG
-  struct dentry *debugfsdir;
-#endif
-
-  struct timer_list errorDisableTimer;
-
-  wait_queue_head_t hwFlushWaitQ;
-
-  struct {
-    unsigned valid;
-    unsigned nbits;
-    unsigned tbit;
-    unsigned tsyn;
-    unsigned tcan;
-    unsigned tsp;
-  } ef_params;
-
-  unsigned long bus_load_prescaler;
-
-  int auto_sso;
-  unsigned int sso;
-
+    VCanChanData *vChan;
+    struct timer_list errorDisableTimer;
+    unsigned long bus_load_prescaler;
+    struct led_triggers ledtrig;
 } PciCanChanData;
 
 typedef struct VCanCardTimerData {
-
-  struct timer_list timer;
-  VCanCardData *vCard;
-
+    struct timer_list timer;
+    VCanCardData *vCard;
 } VCanCardTimerData;
 
-/*  Cards specific data */
+/*  Card specific data */
 typedef struct PciCanCardData {
-  void __iomem       *pcieBar0Base;
+    /* IO addresses */
+    struct {
+        void __iomem *pcieBar0Base;
+        void __iomem *interruptBase;
+        void __iomem *spiFlashBase;
+        struct {
+            void __iomem *metaBase;
+            void __iomem *timeBase;
+            void __iomem *kcanIntBase;
+            void __iomem *rxDataBase;
+            void __iomem *rxCtrlBase;
+            void __iomem *tx0Base;
+            void __iomem *tx1Base;
+            void __iomem *tx2Base;
+            void __iomem *tx3Base;
+        } kcan;
+    } io;
 
-  /* Ports and addresses */
-  void __iomem       *canControllerBase;
-  void __iomem       *timestampBase;
-  void __iomem       *serialFlashBase;
-  void __iomem       *sysidBase;
-#if USE_ADJUSTABLE_PLL
-  void __iomem       *pllBase;
-#endif
-  void __iomem       *pcie;
-  void __iomem       *canRxBuffer;
-  void __iomem       *busAnalyzerBase;
-  void __iomem       *patternGeneratorBase;
-  void __iomem       *statusStreamSwitchBase;
+    const struct pciefd_driver_data *driver_data;
 
-  unsigned int       frequency;
-  unsigned int       freqToTicksDivider;
-  int                irq;
-  alt_flash_epcs_dev epcsFlashDev;
-  struct list_head   replyWaitList;
-  rwlock_t           replyWaitListLock;
-  spinlock_t         lock;
-  uint64_t           last_ts;
+    u8 max_outstanding_tx;
+    unsigned int frequency;
+    unsigned int freqToTicksDivider;
+    int irq;
+    struct list_head replyWaitList;
+    rwlock_t replyWaitListLock;
+    spinlock_t lock;
 
-  struct pci_dev *dev;
+    struct pci_dev *dev;
 
-#if USE_DMA
-  dmaCtx_t dmaCtx;
+    dmaCtx_t dmaCtx;
+    int useDmaAddr64;
+    int useDma;
 
-
-#endif
-
-  pciefd_packet_t packet;
-
-#if USE_DMA
-  int useDmaAddr64;
-  int useDma;
-#endif
-
-#ifdef PCIEFD_DEBUG
-  struct dentry *debugfsdir;
-#endif
-
-  atomic_t status_seq_no;
-
-  cust_channel_name_t cust_channel_name[MAX_CARD_CHANNELS];
-  uint8_t            *flashImage;
+    atomic_t status_seq_no;
+    cust_channel_name_t cust_channel_name[MAX_CARD_CHANNELS];
+    bool ongoing_firmware_upgrade;
+    struct hydra_flash_ctx hflash;
 } PciCanCardData;
 
+/**
+ * struct pciefd_card_ops            Hardware specific driver functions
+ *
+ * @setup_dma_address_translation:   Setup PCI Slave Window translation for DMA
+ * @pci_irq_set:                     Enable/disable all PCI interrupts
+ * @pci_irq_get:                     Get active PCI interrupts
+ * @firmware_upgrade_trigger_update: Function called to trigger firmware upgrade (optional)
+ */
+struct pciefd_card_ops {
+    int (*setup_dma_address_translation)(PciCanCardData *hCard, int pos, dmaCtxBuffer_t *bufferCtx);
+    void (*pci_irq_set_mask)(VCanCardData *vCard, u32 mask);
+    void (*pci_irq_set_mask_bits)(VCanCardData *vCard, u32 bits);
+    void (*pci_irq_clear_mask_bits)(VCanCardData *vCard, u32 bits);
+    u32 (*pci_irq_get)(PciCanCardData *hCard);
+};
 
+/**
+ * struct pciefd_irq_defines         Hardware specific PCI interrupt bit masks
+ *
+ * @rx0:                        KCAN receive buffer0 bit mask
+ * @tx[MAX_CARD_CHANNELS];      KCAN Tx buffer bit mask, one per channel
+ */
+struct pciefd_irq_defines {
+    u32 rx0;
+    u32 tx[MAX_CARD_CHANNELS];
+    u32 all_irq;
+};
+
+/**
+ * struct pciefd_address_offsets     Hardware specific offsets
+ *
+ * @tech:                            Offsets related to peripherals
+ * @kcan:                            Offsets related to KCAN
+ */
+struct pciefd_address_offsets {
+    struct {
+        u32 spi;
+        u32 interrupt;
+    } tech;
+    struct {
+        u32 meta;
+        u32 time;
+        u32 interrupt;
+        u32 rx_data;
+        u32 rx_ctrl;
+        u32 tx0;
+        u32 tx1;
+        u32 tx2;
+        u32 tx3;
+        u32 tx4;
+        u32 tx5;
+        u32 tx6;
+        u32 tx7;
+        u32 controller_span;
+    } kcan;
+};
+
+/**
+ * struct pciefd_driver_data         Collection of functions and constants that are hardware specific
+ *
+ * ops:                              Hardware specific driver functions
+ * spi_ops:                          SPI flash hardware specific functions
+ * hydra_flash_ops:                  Hydra flash hardware specific functions
+ * irq_def:                          PCI interrupt defines
+ * offsets:                          Address offsets
+ * hw_const:                         Hardware specific constants
+ */
+struct pciefd_driver_data {
+    const struct pciefd_card_ops *ops;
+    const struct SPI_FLASH_ops *spi_ops;
+    const struct hydra_flash_device_ops *hydra_flash_ops;
+    const struct pciefd_irq_defines *irq_def;
+    const struct pciefd_address_offsets offsets;
+    const struct {
+        u8 supported_fpga_major;
+        struct hydra_flash_image_def flash_meta;
+    } hw_const;
+};
 #endif
+
