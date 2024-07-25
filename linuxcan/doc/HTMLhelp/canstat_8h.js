@@ -85,6 +85,7 @@ var canstat_8h =
     [ "canTRANSCEIVER_TYPE_252", "canstat_8h.html#add090da2f3936a0a264d39381ba0c101", null ],
     [ "canTRANSCEIVER_TYPE_CANFD", "canstat_8h.html#a6cb324d78ba3426a7b20ba400d8e251b", null ],
     [ "canTRANSCEIVER_TYPE_CANFD_LIN", "canstat_8h.html#a17d470ceba40a46555ce0f91641d31f1", null ],
+    [ "canTRANSCEIVER_TYPE_CANFD_SIC", "canstat_8h.html#a7068eb14d012bb305189e59eb7bb89e9", null ],
     [ "canTRANSCEIVER_TYPE_DNOPTO", "canstat_8h.html#a37e062e478f7760179ab28fe801b3eef", null ],
     [ "canTRANSCEIVER_TYPE_EVA", "canstat_8h.html#a4b1d6983e727df2121d1d5f0a785dae5", null ],
     [ "canTRANSCEIVER_TYPE_FIBER", "canstat_8h.html#a70d6e804588d0785412c1bc8713ace3b", null ],

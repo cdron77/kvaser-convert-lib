@@ -292,6 +292,7 @@ var searchData=
   ['cantransceiver_5ftype_5f252',['canTRANSCEIVER_TYPE_252',['../canstat_8h.html#add090da2f3936a0a264d39381ba0c101',1,'canstat.h']]],
   ['cantransceiver_5ftype_5fcanfd',['canTRANSCEIVER_TYPE_CANFD',['../canstat_8h.html#a6cb324d78ba3426a7b20ba400d8e251b',1,'canstat.h']]],
   ['cantransceiver_5ftype_5fcanfd_5flin',['canTRANSCEIVER_TYPE_CANFD_LIN',['../canstat_8h.html#a17d470ceba40a46555ce0f91641d31f1',1,'canstat.h']]],
+  ['cantransceiver_5ftype_5fcanfd_5fsic',['canTRANSCEIVER_TYPE_CANFD_SIC',['../canstat_8h.html#a7068eb14d012bb305189e59eb7bb89e9',1,'canstat.h']]],
   ['cantransceiver_5ftype_5fdnopto',['canTRANSCEIVER_TYPE_DNOPTO',['../canstat_8h.html#a37e062e478f7760179ab28fe801b3eef',1,'canstat.h']]],
   ['cantransceiver_5ftype_5feva',['canTRANSCEIVER_TYPE_EVA',['../canstat_8h.html#a4b1d6983e727df2121d1d5f0a785dae5',1,'canstat.h']]],
   ['cantransceiver_5ftype_5ffiber',['canTRANSCEIVER_TYPE_FIBER',['../canstat_8h.html#a70d6e804588d0785412c1bc8713ace3b',1,'canstat.h']]],

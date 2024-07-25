@@ -95,24 +95,6 @@ A7.1
     [35.42160] usbcore: registered new interface driver mhydra
 
 A7.2
-    Check the syslog for errors. On systems running systemd-journald:
-
-    $ journalctl -b
-    apr 19 15:07:54 mypc kernel: usbcore: registered new interface driver mhydra
-    apr 19 15:07:54 mypc /usr/sbin/mhydra.sh[2181]: Module mhydra added
-    apr 19 15:07:54 mypc /usr/sbin/mhydra.sh[2191]: Created /dev/mhydra0
-    apr 19 15:07:54 mypc /usr/sbin/mhydra.sh[2193]: Created /dev/mhydra1
-
-
-    Or on systems using a standard syslog daemon:
-
-    $ cat /var/log/syslog
-    Apr 19 15:07:54 mypc kernel: usbcore: registered new interface driver mhydra
-    Apr 19 15:07:54 mypc /usr/sbin/mhydra.sh: Module mhydra added
-    Apr 19 15:07:54 mypc /usr/sbin/mhydra.sh: Created /dev/mhydra0
-    Apr 19 15:07:54 mypc /usr/sbin/mhydra.sh: Created /dev/mhydra1
-
-A7.3
     Make sure the modules are loaded. The following command should print
     kvcommon and at least one more module:
 
@@ -169,10 +151,12 @@ A11
 
 --------------------------------------------------------------------------------
 Q12
-    I get errors like this in syslog:
+    I get errors when trying to load Kvaser modules:
+    $ sudo modprobe leaf
+    modprobe: ERROR: could not insert 'leaf': Operation not permitted
 
-    apr 19 16:05:38 mypc /usr/sbin/mhydra.sh[22789]: modprobe: ERROR: could not insert 'mhydra': Required key not available
-    apr 19 16:05:38 mypc systemd-udevd[22776]: Process '/usr/sbin/mhydra.sh start' failed with exit code 1.
+    And get warnings like this in the kernel log:
+    [ 28.467002] Lockdown: modprobe: unsigned module loading is restricted; see man kernel_lockdown.7
 
 A12
     Your kernel is probably configured to only allow loading of validly signed
@@ -199,17 +183,15 @@ Q13
 
 A13
     For Kvaser USB interfaces the corresponding module is loaded when the
-    interface is plugged in. This is triggered by the udev rules in
-    /etc/udev/rules.d/10-kvaser.rules. Similarly the module is unloaded when the
-    last inteface using the module is unplugged.
+    interface is plugged in. This is handled by the kernel.
+    To unload Kvaser USB modules use modprobe -r <module name>.
 
     For PCI(E) based interfaces and virtual devices, the modules needs to be
-    loaded/unloaded manually with modprobe/rmmod. Whenever a module is
-    loaded/unloaded a script is executed. This is configured in
-    /etc/modprobe.d/kvaser.conf. It is also possible to have the modules loaded
-    at boot. To achieve this execute 'sudo make load' instead of
-    'sudo make install', when you install linuxcan. This will create the file
-    /etc/modules-load.d/kvaser.conf.
+    loaded/unloaded manually with modprobe/modprobe -r.
+    It is also possible to have the modules loaded at boot. To achieve this
+    execute 'sudo make load' instead of 'sudo make install', when you install
+    linuxcan. This will create a config file in /etc/modules-load.d, on the
+    format kvaser-<module name>.conf.
 
 --------------------------------------------------------------------------------
 Q14

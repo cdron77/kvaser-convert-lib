@@ -175,6 +175,16 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Add, delete and modify signals in messages. </p>
+<p>Signal bit positions are numbered in a "sawtooth" manner, i.e. indices in a byte decrease from left to right:</p>
+<div class="fragment"><div class="line">+-------------------------+-------------------------+</div><div class="line">|  7  6  5  4  3  2  1  0 | 15 14 13 12 11 10  9  8 | ...</div><div class="line">+-------------------------+-------------------------+</div></div><!-- fragment --><p>Byte order formats determine the signal start bit notation and the direction it expands in. There are three of relevance to this API: Intel Standard and Motorola forward MSB/-LSB. The following example shows two signals:</p>
+<div class="fragment"><div class="line">  |  7  6  5  4  3  2  1  0</div><div class="line">--+-------------------------</div><div class="line">0 |&lt;......lsb       v Intel Standard</div><div class="line">1 |             msb.........</div><div class="line">2 |  | Motorola forward MSB/LSB</div><div class="line">3 |  v       msb............</div><div class="line">4 |&lt;...............lsb</div></div><!-- fragment --><ul>
+<li><p class="startli">The upper signal uses the "Intel" format and is 7 bits long.</p>
+<p class="startli">The start bit position is that of the least-significant bit (=5).</p>
+</li>
+<li><p class="startli">The lower signal uses the "Motorola" format and is 11 bits long.</p>
+<p class="startli">The DBC file format uses Motorola forward MSB where the start bit is the position of the most-significant bit (8*3 + 4 = 28), in contrast to the getters and setters of this API, which use Motorola forward LSB with the start bit being the position of the least-significant bit (8*4 + 2 = 34). </p>
+</li>
+</ul>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="gac094c8af277fc9d21315bb190d7ae3fd"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gac094c8af277fc9d21315bb190d7ae3fd">&#9670;&nbsp;</a></span>kvaDbAddEnumValue()</h2>
@@ -1436,6 +1446,7 @@ Functions</h2></td></tr>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="kva_db_lib_8h.html#a2f504ec74e40048f49ed23d630528d57ad8a19899af8c1e42208a67afb572b2fc">kvaDbOK</a> (zero) if success </dd>
 <dd>
 <a class="el" href="kva_db_lib_8h.html#kvaDbErr_xxx">kvaDbErr_xxx</a> (negative) if failure</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>In case of Motorola encoding, <code>startbit</code> is in Motorola forward LSB, in contrast to the DBC file format.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="group__kvadb__signals.html#ga734770b9b425260f1f9bb4dc5a886aaf">kvaDbSetSignalValueSize()</a> </dd></dl>
 <dl><dt><b>Examples: </b></dt><dd><a class="el" href="example_2c_2candb_sample_8c-example.html#a47">example/c/candb_sample.c</a>.</dd>
 </dl>
@@ -1989,6 +2000,7 @@ Functions</h2></td></tr>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="kva_db_lib_8h.html#a2f504ec74e40048f49ed23d630528d57ad8a19899af8c1e42208a67afb572b2fc">kvaDbOK</a> (zero) if success </dd>
 <dd>
 <a class="el" href="kva_db_lib_8h.html#kvaDbErr_xxx">kvaDbErr_xxx</a> (negative) if failure</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>In case of Motorola encoding, <code>startbit</code> is in Motorola forward LSB, in contrast to the DBC file format.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="group__kvadb__signals.html#ga81ca4318029cefe8ecf5df6e5c237b5e">kvaDbGetSignalValueSize()</a> </dd></dl>
 <dl><dt><b>Examples: </b></dt><dd><a class="el" href="example_2c_2candb_sample_8c-example.html#a22">example/c/candb_sample.c</a>, and <a class="el" href="example_2c_2j1939_db_8c-example.html#a27">example/c/j1939_db.c</a>.</dd>
 </dl>
@@ -2163,7 +2175,7 @@ Functions</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer"> (canlib 5.40) Thu Sep 8 2022</li>
+    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
   </ul>
 </div>
 </body>

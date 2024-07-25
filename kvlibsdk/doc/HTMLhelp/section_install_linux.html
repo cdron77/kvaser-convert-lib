@@ -97,11 +97,12 @@ Installing the Driver</h1>
 <p>System requirements:</p><ul>
 <li>Linux 2.6.29 or later</li>
 <li>Header files and compiler for kernel compilation.</li>
+<li>pkg-config</li>
 </ul>
 <p>In Ubuntu e.g. installing header files is accomplished by issuing the command:</p>
 <div class="fragment"><div class="line">sudo apt-get install build-essential </div></div><!-- fragment --><p>On some systems you may need to install the Linux headers using something like:</p>
 <div class="fragment"><div class="line">sudo apt-get install linux-headers-`uname -r` </div></div><!-- fragment --><dl class="section note"><dt>Note</dt><dd>Having versions of the Linux headers installed other than that of the currently running kernel may cause conflicts and faulty drivers.</dd></dl>
-<p>To download and unpack the latest drivers you may use: </p><div class="fragment"><div class="line">wget --content-disposition <span class="stringliteral">&quot;https://www.kvaser.com/downloads-kvaser/?utm_source=software&amp;utm_ean=7330130980754&amp;utm_status=latest&quot;</span></div><div class="line">tar xvzf linuxcan.tar.gz</div><div class="line">cd linuxcan</div></div><!-- fragment --><dl class="section note"><dt>Note</dt><dd>Choose a path that doesn't contain any spaces for CANlib to build properly.</dd></dl>
+<div class="fragment"><div class="line">sudo apt-get install pkg-config </div></div><!-- fragment --><p>To download and unpack the latest drivers you may use: </p><div class="fragment"><div class="line">wget --content-disposition <span class="stringliteral">&quot;https://www.kvaser.com/downloads-kvaser/?utm_source=software&amp;utm_ean=7330130980754&amp;utm_status=latest&quot;</span></div><div class="line">tar xvzf linuxcan.tar.gz</div><div class="line">cd linuxcan</div></div><!-- fragment --><dl class="section note"><dt>Note</dt><dd>Choose a path that doesn't contain any spaces for CANlib to build properly.</dd></dl>
 <p><b>Option 1. Manually build and install drivers</b></p>
 <p>To build (compile) all drivers use:</p>
 <div class="fragment"><div class="line">make </div></div><!-- fragment --><dl class="section note"><dt>Note</dt><dd>It is advised to remove the old driver by calling <code>sudo make uninstall</code> before replacing the installed drivers.</dd></dl>
@@ -145,7 +146,7 @@ Removing Kvaser CANlib SDK</h2>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="page_installing.html">Installation</a></li>
-    <li class="footer"> (canlib 5.40) Thu Sep 8 2022</li>
+    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
   </ul>
 </div>
 </body>

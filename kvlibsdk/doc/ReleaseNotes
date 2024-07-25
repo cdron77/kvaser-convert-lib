@@ -1,5 +1,5 @@
 /*
-**            Copyright 2017-2022 by Kvaser AB, Molndal, Sweden
+**            Copyright 2017-2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -62,16 +62,20 @@
 */
 
 ================================================================
-Release notes for linuxcan V5.40  
+Release notes for linuxcan V5.45  
 ================================================================
 
 These release notes apply to both CANLIB SDK and the Linux drivers.
 
 Linux device drivers for
 
+  *  KVASER Virtual CAN
   *  KVASER PCIcan
   *  KVASER PCIcanx
   *  KVASER PCIEcan
+  *  KVASER PCIEcan 1xCAN v3 (01433-6)
+  *  KVASER PCIEcan 2xCAN v3 (01432-9)
+  *  KVASER PCIEcan 4xCAN v2 (01414-5)
   *  KVASER PC104+
   *  KVASER PCI104
   *  KVASER PCIcan II **
@@ -88,17 +92,20 @@ Linux device drivers for
   *  KVASER Leaf SemiPro
   *  KVASER Leaf Light
   *  KVASER Leaf Light v2
+  *  KVASER Leaf v3
   *  KVASER Mini PCI Express HS
   *  KVASER Mini PCI Express 2xHS
   *  KVASER Mini PCI Express HS v2 (01038-3)
   *  KVASER Mini PCI Express 2xHS v2 (01029-1)
+  *  KVASER Mini PCI Express 1xCAN v3 (01420-6)
+  *  KVASER Mini PCI Express 2xCAN v3 (01417-6)
+  *  KVASER Mini PCIe 1xCAN (01368-1)
   *  KVASER BlackBird SemiPro *****
   *  KVASER OEM Mercury
   *  KVASER OEM Leaf
-  *  KVASER Virtual CAN
   *  KVASER Eagle
   *  KVASER BlackBird v2 *****
-  *  Kvaser BlackBird Pro HS v2 **** (00983-7)
+  *  KVASER BlackBird Pro HS v2 **** (00983-7)
   *  KVASER Memorator Pro 5xHS
   *  KVASER USBcan Pro 5xHS
   *  KVASER USBcan Light 4xHS (00831-1)
@@ -107,14 +114,19 @@ Linux device drivers for
   *  KVASER Memorator 2xHS v2 (00821-2)
   *  KVASER Memorator Pro 2xHS v2 (00819-9)
   *  KVASER Hybrid 2xCAN/LIN (00965-3)
+  *  KVASER Hybrid CAN/LIN (01284-4)
   *  KVASER Hybrid Pro 2xCAN/LIN (01042-0)
+  *  KVASER Hybrid Pro CAN/LIN (01288-2)
   *  KVASER Memorator Light HS v2 (01058-1)
   *  KVASER U100 (01173-1)
+  *  KVASER U100-C (01340-7)
   *  KVASER U100P (01174-8)
   *  KVASER U100S (01181-6)
   *  KVASER USBcan Pro 4xHS (01261-5)
-  *  KVASER Hybrid CAN/LIN (01284-4)
-  *  KVASER Hybrid Pro CAN/LIN (01288-2)
+  *  KVASER USBcan Pro 4xCAN Silent (01411-4)
+  *  KVASER USBcan Pro 5xCAN (01524-1)
+  *  KVASER M.2 PCIe 4xCAN (01162-8)
+  *  KVASER Kraken (01244-8)
 
   **    Recommended firmware > 3.0
   ***   Only with USBcan II functionality.
@@ -138,8 +150,8 @@ Version info
    * Tested under x86_64 SMP Ubuntu 18.04 x64 (4.15.0-39-generic).
    * Tested under x86_64 SMP Ubuntu 20.04 x64 (5.4.0-29-generic).
    * Tested under x86_64 SMP Ubuntu 20.04 x64 (5.6.0-050600-generic).
-   * Compiled with gcc version 4.9.2, 5.4.0, 7.3.0, 9.3.0 and 11.2.0.
-   * Used glibc version 2.21, 2.23, 2.27, 2.31 and 2.34.
+   * Compiled with gcc version 4.4.4, 4.9.2, 5.4.0, 7.3.0, 9.3.0, 11.2.0, 12.2.0 and 13.0.0.
+   * Used glibc version 2.21, 2.23, 2.27, 2.31, 2.34 and 2.36.
 
 
 ================================================================
@@ -168,10 +180,147 @@ Known problems
      (This is the same as under Windows.)
 
 
+New Features and Fixed Problems in V5.45   (22-MAY-2024)
+===========================================================================
+* Drivers
+  - Enable MSI interrupts for PCIe devices.
+  - Improved performance of the PCIe driver.
+
+* SDK (kvadblib)
+  - Made more lenient w.r.t. type mismatches between attribute values
+    and their respective definitions.
+
+* SDK (kvlclib)
+  - Fixed occasional "Decreasing time ..., code -32" errors when
+    merging long-running log files from a Kvaser Memorator over USB.
+
+
+New Features and Fixed Problems in V5.44   (18-FEB-2024)
+===========================================================================
+* SDK (kvadblib)
+  - Fixed parsing of integral signal values of large magnitude.
+  - Added error handling for negative/very large values in unsigned
+    fields.
+
+* SDK (Documentation):
+  - Moved "Support" and "Licence and Copyright" closer to the top of the tree view of the web help.
+
+* Drivers
+  - Support for new devices:
+    - Kvaser PCIe 8xCAN (01512-8)
+    - Kvaser USBcan Pro 5xCAN (01524-1)
+    - Kvaser Mini PCIe 1xCAN (01368-1)
+
+* Add firmware upgrade support via kv_flash_prog_mmap, for the following PCI devices:
+  - M.2 PCIe 4xCAN (01162-8)
+
+
+New Features and Fixed Problems in V5.43   (13-SEP-2023)
+===========================================================================
+* SDK (kvadblib)
+  - Fixed bug where negative signal values would be set to zero
+    on some architectures.
+  - Added a page about using multiple threads to the documentation.
+
+* SDK (kvmlib)
+  - Fixed issue with kvmLogFileDeleteAll when using an SD card reader.
+  - Fixed issue where kvmKmeReadEvent returned memoLogMsgEx with dlc
+    code instead of data length for CAN FD messages.
+    The memoLogMsgEx struct will now always contain the data length in bytes.
+
+* Drivers
+  - Support for new PCIe devices:
+    - M.2 PCIe 4xCAN (01162-8)
+    - Kraken platform (01244-8)
+  - Fixed build problems for kernel v6.4.0.
+
+* Add firmware upgrade support via kv_flash_prog_mmap, for the following PCI devices:
+  - Kvaser PCIEcan 1xCAN v3 (01433-6)
+  - Kvaser PCIEcan 2xCAN v3 (01432-9)
+  - Kvaser PCIEcan 4xCAN v2 (01414-5)
+  - Kvaser Mini PCI Express 1xCAN v3 (01420-6)
+  - Kvaser Mini PCI Express 2xCAN v3 (01417-6)
+
+New Features and Fixed Problems in V5.42.359 (23-MAY-2023)
+===========================================================================
+* Drivers
+  - Full support for new PCI devices:
+    - Kvaser PCIEcan 1xCAN v3 (01433-6)
+    - Kvaser PCIEcan 2xCAN v3 (01432-9)
+    - Kvaser PCIEcan 4xCAN v2 (01414-5)
+    - Kvaser Mini PCI Express 1xCAN v3 (01420-6)
+    - Kvaser Mini PCI Express 2xCAN v3 (01417-6)
+
+
+New Features and Fixed Problems in V5.41   (05-MAY-2023)
+===========================================================================
+* SDK
+  - Fixed build problems for GCC 13.0.
+
+* SDK (kvlclib)
+  - MDF 4.1 signal based file format (KVLC_FILE_FORMAT_MDF_4X_SIGNAL)
+    data groups are now filtered on channel and ID (previously only ID).
+  - MDF 4.1 signal based file format (KVLC_FILE_FORMAT_MDF_4X_SIGNAL)
+    data groups are now filtered on source address in j1939 mode
+    (KVLC_PROPERTY_HLP_J1939).
+  - CSV signal based file format (KVLC_FILE_FORMAT_CSV_SIGNAL) now
+    properly handles multiple databases using the same message ID on
+    different channels.
+  - CSV signal based file format (KVLC_FILE_FORMAT_CSV_SIGNAL) now
+    includes channel ID in the last column of each row. This information
+    was previously discarded.
+
+* SDK (kvadblib)
+  - Fixed issue with unsigned signal min/max vales
+
+* SDK (kvmlib)
+  - Max file count updated to match actual limit for KMF files when
+    requesting disk usage.
+
+* Drivers
+  - Tentative support for new PCI devices:
+    All devices show up with serial number 1.
+    Not possible to upgrade firmware using kv_flash_prog utility.
+    - Kvaser PCIEcan 1xCAN v3 (01433-6)
+    - Kvaser PCIEcan 2xCAN v3 (01432-9)
+    - Kvaser PCIEcan 4xCAN v2 (01414-5)
+    - Kvaser Mini PCI Express 1xCAN v3 (01420-6)
+    - Kvaser Mini PCI Express 2xCAN v3 (01417-6)
+  - Fixed DKMS install problem for dkms v2.8.6 and later.
+  - Fixed build problems for kernel v6.1.0 and v6.2.0.
+  - Fixed build problems for GCC 13.0.
+  - Rework driver initialization, loading and SocketCAN blacklisting.
+    Removed driver start/stop script and USB udev rules.
+    Separated /etc/modules-load.d configuration into a single file for each
+    module:
+      /etc/modules-load.d/kvaser-kvpcican.conf
+      /etc/modules-load.d/kvaser-kvpcicanII.conf
+      /etc/modules-load.d/kvaser-kvpciefd.conf
+      /etc/modules-load.d/kvaser-kvvirtualcan.conf
+    Separated SocketCAN blacklisting into separate files, one for each module:
+      /etc/modprobe.d/blacklist-kvaser_pci.conf
+      /etc/modprobe.d/blacklist-kvaser_pciefd.conf
+      /etc/modprobe.d/blacklist-kvaser_usb.conf
+    The following files are now obsolete and will be removed when installing
+    linuxcan:
+      /etc/modprobe.d/kvaser.conf
+      /etc/modules-load.d/kvaser.conf
+      /etc/udev/rules.d/10-kvaser.rules
+      /usr/sbin/leaf.sh
+      /usr/sbin/mhydra.sh
+      /usr/sbin/pcicanII.sh
+      /usr/sbin/pcican.sh
+      /usr/sbin/pciefd.sh
+      /usr/sbin/usbcanII.sh
+      /usr/sbin/virtualcan.sh
+    Removed module aliases pcican, pcicanII and pciefd. The actual module name
+    got the kv prefix; kvpcican, kvpcicanII and kvpciefd.
+
+
 New Features and Fixed Problems in V5.40   (08-SEP-2022)
 ===========================================================================
 * Drivers
-  - Added support for new device, Kvaser Leaf Light v3
+  - Added support for new device, Kvaser Leaf v3
   - Added support for new device, Kvaser USBcan Pro 4xCAN Silent
 
 * SDK (canlib)

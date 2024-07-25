@@ -482,7 +482,7 @@ Macros</h2></td></tr>
 <tr class="memdesc:ab943def3563eb89a526ecd8f3b489768"><td class="mdescLeft">&#160;</td><td class="mdescRight">Kvaser U100 and variants.  <a href="#ab943def3563eb89a526ecd8f3b489768">More...</a><br /></td></tr>
 <tr class="separator:ab943def3563eb89a526ecd8f3b489768"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aad24fe9abf4424a071ec79b535e49ec4"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="canlib_8h.html#aad24fe9abf4424a071ec79b535e49ec4">canHWTYPE_LEAF3</a>&#160;&#160;&#160;90</td></tr>
-<tr class="memdesc:aad24fe9abf4424a071ec79b535e49ec4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Kvaser Kvaser Leaf Light v3 and variants.  <a href="#aad24fe9abf4424a071ec79b535e49ec4">More...</a><br /></td></tr>
+<tr class="memdesc:aad24fe9abf4424a071ec79b535e49ec4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Kvaser Kvaser Leaf v3 and variants.  <a href="#aad24fe9abf4424a071ec79b535e49ec4">More...</a><br /></td></tr>
 <tr class="separator:aad24fe9abf4424a071ec79b535e49ec4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr><td colspan="2"><div class="groupHeader">canCHANNEL_CAP_xxx</div></td></tr>
 <tr><td colspan="2"><div class="groupText"><p><a class="anchor" id="canCHANNEL_CAP_xxx"></a> Channel capabilities. </p>
@@ -2017,7 +2017,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>This define is used in <a class="el" href="group__can__general.html#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData()</a>, <em>buffer</em> mentioned below refers to this functions argument.</p>
 <p><em>buffer</em> points to a 64-bit (8 bytes) area which receives the firmware revision number on the card. This number consists of four 16-bit words: the major revision, the minor revision, the release number and the build number, listed in order from the most significant to the least significant. </p>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a7">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a14">listChannels.c</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a7">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a13">listChannels.c</a>.</dd>
 </dl>
 </div>
 </div>
@@ -2066,7 +2066,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>This define is used in <a class="el" href="group__can__general.html#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData()</a>, <em>buffer</em> mentioned below refers to this functions argument.</p>
 <p><em>buffer</em> points to a 64-bit (8 bytes) area which receives the serial number of the card. If the card doesn't have a serial number, 0 is returned. The serial number is an 8-byte unsigned integer. Currently, no products are using all 8 bytes; at most 4 bytes are used. </p>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a6">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a13">listChannels.c</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a6">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a12">listChannels.c</a>.</dd>
 </dl>
 </div>
 </div>
@@ -2099,7 +2099,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>This define is used in <a class="el" href="group__can__general.html#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData()</a>, <em>buffer</em> mentioned below refers to this functions argument.</p>
 <p><em>buffer</em> points to a 8-byte area which receives the UPC (EAN) number for the card. If there is no UPC number, the buffer is filled with zeros. The UPC (EAN) number is coded as a BCD string with the LSB first, so e.g. 733-0130-00122-0 is coded as 0x30001220 0x00073301. </p>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a5">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a12">listChannels.c</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a5">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a11">listChannels.c</a>.</dd>
 </dl>
 </div>
 </div>
@@ -2207,8 +2207,7 @@ Functions</h2></td></tr>
 <p><em>buffer</em> points to an area which receives a zero-terminated string with a clear-text name of the channel.</p>
 <dl class="section note"><dt>Note</dt><dd>Use of this item code is no longer recommended. The returned channel name doesn't contain the exact hardware type (it just contains the device family) and uses zero-based channel numbering, which is not user friendly. Instead, use e.g. <a class="el" href="canlib_8h.html#afc7edc82e3d370444c3b83c66a9c6479">canCHANNELDATA_DEVDESCR_ASCII</a> and <a class="el" href="canlib_8h.html#a4e0823a649d26191cde50f2c4fa5a65d">canCHANNELDATA_CHAN_NO_ON_CARD</a> to build your own channel name.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="canlib_8h.html#af401a271df81c288ca1ba3a18eddd5ec">canCHANNELDATA_DEVNAME_ASCII</a> </dd></dl>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="list_channels_8c-example.html#a11">listChannels.c</a>.</dd>
-</dl>
+
 </div>
 </div>
 <a id="a33a8b6d6acfa69bc65b3efd171aa0990"></a>
@@ -2259,7 +2258,7 @@ Functions</h2></td></tr>
 <p>This define is used in <a class="el" href="group__can__general.html#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData()</a>, <em>buffer</em> mentioned below refers to this functions argument.</p>
 <dl class="section note"><dt>Note</dt><dd>If no channel name is set, <a class="el" href="canstat_8h.html#a52b5e5c71832b0bd3c6a5b1fd48583e7a41e892edb8f1b6f9f609599df8e20bdf">canERR_NOT_IMPLEMENTED</a> will be returned, regardless of channel name is supported in the device or not.</dd></dl>
 <p><em>buffer</em> is a user supplied byte array of length 'bufsize' (at least one byte long) to which the null terminated UTF-8 coded channel name will be placed. </p>
-<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a9">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a15">listChannels.c</a>.</dd>
+<dl><dt><b>Examples: </b></dt><dd><a class="el" href="how-to_2c_2list_channels_8c-example.html#a9">how-to/c/listChannels.c</a>, and <a class="el" href="list_channels_8c-example.html#a14">listChannels.c</a>.</dd>
 </dl>
 </div>
 </div>
@@ -3329,7 +3328,7 @@ Not implemented in linux. </dd></dl>
       </table>
 </div><div class="memdoc">
 
-<p>Kvaser Kvaser Leaf Light v3 and variants. </p>
+<p>Kvaser Kvaser Leaf v3 and variants. </p>
 
 </div>
 </div>
@@ -5068,7 +5067,7 @@ reporting" by calling <a class="el" href="group__can__general.html#gaeaa24db97af
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Unkown bus type. </p><dl class="section note"><dt>Note</dt><dd>Not inplemented in linux. </dd></dl>
+<p>Unknown bus type. </p><dl class="section note"><dt>Note</dt><dd>Not inplemented in linux. </dd></dl>
 
 </div>
 </div>
@@ -6822,7 +6821,7 @@ On Linux, the default calling convention is used.</dd></dl>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_8af83c0dc83a45a35ca6968cdc29a7af.html">tmp</a></li><li class="navelem"><a class="el" href="dir_b077c42d920d220d4fe5af62a68f598c.html">src</a></li><li class="navelem"><a class="el" href="canlib_8h.html">canlib.h</a></li>
-    <li class="footer"> (canlib 5.40) Thu Sep 8 2022</li>
+    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
   </ul>
 </div>
 </body>
