@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -73,9 +73,9 @@
 
 #ifdef HAL_HELIOS
 // Compiling for M16C
-#  define DPRAM_BASE 0x6000
+#define DPRAM_BASE 0x6000
 #else
-#  define DPRAM_BASE 0
+#define DPRAM_BASE 0
 #endif
 
 /*
@@ -101,25 +101,23 @@ bit12 set mutual exclusion. (when high)
 // 0c00 - 0c03  Timer
 // 0d00 - 0d03  Interrupt control for the host
 
-
 //DPRAM receive (M16C to host) buffer start
 
-#define DPRAM_RX_BUF_START  (DPRAM_BASE + 0x0100)
-#define DPRAM_RX_BUF_END    (DPRAM_BASE + 0x05ff)
-#define DPRAM_RX_BUF_SIZE   (DPRAM_RX_BUF_END - DPRAM_RX_BUF_START + 1)
-
+#define DPRAM_RX_BUF_START (DPRAM_BASE + 0x0100)
+#define DPRAM_RX_BUF_END   (DPRAM_BASE + 0x05ff)
+#define DPRAM_RX_BUF_SIZE  (DPRAM_RX_BUF_END - DPRAM_RX_BUF_START + 1)
 
 //DPRAM transmit (host to M16C) buffer start
-#define DPRAM_TX_BUF_START  (DPRAM_BASE + 0x0600)
-#define DPRAM_TX_BUF_END    (DPRAM_BASE + 0x0bff)
-#define DPRAM_TX_BUF_SIZE   (DPRAM_TX_BUF_END - DPRAM_TX_BUF_START + 1)
+#define DPRAM_TX_BUF_START (DPRAM_BASE + 0x0600)
+#define DPRAM_TX_BUF_END   (DPRAM_BASE + 0x0bff)
+#define DPRAM_TX_BUF_SIZE  (DPRAM_TX_BUF_END - DPRAM_TX_BUF_START + 1)
 
 //
 // Special purpose addresses in the DPRAM buffer
 //
 
 // Special function register
-#define DPRAM_CTRLREG     (DPRAM_BASE + DPRAM_MUTEX + 0x0000)
+#define DPRAM_CTRLREG (DPRAM_BASE + DPRAM_MUTEX + 0x0000)
 
 // 32-bit pointers
 #define DPRAM_HOST_READ_PTR  (DPRAM_BASE + DPRAM_MUTEX + 0x0004)
@@ -129,35 +127,33 @@ bit12 set mutual exclusion. (when high)
 
 #ifdef HAL_HELIOS
 
-#define HOST_READ_PTR_LOW   ((unsigned short*)(DPRAM_HOST_READ_PTR))
-#define HOST_READ_PTR_HIGH  ((unsigned short*)(DPRAM_HOST_READ_PTR + 2))
+#define HOST_READ_PTR_LOW  ((unsigned short *)(DPRAM_HOST_READ_PTR))
+#define HOST_READ_PTR_HIGH ((unsigned short *)(DPRAM_HOST_READ_PTR + 2))
 
-#define HOST_WRITE_PTR_LOW ((unsigned short*)(DPRAM_HOST_WRITE_PTR))
-#define HOST_WRITE_PTR_HIGH ((unsigned short*)(DPRAM_HOST_WRITE_PTR + 2))
+#define HOST_WRITE_PTR_LOW  ((unsigned short *)(DPRAM_HOST_WRITE_PTR))
+#define HOST_WRITE_PTR_HIGH ((unsigned short *)(DPRAM_HOST_WRITE_PTR + 2))
 
-#define M16C_READ_PTR_LOW  ((unsigned short*)(DPRAM_M16C_READ_PTR))
-#define M16C_READ_PTR_HIGH  ((unsigned short*)(DPRAM_M16C_READ_PTR + 2))
+#define M16C_READ_PTR_LOW  ((unsigned short *)(DPRAM_M16C_READ_PTR))
+#define M16C_READ_PTR_HIGH ((unsigned short *)(DPRAM_M16C_READ_PTR + 2))
 
-#define M16C_WRITE_PTR_LOW ((unsigned short*)(DPRAM_M16C_WRITE_PTR))
-#define M16C_WRITE_PTR_HIGH ((unsigned short*)(DPRAM_M16C_WRITE_PTR + 2))
+#define M16C_WRITE_PTR_LOW  ((unsigned short *)(DPRAM_M16C_WRITE_PTR))
+#define M16C_WRITE_PTR_HIGH ((unsigned short *)(DPRAM_M16C_WRITE_PTR + 2))
 
 #endif
 
 // Interrupt register - 8 bits, read/write, accessible from the host side only
-#define DPRAM_INTERRUPT_REG       (DPRAM_BASE + 0xd00)
-#define DPRAM_INTERRUPT_DISABLE   0x01    // Set to 0 to enable interrupts
-#define DPRAM_INTERRUPT_ACK       0x02    // Set to 1 and back to 0 again to clear interrupt
-#define DPRAM_INTERRUPT_ACTIVE    0x04    // 1 when interrupt is active
-
+#define DPRAM_INTERRUPT_REG     (DPRAM_BASE + 0xd00)
+#define DPRAM_INTERRUPT_DISABLE 0x01 // Set to 0 to enable interrupts
+#define DPRAM_INTERRUPT_ACK     0x02 // Set to 1 and back to 0 again to clear interrupt
+#define DPRAM_INTERRUPT_ACTIVE  0x04 // 1 when interrupt is active
 
 // Timer register; runs with 1 MHz and can't (currently) be cleared.
-#define DPRAM_TIMER_REG   (DPRAM_BASE + 0x0F00)
-
+#define DPRAM_TIMER_REG (DPRAM_BASE + 0x0F00)
 
 // Bit definitions for the control register
-#define DPRAM_CTRLREG_BIST_DONE           0x00000001
-#define DPRAM_CTRLREG_BIST_OK             0x00000002
-#define DPRAM_CTRLREG_FIRMWARE_REV_MASK   0xFF000000
-#define DPRAM_CTRLREG_FIRMWARE_REV_SHIFT  24
+#define DPRAM_CTRLREG_BIST_DONE          0x00000001
+#define DPRAM_CTRLREG_BIST_OK            0x00000002
+#define DPRAM_CTRLREG_FIRMWARE_REV_MASK  0xFF000000
+#define DPRAM_CTRLREG_FIRMWARE_REV_SHIFT 24
 
 #endif

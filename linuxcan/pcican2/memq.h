@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -64,14 +64,14 @@
 #ifndef _MEMQ_H_
 #define _MEMQ_H_
 
-#define MEM_Q_FULL        1
-#define MEM_Q_EMPTY       2
-#define MEM_Q_SUCCESS     0
+#define MEM_Q_FULL    1
+#define MEM_Q_EMPTY   2
+#define MEM_Q_SUCCESS 0
 
 #include "PciCan2HwIf.h"
 
 int MemQSanityCheck(PciCan2CardData *ci);
 int QCmd(PciCan2CardData *ci, heliosCmd *cmd);
-int GetCmdFromQ(PciCan2CardData *ci, heliosCmd* cmdPtr) ;
+int GetCmdFromQ(PciCan2CardData *ci, heliosCmd *cmdPtr);
 
 #endif

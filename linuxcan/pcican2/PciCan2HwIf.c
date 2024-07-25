@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -82,13 +82,9 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/proc_fs.h>
-#include <asm/io.h>
-#include <linux/seq_file.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
-#   include <asm/system.h>
+#include <asm/system.h>
 #endif /* KERNEL_VERSION < 3.4.0 */
 #include <asm/bitops.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
@@ -97,7 +93,6 @@
 #include <linux/uaccess.h>
 #endif /* KERNEL_VERSION < 4.12.0 */
 #include <asm/atomic.h>
-
 
 // Kvaser definitions
 #include "canlib_version.h"
@@ -113,8 +108,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("KVASER");
 MODULE_DESCRIPTION("PCIcanII CAN module.");
-MODULE_VERSION(__stringify(CANLIB_MAJOR_VERSION) "."
-               __stringify(CANLIB_MINOR_VERSION));
+MODULE_VERSION(__stringify(CANLIB_MAJOR_VERSION) "." __stringify(CANLIB_MINOR_VERSION));
 
 //
 // If you do not define PCICANII_DEBUG at all, all the debug code will be
@@ -125,186 +119,160 @@ MODULE_VERSION(__stringify(CANLIB_MAJOR_VERSION) "."
 //
 
 #ifdef PCICAN2_DEBUG
-static int debug_level= PCICAN2_DEBUG;
-    MODULE_PARM_DESC(debug_level, "PCIcan2 debug level");
-    module_param(debug_level, int, 0644);
-#   define DEBUGPRINT(n, args...) if (debug_level>=(n)) printk("<" #n ">" args)
+static int debug_level = PCICAN2_DEBUG;
+MODULE_PARM_DESC(debug_level, "PCIcan2 debug level");
+module_param(debug_level, int, 0644);
+#define DEBUGPRINT(n, args...) \
+    if (debug_level >= (n))    \
+    printk("<" #n ">" args)
 #else
-#   define DEBUGPRINT(n, args...) if ((n) == 1) printk("<" #n ">" args)
+#define DEBUGPRINT(n, args...) \
+    if ((n) == 1)              \
+    printk("<" #n ">" args)
 #endif
 
 // Bits in the CxSTRH register in the M16C.
-#define M16C_BUS_RESET    0x01    // Chip is in Reset state
-#define M16C_BUS_ERROR    0x10    // Chip has seen a bus error
-#define M16C_BUS_PASSIVE  0x20    // Chip is error passive
-#define M16C_BUS_OFF      0x40    // Chip is bus off
-
+#define M16C_BUS_RESET   0x01 // Chip is in Reset state
+#define M16C_BUS_ERROR   0x10 // Chip has seen a bus error
+#define M16C_BUS_PASSIVE 0x20 // Chip is error passive
+#define M16C_BUS_OFF     0x40 // Chip is bus off
 
 //======================================================================
 // HW function pointers
 //======================================================================
 
 static int pciCanInitAllDevices(void);
-static int pciCanSetBusParams (VCanChanData *vChd, VCanBusParams *par);
-static int pciCanGetBusParams (VCanChanData *vChd, VCanBusParams *par);
-static int pciCanSetOutputMode (VCanChanData *vChd, int silent);
-static int pciCanSetTranceiverMode (VCanChanData *vChd, int linemode, int resnet);
-static int pciCanBusOn (VCanChanData *vChd);
-static int pciCanBusOff (VCanChanData *vChd);
+static int pciCanSetBusParams(VCanChanData *vChd, VCanBusParams *par);
+static int pciCanGetBusParams(VCanChanData *vChd, VCanBusParams *par);
+static int pciCanSetOutputMode(VCanChanData *vChd, int silent);
+static int pciCanSetTranceiverMode(VCanChanData *vChd, int linemode, int resnet);
+static int pciCanBusOn(VCanChanData *vChd);
+static int pciCanBusOff(VCanChanData *vChd);
 static int pciCanGetTxErr(VCanChanData *vChd);
 static int pciCanGetRxErr(VCanChanData *vChd);
-static int pciCanInSync (VCanChanData *vChd);
+static int pciCanInSync(VCanChanData *vChd);
 static int pciCanCloseAllDevices(void);
-static int pciCanProcRead (struct seq_file* m, void* v);
-static int pciCanRequestChipState (VCanChanData *vChd);
+static int pciCanRequestChipState(VCanChanData *vChd);
 static unsigned long pciCanTxQLen(VCanChanData *vChd);
-static void pciCanRequestSend (VCanCardData *vCard, VCanChanData *vChan);
+static void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChan);
 static int pciCanTime(VCanCardData *vCard, uint64_t *time);
-static int pciCanFlushSendBuffer (VCanChanData *vChan);
+static int pciCanFlushSendBuffer(VCanChanData *vChan);
 
-static int pciCanWaitResponse(VCanCardData *vCard, heliosCmd *cmd,
-                              heliosCmd *replyPtr, unsigned char cmdNr,
-                              unsigned char transId);
+static int pciCanWaitResponse(VCanCardData *vCard, heliosCmd *cmd, heliosCmd *replyPtr,
+                              unsigned char cmdNr, unsigned char transId);
 static int pciCanNoResponse(PciCan2CardData *hCard, heliosCmd *cmd);
 static int pciCanObjbufExists(VCanChanData *chd, int bufType, int bufNo);
 static int pciCanObjbufFree(VCanChanData *chd, int bufType, int bufNo);
 static int pciCanObjbufAlloc(VCanChanData *chd, int bufType, int *bufNo);
-static int pciCanObjbufWrite(VCanChanData *chd, int bufType, int bufNo,
-                             int id, int flags, int dlc, unsigned char *data);
-static int pciCanObjbufEnable(VCanChanData *chd, int bufType, int bufNo,
-                              int enable);
-static int pciCanObjbufSetFilter(VCanChanData *chd, int bufType, int bufNo,
-                                 int code, int mask);
-static int pciCanObjbufSetFlags(VCanChanData *chd, int bufType, int bufNo,
-                                int flags);
-static int pciCanObjbufSetPeriod(VCanChanData *chd, int bufType, int bufNo,
-                                 int period);
-
+static int pciCanObjbufWrite(VCanChanData *chd, int bufType, int bufNo, int id, int flags, int dlc,
+                             unsigned char *data);
+static int pciCanObjbufEnable(VCanChanData *chd, int bufType, int bufNo, int enable);
+static int pciCanObjbufSetFilter(VCanChanData *chd, int bufType, int bufNo, int code, int mask);
+static int pciCanObjbufSetFlags(VCanChanData *chd, int bufType, int bufNo, int flags);
+static int pciCanObjbufSetPeriod(VCanChanData *chd, int bufType, int bufNo, int period);
 
 static VCanDriverData driverData;
 
 static VCanHWInterface hwIf = {
-    .initAllDevices    = pciCanInitAllDevices,
-    .setBusParams      = pciCanSetBusParams,
-    .getBusParams      = pciCanGetBusParams,
-    .setOutputMode     = pciCanSetOutputMode,
+    .initAllDevices = pciCanInitAllDevices,
+    .setBusParams = pciCanSetBusParams,
+    .getBusParams = pciCanGetBusParams,
+    .setOutputMode = pciCanSetOutputMode,
     .setTranceiverMode = pciCanSetTranceiverMode,
-    .busOn             = pciCanBusOn,
-    .busOff            = pciCanBusOff,
-    .txAvailable       = pciCanInSync,
-    .procRead          = pciCanProcRead,
-    .closeAllDevices   = pciCanCloseAllDevices,
-    .getTime           = pciCanTime,
-    .flushSendBuffer   = pciCanFlushSendBuffer,
-    .getRxErr          = pciCanGetRxErr,
-    .getTxErr          = pciCanGetTxErr,
-    .txQLen            = pciCanTxQLen,
-    .requestChipState  = pciCanRequestChipState,
-    .requestSend       = pciCanRequestSend,
-    .objbufExists      = pciCanObjbufExists,
-    .objbufFree        = pciCanObjbufFree,
-    .objbufAlloc       = pciCanObjbufAlloc,
-    .objbufWrite       = pciCanObjbufWrite,
-    .objbufEnable      = pciCanObjbufEnable,
-    .objbufSetFilter   = pciCanObjbufSetFilter,
-    .objbufSetFlags    = pciCanObjbufSetFlags,
-    .objbufSetPeriod   = pciCanObjbufSetPeriod,
-    .getCardInfo       = vCanGetCardInfo,
-    .getCardInfo2      = vCanGetCardInfo2,
+    .busOn = pciCanBusOn,
+    .busOff = pciCanBusOff,
+    .txAvailable = pciCanInSync,
+    .closeAllDevices = pciCanCloseAllDevices,
+    .getTime = pciCanTime,
+    .flushSendBuffer = pciCanFlushSendBuffer,
+    .getRxErr = pciCanGetRxErr,
+    .getTxErr = pciCanGetTxErr,
+    .txQLen = pciCanTxQLen,
+    .requestChipState = pciCanRequestChipState,
+    .requestSend = pciCanRequestSend,
+    .objbufExists = pciCanObjbufExists,
+    .objbufFree = pciCanObjbufFree,
+    .objbufAlloc = pciCanObjbufAlloc,
+    .objbufWrite = pciCanObjbufWrite,
+    .objbufEnable = pciCanObjbufEnable,
+    .objbufSetFilter = pciCanObjbufSetFilter,
+    .objbufSetFlags = pciCanObjbufSetFlags,
+    .objbufSetPeriod = pciCanObjbufSetPeriod,
+    .getCardInfo = vCanGetCardInfo,
+    .getCardInfo2 = vCanGetCardInfo2,
+    .device_name = DEVICE_NAME_STRING,
 };
 
-
-static int pciCanInitOne(struct pci_dev *dev,
-                                 const struct pci_device_id *id);
+static int pciCanInitOne(struct pci_dev *dev, const struct pci_device_id *id);
 static void pciCanRemoveOne(struct pci_dev *dev);
 
 static struct pci_device_id id_table[] = {
-  {
-    .vendor    = PCICAN2_VENDOR,
-    .device    = PCICAN2_ID,
-    .subvendor = PCI_ANY_ID,
-    .subdevice = PCI_ANY_ID
-  },
-  {
-    .vendor    = KVASER_VENDOR,
-    .device    = PC104PLUS_ID,
-    .subvendor = PCI_ANY_ID,
-    .subdevice = PCI_ANY_ID
-  },
-  {
-    .vendor    = KVASER_VENDOR,
-    .device    = PCI104_ID,
-    .subvendor = PCI_ANY_ID,
-    .subdevice = PCI_ANY_ID
-  },
-  {
-    .vendor    = KVASER_VENDOR,
-    .device    = PCICANX2_ID,
-    .subvendor = PCI_ANY_ID,
-    .subdevice = PCI_ANY_ID
-  },
-  {0,},
+    { .vendor = PCICAN2_VENDOR,
+      .device = PCICAN2_ID,
+      .subvendor = PCI_ANY_ID,
+      .subdevice = PCI_ANY_ID },
+    { .vendor = KVASER_VENDOR,
+      .device = PC104PLUS_ID,
+      .subvendor = PCI_ANY_ID,
+      .subdevice = PCI_ANY_ID },
+    { .vendor = KVASER_VENDOR,
+      .device = PCI104_ID,
+      .subvendor = PCI_ANY_ID,
+      .subdevice = PCI_ANY_ID },
+    { .vendor = KVASER_VENDOR,
+      .device = PCICANX2_ID,
+      .subvendor = PCI_ANY_ID,
+      .subdevice = PCI_ANY_ID },
+    {
+        0,
+    },
 };
 
 static struct pci_driver pcican_tbl = {
-  .name     = "kvpcicanII",
-  .id_table = id_table,
-  .probe    = pciCanInitOne,
-  .remove   = pciCanRemoveOne,
+    .name = "kvpcicanII",
+    .id_table = id_table,
+    .probe = pciCanInitOne,
+    .remove = pciCanRemoveOne,
 };
 
 //======================================================================
 //    getTransId
 //======================================================================
-static inline int getTransId (heliosCmd *cmd)
+static inline int getTransId(heliosCmd *cmd)
 {
     if (cmd->head.cmdNo > CMD_TX_EXT_MESSAGE) {
         // Any of the commands
         return cmd->getBusparamsReq.transId;
-    }
-    else {
+    } else {
         DEBUGPRINT(1, "WARNING won't give a correct transid\n");
         return 0;
     }
 }
 
-
-//======================================================================
-// /proc read function
-//======================================================================
-static int pciCanProcRead (struct seq_file* m, void* v)
-{
-    seq_printf(m, "\ntotal channels %d\n", driverData.noOfDevices);
-
-    return 0;
-}
-
 //======================================================================
 //  All acks received?
 //======================================================================
-static int pciCanInSync (VCanChanData *vChd)
+static int pciCanInSync(VCanChanData *vChd)
 {
     PciCan2ChanData *hChd = vChd->hwChanData;
 
     return (atomic_read(&hChd->outstanding_tx) == 0);
 } // pciCanInSync
 
-
 //======================================================================
 //  Can we send now?
 //======================================================================
-static int pciCanTxAvailable (VCanChanData *vChd)
+static int pciCanTxAvailable(VCanChanData *vChd)
 {
     PciCan2ChanData *hChd = vChd->hwChanData;
 
     return (atomic_read(&hChd->outstanding_tx) < HELIOS_MAX_OUTSTANDING_TX);
 } // pciCanTxAvailable
 
-
 //======================================================================
 // Find out some info about the H/W
 //======================================================================
-static int pciCanProbe (VCanCardData *vCd)
+static int pciCanProbe(VCanCardData *vCd)
 {
     PciCan2CardData *hCd = vCd->hwCardData;
     int chan, i;
@@ -338,31 +306,29 @@ static int pciCanProbe (VCanCardData *vCd)
 //======================================================================
 //  Set bit timing
 //======================================================================
-static int pciCanSetBusParams (VCanChanData *vChd, VCanBusParams *par)
+static int pciCanSetBusParams(VCanChanData *vChd, VCanBusParams *par)
 {
-
     PciCan2CardData *hCard = vChd->vCard->hwCardData;
-    PciCan2ChanData *hChd  = vChd->hwChanData;
+    PciCan2ChanData *hChd = vChd->hwChanData;
     heliosCmd cmd;
     unsigned long tmp;
     int ret;
 
     if ((par->tseg1 == 0) || (par->tseg2 == 0) || (par->sjw == 0) ||
-        ((unsigned int)par->tseg1 > 0xffu) ||
-        ((unsigned int)par->tseg2 > 0xffu) ||
-        ((unsigned int)par->sjw   > 0xffu)) {
+        ((unsigned int)par->tseg1 > 0xffu) || ((unsigned int)par->tseg2 > 0xffu) ||
+        ((unsigned int)par->sjw > 0xffu)) {
         return VCAN_STAT_BAD_PARAMETER;
     }
 
-    cmd.setBusparamsReq.cmdNo   = CMD_SET_BUSPARAMS_REQ;
-    cmd.setBusparamsReq.cmdLen  = sizeof(cmdSetBusparamsReq);
+    cmd.setBusparamsReq.cmdNo = CMD_SET_BUSPARAMS_REQ;
+    cmd.setBusparamsReq.cmdLen = sizeof(cmdSetBusparamsReq);
     cmd.setBusparamsReq.bitRate = (unsigned long)par->freq;
-    cmd.setBusparamsReq.sjw     = (unsigned char)par->sjw;
-    cmd.setBusparamsReq.tseg1   = (unsigned char)par->tseg1;
-    cmd.setBusparamsReq.tseg2   = (unsigned char)par->tseg2;
+    cmd.setBusparamsReq.sjw = (unsigned char)par->sjw;
+    cmd.setBusparamsReq.tseg1 = (unsigned char)par->tseg1;
+    cmd.setBusparamsReq.tseg2 = (unsigned char)par->tseg2;
     cmd.setBusparamsReq.channel = (unsigned char)vChd->channel;
     cmd.setBusparamsReq.transId = (unsigned char)vChd->channel;
-    cmd.setBusparamsReq.noSamp  = 1; // Always 1
+    cmd.setBusparamsReq.noSamp = 1; // Always 1
 
     // Check bus parameters
     tmp = par->freq * (par->tseg1 + par->tseg2 + 1);
@@ -374,10 +340,10 @@ static int pciCanSetBusParams (VCanChanData *vChd, VCanBusParams *par)
     }
 
     // Store locally since getBusParams not correct
-    hChd->freq    = (unsigned long)par->freq;
-    hChd->sjw     = (unsigned char)par->sjw;
-    hChd->tseg1   = (unsigned char)par->tseg1;
-    hChd->tseg2   = (unsigned char)par->tseg2;
+    hChd->freq = (unsigned long)par->freq;
+    hChd->sjw = (unsigned char)par->sjw;
+    hChd->tseg1 = (unsigned char)par->tseg1;
+    hChd->tseg2 = (unsigned char)par->tseg2;
 
     ret = pciCanNoResponse(hCard, &cmd);
     if (ret != VCAN_STAT_OK) {
@@ -387,36 +353,34 @@ static int pciCanSetBusParams (VCanChanData *vChd, VCanBusParams *par)
     return ret;
 } // pciCanSetBusParams
 
-
 //======================================================================
 //  Get bit timing
 //======================================================================
-static int pciCanGetBusParams (VCanChanData *vChd, VCanBusParams *par)
+static int pciCanGetBusParams(VCanChanData *vChd, VCanBusParams *par)
 {
-    PciCan2ChanData *hChd  = vChd->hwChanData;
-    par->sjw     = hChd->sjw;
-    par->samp3   = 1;
-    par->tseg1   = hChd->tseg1;
-    par->tseg2   = hChd->tseg2;
-    par->freq    = hChd->freq;
+    PciCan2ChanData *hChd = vChd->hwChanData;
+    par->sjw = hChd->sjw;
+    par->samp3 = 1;
+    par->tseg1 = hChd->tseg1;
+    par->tseg2 = hChd->tseg2;
+    par->freq = hChd->freq;
 
     return VCAN_STAT_OK;
 } // pciCanGetBusParams
 
-
 //======================================================================
 //  Set silent or normal mode
 //======================================================================
-static int pciCanSetOutputMode (VCanChanData *vChd, int silent)
+static int pciCanSetOutputMode(VCanChanData *vChd, int silent)
 {
     PciCan2CardData *hCard = vChd->vCard->hwCardData;
     heliosCmd cmd;
     int ret;
 
-    cmd.setDrivermodeReq.cmdNo    = CMD_SET_DRIVERMODE_REQ;
-    cmd.setDrivermodeReq.cmdLen   = sizeof(cmdSetDrivermodeReq);
-    cmd.setDrivermodeReq.channel  = (unsigned char)vChd->channel;
-    cmd.setDrivermodeReq.driverMode = silent? DRIVERMODE_SILENT : DRIVERMODE_NORMAL;
+    cmd.setDrivermodeReq.cmdNo = CMD_SET_DRIVERMODE_REQ;
+    cmd.setDrivermodeReq.cmdLen = sizeof(cmdSetDrivermodeReq);
+    cmd.setDrivermodeReq.channel = (unsigned char)vChd->channel;
+    cmd.setDrivermodeReq.driverMode = silent ? DRIVERMODE_SILENT : DRIVERMODE_NORMAL;
 
     ret = pciCanNoResponse(hCard, &cmd);
     if (ret != VCAN_STAT_OK) {
@@ -426,53 +390,49 @@ static int pciCanSetOutputMode (VCanChanData *vChd, int silent)
     return ret;
 } // pciCanSetOutputMode
 
-
 //======================================================================
 //  Line mode
 //======================================================================
-static int pciCanSetTranceiverMode (VCanChanData *vChd, int linemode, int resnet)
+static int pciCanSetTranceiverMode(VCanChanData *vChd, int linemode, int resnet)
 {
     vChd->lineMode = linemode;
     return VCAN_STAT_OK;
 } // pciCanSetTranceiverMode
 
-
 //======================================================================
 //  Query chip status
 //======================================================================
-static int pciCanRequestChipState (VCanChanData *vChd)
+static int pciCanRequestChipState(VCanChanData *vChd)
 {
     heliosCmd cmd;
     heliosCmd resp;
     int ret;
 
-    cmd.head.cmdNo              = CMD_GET_CHIP_STATE_REQ;
-    cmd.getChipStateReq.cmdLen  = sizeof(cmdGetChipStateReq);
+    cmd.head.cmdNo = CMD_GET_CHIP_STATE_REQ;
+    cmd.getChipStateReq.cmdLen = sizeof(cmdGetChipStateReq);
     cmd.getChipStateReq.channel = (unsigned char)vChd->channel;
     cmd.getChipStateReq.transId = (unsigned char)vChd->channel;
 
-    ret = pciCanWaitResponse(vChd->vCard, (heliosCmd *)&cmd,
-                             (heliosCmd *)&resp, CMD_CHIP_STATE_EVENT,
-                             cmd.getChipStateReq.transId);
+    ret = pciCanWaitResponse(vChd->vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp,
+                             CMD_CHIP_STATE_EVENT, cmd.getChipStateReq.transId);
 
     return ret;
 } // pciCanRequestChipState
 
-
 //======================================================================
 //  Go bus on
 //======================================================================
-static int pciCanBusOn (VCanChanData *vChd)
+static int pciCanBusOn(VCanChanData *vChd)
 {
     heliosCmd cmd;
     heliosCmd resp;
     int ret = 0;
     PciCan2ChanData *hChd = vChd->hwChanData;
 
-    cmd.head.cmdNo            = CMD_START_CHIP_REQ;
-    cmd.startChipReq.cmdLen   = sizeof(cmdStartChipReq);
-    cmd.startChipReq.channel  = (unsigned char)vChd->channel;
-    cmd.startChipReq.transId  = (unsigned char)vChd->channel;
+    cmd.head.cmdNo = CMD_START_CHIP_REQ;
+    cmd.startChipReq.cmdLen = sizeof(cmdStartChipReq);
+    cmd.startChipReq.channel = (unsigned char)vChd->channel;
+    cmd.startChipReq.transId = (unsigned char)vChd->channel;
 
     ret = pciCanWaitResponse(vChd->vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp,
                              CMD_START_CHIP_RESP, cmd.startChipReq.transId);
@@ -489,24 +449,23 @@ static int pciCanBusOn (VCanChanData *vChd)
     return ret;
 } // pciCanBusOn
 
-
 //======================================================================
 //  Go bus off
 //======================================================================
-static int pciCanBusOff (VCanChanData *vChd)
+static int pciCanBusOff(VCanChanData *vChd)
 {
-    PciCan2ChanData *hChd  = vChd->hwChanData;
+    PciCan2ChanData *hChd = vChd->hwChanData;
     heliosCmd cmd;
     heliosCmd resp;
     int ret;
 
-    cmd.head.cmdNo          = CMD_STOP_CHIP_REQ;
-    cmd.stopChipReq.cmdLen  = sizeof(cmdStopChipReq);
+    cmd.head.cmdNo = CMD_STOP_CHIP_REQ;
+    cmd.stopChipReq.cmdLen = sizeof(cmdStopChipReq);
     cmd.stopChipReq.channel = (unsigned char)vChd->channel;
     cmd.stopChipReq.transId = (unsigned char)vChd->channel;
 
-    ret = pciCanWaitResponse(vChd->vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp,
-                             CMD_STOP_CHIP_RESP, cmd.stopChipReq.transId);
+    ret = pciCanWaitResponse(vChd->vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp, CMD_STOP_CHIP_RESP,
+                             cmd.stopChipReq.transId);
     if (ret == VCAN_STAT_OK) {
         atomic_set(&hChd->outstanding_tx, 0);
         memset(hChd->current_tx_message, 0, sizeof(hChd->current_tx_message));
@@ -518,18 +477,17 @@ static int pciCanBusOff (VCanChanData *vChd)
         pciCanRequestChipState(vChd);
     }
 
-    return vCanFlushSendBuffer (vChd);
+    return vCanFlushSendBuffer(vChd);
 } // pciCanBusOff
-
 
 //======================================================================
 //  Enable/disable interrupts on card
 //======================================================================
-static void pciCanInterrupts (VCanCardData *vCard, int enable)
+static void pciCanInterrupts(VCanCardData *vCard, int enable)
 {
     PciCan2CardData *hCard = vCard->hwCardData;
     unsigned long tmp;
-    void __iomem  *addr;
+    void __iomem *addr;
 
     addr = hCard->baseAddr;
     tmp = ioread32(addr + DPRAM_INTERRUPT_REG);
@@ -542,11 +500,10 @@ static void pciCanInterrupts (VCanCardData *vCard, int enable)
     iowrite32(tmp, addr + DPRAM_INTERRUPT_REG);
 }
 
-
 //======================================================================
 // Get time
 //======================================================================
-static int pciCanTime (VCanCardData *vCard, uint64_t *time)
+static int pciCanTime(VCanCardData *vCard, uint64_t *time)
 {
     heliosCmd cmd;
     heliosCmd resp;
@@ -554,41 +511,40 @@ static int pciCanTime (VCanCardData *vCard, uint64_t *time)
     static unsigned char transid = 255;
 
     if (transid < 255) {
-      transid++;
+        transid++;
     } else {
-      transid = 1;
+        transid = 1;
     }
 
     memset(&cmd, 0, sizeof(cmd));
-    cmd.readClockReq.cmdNo      = CMD_READ_CLOCK_REQ;
-    cmd.readClockReq.cmdLen     = sizeof(cmdReadClockReq);
-    cmd.readClockReq.flags      = 0;
-    cmd.readClockReq.transId    = transid;
+    cmd.readClockReq.cmdNo = CMD_READ_CLOCK_REQ;
+    cmd.readClockReq.cmdLen = sizeof(cmdReadClockReq);
+    cmd.readClockReq.flags = 0;
+    cmd.readClockReq.transId = transid;
 
-    ret = pciCanWaitResponse(vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp,
-                             CMD_READ_CLOCK_RESP, cmd.readClockReq.transId);
+    ret = pciCanWaitResponse(vCard, (heliosCmd *)&cmd, (heliosCmd *)&resp, CMD_READ_CLOCK_RESP,
+                             cmd.readClockReq.transId);
 
     if (ret == VCAN_STAT_OK) {
-      unsigned long tmp;
+        unsigned long tmp;
 
-      tmp = resp.readClockResp.time[1];
-      tmp = tmp << 16;
-      tmp += resp.readClockResp.time[0];
-      *time = tmp / PCICAN2_TICKS_PER_10US;
+        tmp = resp.readClockResp.time[1];
+        tmp = tmp << 16;
+        tmp += resp.readClockResp.time[0];
+        *time = tmp / PCICAN2_TICKS_PER_10US;
     }
 
     return ret;
 }
 
-
 //======================================================================
 // get timestamp
 //======================================================================
-static unsigned long pciCanTimeStamp (VCanCardData *vCard, unsigned long timeLo)
+static unsigned long pciCanTimeStamp(VCanCardData *vCard, unsigned long timeLo)
 {
-    unsigned long    ret;
+    unsigned long ret;
     PciCan2CardData *hCd = vCard->hwCardData;
-    unsigned long    irqFlags;
+    unsigned long irqFlags;
 
     spin_lock_irqsave(&hCd->timeHi_lock, irqFlags);
     ret = (vCard->timeHi + timeLo) / PCICAN2_TICKS_PER_10US;
@@ -600,559 +556,504 @@ static unsigned long pciCanTimeStamp (VCanCardData *vCard, unsigned long timeLo)
 //======================================================================
 //  Interrupt handling functions
 //======================================================================
-static void pciCanReceiveIsr (VCanCardData *vCard)
+static void pciCanReceiveIsr(VCanCardData *vCard)
 {
     VCAN_EVENT e;
-    PciCan2CardData  *hCd     = vCard->hwCardData;
-    unsigned int      loopMax  = 1000;
-    heliosCmd         cmd;
+    PciCan2CardData *hCd = vCard->hwCardData;
+    unsigned int loopMax = 1000;
+    heliosCmd cmd;
 
     // Reading clears interrupt flag
     while (1) {
         if (GetCmdFromQ(hCd, &cmd) != MEM_Q_SUCCESS) {
-          break;
+            break;
         }
 
         // A loop counter as a safety measure.
         if (--loopMax == 0) {
-          DEBUGPRINT(1, "pciCanReceiverIsr: Loop counter as a safety measure!!!\n");
-          return;
+            DEBUGPRINT(1, "pciCanReceiverIsr: Loop counter as a safety measure!!!\n");
+            return;
         }
 
         switch (cmd.head.cmdNo) {
+        case CMD_RX_STD_MESSAGE: {
+            char dlc;
+            unsigned char flags;
+            unsigned int chan = cmd.rxCanMessage.channel;
 
-            case CMD_RX_STD_MESSAGE:
-            {
-                char dlc;
-                unsigned char flags;
-                unsigned int chan = cmd.rxCanMessage.channel;
+            if (chan < (unsigned)vCard->nrChannels) {
+                VCanChanData *vChd = vCard->chanData[cmd.rxCanMessage.channel];
+                e.tag = V_RECEIVE_MSG;
+                e.transId = 0;
+                e.timeStamp = pciCanTimeStamp(vCard, cmd.rxCanMessage.time);
+                e.tagData.msg.id = (cmd.rxCanMessage.rawMessage[0] & 0x1F) << 6;
+                e.tagData.msg.id += (cmd.rxCanMessage.rawMessage[1] & 0x3F);
+                flags = cmd.rxCanMessage.flags;
+                e.tagData.msg.flags = 0;
+                if (flags & MSGFLAG_OVERRUN)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_OVERRUN;
+                if (flags & MSGFLAG_REMOTE_FRAME)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_REMOTE_FRAME;
+                if (flags & MSGFLAG_ERROR_FRAME)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_ERROR_FRAME;
+                if (flags & MSGFLAG_TX)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_TXACK;
+                if (flags & MSGFLAG_TXRQ)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_TXRQ;
 
+                dlc = cmd.rxCanMessage.rawMessage[5] & 0x0F;
+                e.tagData.msg.dlc = dlc;
+                memcpy(e.tagData.msg.data, &cmd.rxCanMessage.rawMessage[6], 8);
 
-                if (chan < (unsigned)vCard->nrChannels) {
-                    VCanChanData *vChd = vCard->chanData[cmd.rxCanMessage.channel];
-                    e.tag               = V_RECEIVE_MSG;
-                    e.transId           = 0;
-                    e.timeStamp         = pciCanTimeStamp(vCard, cmd.rxCanMessage.time);
-                    e.tagData.msg.id    = (cmd.rxCanMessage.rawMessage[0] & 0x1F) << 6;
-                    e.tagData.msg.id   += (cmd.rxCanMessage.rawMessage[1] & 0x3F);
-                    flags = cmd.rxCanMessage.flags;
-                    e.tagData.msg.flags = 0;
-                    if (flags & MSGFLAG_OVERRUN)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_OVERRUN;
-                    if (flags & MSGFLAG_REMOTE_FRAME)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_REMOTE_FRAME;
-                    if (flags & MSGFLAG_ERROR_FRAME)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_ERROR_FRAME;
-                    if (flags & MSGFLAG_TX)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_TXACK;
-                    if (flags & MSGFLAG_TXRQ)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_TXRQ;
-
-                    dlc = cmd.rxCanMessage.rawMessage[5] & 0x0F;
-                    e.tagData.msg.dlc = dlc;
-                    memcpy(e.tagData.msg.data, &cmd.rxCanMessage.rawMessage[6], 8);
-
-                    vCanDispatchEvent(vChd, &e);
-                } else {
-                    DEBUGPRINT(1, "CMD_RX_STD_MESSAGE, dlc = %d flags = %x, chan = %d\n",
-                               cmd.rxCanMessage.rawMessage[5] & 0x0F,
-                               cmd.rxCanMessage.flags,chan);
-                }
-                break;
-            }
-
-            case CMD_RX_EXT_MESSAGE:
-            {
-                char dlc;
-                unsigned char flags;
-                unsigned int chan = cmd.rxCanMessage.channel;
-
-                if (chan < (unsigned)vCard->nrChannels) {
-                    VCanChanData *vChd  = vCard->chanData[cmd.rxCanMessage.channel];
-                    e.tag               = V_RECEIVE_MSG;
-                    e.transId           = 0;
-                    e.timeStamp         = pciCanTimeStamp(vCard, cmd.rxCanMessage.time);
-                    e.tagData.msg.id    = (cmd.rxCanMessage.rawMessage[0] & 0x1F) << 24;
-                    e.tagData.msg.id   += (cmd.rxCanMessage.rawMessage[1] & 0x3F) << 18;
-                    e.tagData.msg.id   += (cmd.rxCanMessage.rawMessage[2] & 0x0F) << 14;
-                    e.tagData.msg.id   += (cmd.rxCanMessage.rawMessage[3] & 0xFF) <<  6;
-                    e.tagData.msg.id   += (cmd.rxCanMessage.rawMessage[4] & 0x3F);
-                    e.tagData.msg.id   += EXT_MSG;
-                    flags = cmd.rxCanMessage.flags;
-                    e.tagData.msg.flags = 0;
-                    if (flags & MSGFLAG_OVERRUN)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_OVERRUN;
-                    if (flags & MSGFLAG_REMOTE_FRAME)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_REMOTE_FRAME;
-                    if (flags & MSGFLAG_ERROR_FRAME)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_ERROR_FRAME;
-                    if (flags & MSGFLAG_TX)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_TXACK;
-                    if (flags & MSGFLAG_TXRQ)
-                        e.tagData.msg.flags |= VCAN_MSG_FLAG_TXRQ;
-                    dlc = cmd.rxCanMessage.rawMessage[5] & 0x0F;
-                    e.tagData.msg.dlc = dlc;
-                    memcpy(e.tagData.msg.data, &cmd.rxCanMessage.rawMessage[6], 8);
-
-                    vCanDispatchEvent(vChd, &e);
-                }
-                else
-                {
-                    DEBUGPRINT(1, "CMD_RX_EXT_MESSAGE, dlc = %d flags = %x, chan = %d\n",
-                               cmd.rxCanMessage.rawMessage[5] & 0x0F,
-                               cmd.rxCanMessage.flags,chan);
-                }
-                break;
-            }
-
-            case CMD_TX_ACKNOWLEDGE:
-            {
-
-                unsigned int transId;
-                unsigned int chan = cmd.txAck.channel;
-
-                if (chan < (unsigned)vCard->nrChannels) {
-
-                    VCanChanData     *vChd = vCard->chanData[cmd.txAck.channel];
-                    PciCan2ChanData *hChd = vChd->hwChanData;
-
-                    DEBUGPRINT(3, "ACK: ch%d, tId(%x) o:%d\n",
-                               chan, cmd.txAck.transId,
-                               atomic_read(&hChd->outstanding_tx));
-
-                    transId = cmd.txAck.transId;
-                    if ((transId == 0) || (transId > HELIOS_MAX_OUTSTANDING_TX)) {
-                        DEBUGPRINT(1, "CMD_TX_ACKNOWLEDGE chan %d ERROR transid %d\n", chan, transId);
-                        break;
-                    }
-
-                    if (hChd->current_tx_message[transId - 1].flags & VCAN_MSG_FLAG_TXACK) {
-                        VCAN_EVENT *e = (VCAN_EVENT *)&hChd->current_tx_message[transId - 1];
-                        e->tag       = V_RECEIVE_MSG;
-                        e->timeStamp = pciCanTimeStamp(vCard, cmd.txAck.time);
-                        e->tagData.msg.flags &= ~VCAN_MSG_FLAG_TXRQ;
-
-                        vCanDispatchEvent(vChd, e);
-                    }
-
-                    hChd->current_tx_message[transId - 1].user_data = 0;
-
-                    // Wake up those who are waiting for all
-                    // sending to finish
-                    if (atomic_add_unless(&hChd->outstanding_tx, -1, 0)) {
-                        // Is anyone waiting for this ack?
-                        if ((atomic_read(&hChd->outstanding_tx) == 0) &&
-                           queue_empty(&vChd->txChanQueue)          &&
-                           test_and_clear_bit(0, &vChd->waitEmpty)) {
-                           wake_up_interruptible(&vChd->flushQ);
-                        }
-
-                        if (!queue_empty(&vChd->txChanQueue))
-                        {
-                            DEBUGPRINT(4, "Requesting send\n");
-                            pciCanRequestSend(vCard, vChd);
-                        } else {
-                            DEBUGPRINT(4, "Queue empty: %d\n",
-                                       queue_length(&vChd->txChanQueue));
-                        }
-                    }
-                    else
-                    {
-                      DEBUGPRINT(2, "TX ACK when not waiting for one\n");
-                    }
-                }
-                else {
-                  DEBUGPRINT(2, "CMD_TX_ACKNOWLEDGE, chan = %d\n", chan);
-                }
-                break;
-            }
-
-            case CMD_TX_REQUEST:
-            {
-                unsigned int transId;
-                unsigned int chan      = cmd.txRequest.channel;
-                VCanChanData     *vChd = vCard->chanData[cmd.txRequest.channel];
-                PciCan2ChanData *hChd = vChd->hwChanData;
-                DEBUGPRINT(3, "CMD_TX_REQUEST, chan = %d, cmd.txRequest.transId = %d ",
-                           chan, cmd.txRequest.transId);
-                if (chan < (unsigned)vCard->nrChannels) {
-                    // A TxReq. Take the current tx message, modify it to a
-                    // receive message and send it back.
-                    transId = cmd.txRequest.transId;
-                    if ((transId == 0) || (transId > HELIOS_MAX_OUTSTANDING_TX)) {
-                        DEBUGPRINT(1, "CMD_TX_REQUEST chan %d ERROR transid to high %d\n",
-                                   chan, transId);
-                        break;
-                    }
-
-                    if (hChd->current_tx_message[transId - 1].flags & VCAN_MSG_FLAG_TXRQ)
-                    {
-                        VCAN_EVENT *e         = (VCAN_EVENT *)&hChd->current_tx_message[transId - 1];
-                        e->tag                = V_RECEIVE_MSG;
-                        e->timeStamp          = pciCanTimeStamp(vCard, cmd.txRequest.time);
-                        e->tagData.msg.flags &=  ~VCAN_MSG_FLAG_TXACK;
-
-                        vCanDispatchEvent(vChd, e);
-                    }
-                }
-                break;
-            }
-
-            case CMD_GET_BUSPARAMS_RESP:
-            {
-                DEBUGPRINT(1, "CMD_GET_BUSPARAMS_RESP\n");
-                break;
-            }
-
-            case CMD_GET_DRIVERMODE_RESP:
-                DEBUGPRINT(3, "CMD_GET_DRIVERMODE_RESP\n");
-                break;
-
-            case CMD_START_CHIP_RESP:
-                DEBUGPRINT(3, "CMD_START_CHIP_RESP chan %d\n", cmd.startChipResp.channel);
-
-                break;
-
-            case CMD_STOP_CHIP_RESP:
-                DEBUGPRINT(3, "CMD_STOP_CHIP_RESP ch %d\n", cmd.stopChipResp.channel);
-                break;
-
-            case CMD_CHIP_STATE_EVENT:
-            {
-                unsigned int chan  = cmd.chipStateEvent.channel;
-                VCanChanData *vChd = vCard->chanData[chan];
-
-                if (chan < (unsigned)vCard->nrChannels) {
-                    vChd->txErrorCounter = cmd.chipStateEvent.txErrorCounter;
-                    vChd->rxErrorCounter = cmd.chipStateEvent.rxErrorCounter;
-                }
-
-                // ".busStatus" is the contents of the CnSTRH register.
-                switch (cmd.chipStateEvent.busStatus &
-                        (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
-                    case 0:
-                        vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
-                        break;
-                    case M16C_BUS_PASSIVE:
-                        vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE |
-                                                CHIPSTAT_ERROR_WARNING;
-                        break;
-                    case M16C_BUS_OFF:
-                        vChd->chipState.state = CHIPSTAT_BUSOFF;
-                        break;
-                    case (M16C_BUS_PASSIVE | M16C_BUS_OFF):
-                        vChd->chipState.state = CHIPSTAT_BUSOFF        |
-                                                CHIPSTAT_ERROR_PASSIVE |
-                                                CHIPSTAT_ERROR_WARNING;
-                        break;
-                }
-                // Reset is treated like bus-off
-                if (cmd.chipStateEvent.busStatus & M16C_BUS_RESET) {
-                    vChd->chipState.state = CHIPSTAT_BUSOFF;
-                    vChd->txErrorCounter = 0;
-                    vChd->rxErrorCounter = 0;
-                }
-
-                e.tag       = V_CHIP_STATE;
-                e.timeStamp = pciCanTimeStamp(vCard, cmd.chipStateEvent.time);
-                e.transId   = 0;
-                e.tagData.chipState.busStatus      = (unsigned char)vChd->chipState.state;
-                e.tagData.chipState.txErrorCounter = (unsigned char)vChd->txErrorCounter;
-                e.tagData.chipState.rxErrorCounter = (unsigned char)vChd->rxErrorCounter;
                 vCanDispatchEvent(vChd, &e);
+            } else {
+                DEBUGPRINT(1, "CMD_RX_STD_MESSAGE, dlc = %d flags = %x, chan = %d\n",
+                           cmd.rxCanMessage.rawMessage[5] & 0x0F, cmd.rxCanMessage.flags, chan);
+            }
+            break;
+        }
 
+        case CMD_RX_EXT_MESSAGE: {
+            char dlc;
+            unsigned char flags;
+            unsigned int chan = cmd.rxCanMessage.channel;
+
+            if (chan < (unsigned)vCard->nrChannels) {
+                VCanChanData *vChd = vCard->chanData[cmd.rxCanMessage.channel];
+                e.tag = V_RECEIVE_MSG;
+                e.transId = 0;
+                e.timeStamp = pciCanTimeStamp(vCard, cmd.rxCanMessage.time);
+                e.tagData.msg.id = (cmd.rxCanMessage.rawMessage[0] & 0x1F) << 24;
+                e.tagData.msg.id += (cmd.rxCanMessage.rawMessage[1] & 0x3F) << 18;
+                e.tagData.msg.id += (cmd.rxCanMessage.rawMessage[2] & 0x0F) << 14;
+                e.tagData.msg.id += (cmd.rxCanMessage.rawMessage[3] & 0xFF) << 6;
+                e.tagData.msg.id += (cmd.rxCanMessage.rawMessage[4] & 0x3F);
+                e.tagData.msg.id += EXT_MSG;
+                flags = cmd.rxCanMessage.flags;
+                e.tagData.msg.flags = 0;
+                if (flags & MSGFLAG_OVERRUN)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_OVERRUN;
+                if (flags & MSGFLAG_REMOTE_FRAME)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_REMOTE_FRAME;
+                if (flags & MSGFLAG_ERROR_FRAME)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_ERROR_FRAME;
+                if (flags & MSGFLAG_TX)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_TXACK;
+                if (flags & MSGFLAG_TXRQ)
+                    e.tagData.msg.flags |= VCAN_MSG_FLAG_TXRQ;
+                dlc = cmd.rxCanMessage.rawMessage[5] & 0x0F;
+                e.tagData.msg.dlc = dlc;
+                memcpy(e.tagData.msg.data, &cmd.rxCanMessage.rawMessage[6], 8);
+
+                vCanDispatchEvent(vChd, &e);
+            } else {
+                DEBUGPRINT(1, "CMD_RX_EXT_MESSAGE, dlc = %d flags = %x, chan = %d\n",
+                           cmd.rxCanMessage.rawMessage[5] & 0x0F, cmd.rxCanMessage.flags, chan);
+            }
+            break;
+        }
+
+        case CMD_TX_ACKNOWLEDGE: {
+
+            unsigned int transId;
+            unsigned int chan = cmd.txAck.channel;
+
+            if (chan < (unsigned)vCard->nrChannels) {
+                VCanChanData *vChd = vCard->chanData[cmd.txAck.channel];
+                PciCan2ChanData *hChd = vChd->hwChanData;
+
+                DEBUGPRINT(3, "ACK: ch%d, tId(%x) o:%d\n", chan, cmd.txAck.transId,
+                           atomic_read(&hChd->outstanding_tx));
+
+                transId = cmd.txAck.transId;
+                if ((transId == 0) || (transId > HELIOS_MAX_OUTSTANDING_TX)) {
+                    DEBUGPRINT(1, "CMD_TX_ACKNOWLEDGE chan %d ERROR transid %d\n", chan, transId);
+                    break;
+                }
+
+                if (hChd->current_tx_message[transId - 1].flags & VCAN_MSG_FLAG_TXACK) {
+                    VCAN_EVENT *e = (VCAN_EVENT *)&hChd->current_tx_message[transId - 1];
+                    e->tag = V_RECEIVE_MSG;
+                    e->timeStamp = pciCanTimeStamp(vCard, cmd.txAck.time);
+                    e->tagData.msg.flags &= ~VCAN_MSG_FLAG_TXRQ;
+
+                    vCanDispatchEvent(vChd, e);
+                }
+
+                hChd->current_tx_message[transId - 1].user_data = 0;
+
+                // Wake up those who are waiting for all
+                // sending to finish
+                if (atomic_add_unless(&hChd->outstanding_tx, -1, 0)) {
+                    // Is anyone waiting for this ack?
+                    if ((atomic_read(&hChd->outstanding_tx) == 0) &&
+                        queue_empty(&vChd->txChanQueue) &&
+                        test_and_clear_bit(0, &vChd->waitEmpty)) {
+                        wake_up_interruptible(&vChd->flushQ);
+                    }
+
+                    if (!queue_empty(&vChd->txChanQueue)) {
+                        DEBUGPRINT(4, "Requesting send\n");
+                        pciCanRequestSend(vCard, vChd);
+                    } else {
+                        DEBUGPRINT(4, "Queue empty: %d\n", queue_length(&vChd->txChanQueue));
+                    }
+                } else {
+                    DEBUGPRINT(2, "TX ACK when not waiting for one\n");
+                }
+            } else {
+                DEBUGPRINT(2, "CMD_TX_ACKNOWLEDGE, chan = %d\n", chan);
+            }
+            break;
+        }
+
+        case CMD_TX_REQUEST: {
+            unsigned int transId;
+            unsigned int chan = cmd.txRequest.channel;
+            VCanChanData *vChd = vCard->chanData[cmd.txRequest.channel];
+            PciCan2ChanData *hChd = vChd->hwChanData;
+            DEBUGPRINT(3, "CMD_TX_REQUEST, chan = %d, cmd.txRequest.transId = %d ", chan,
+                       cmd.txRequest.transId);
+            if (chan < (unsigned)vCard->nrChannels) {
+                // A TxReq. Take the current tx message, modify it to a
+                // receive message and send it back.
+                transId = cmd.txRequest.transId;
+                if ((transId == 0) || (transId > HELIOS_MAX_OUTSTANDING_TX)) {
+                    DEBUGPRINT(1, "CMD_TX_REQUEST chan %d ERROR transid to high %d\n", chan,
+                               transId);
+                    break;
+                }
+
+                if (hChd->current_tx_message[transId - 1].flags & VCAN_MSG_FLAG_TXRQ) {
+                    VCAN_EVENT *e = (VCAN_EVENT *)&hChd->current_tx_message[transId - 1];
+                    e->tag = V_RECEIVE_MSG;
+                    e->timeStamp = pciCanTimeStamp(vCard, cmd.txRequest.time);
+                    e->tagData.msg.flags &= ~VCAN_MSG_FLAG_TXACK;
+
+                    vCanDispatchEvent(vChd, e);
+                }
+            }
+            break;
+        }
+
+        case CMD_GET_BUSPARAMS_RESP: {
+            DEBUGPRINT(1, "CMD_GET_BUSPARAMS_RESP\n");
+            break;
+        }
+
+        case CMD_GET_DRIVERMODE_RESP:
+            DEBUGPRINT(3, "CMD_GET_DRIVERMODE_RESP\n");
+            break;
+
+        case CMD_START_CHIP_RESP:
+            DEBUGPRINT(3, "CMD_START_CHIP_RESP chan %d\n", cmd.startChipResp.channel);
+
+            break;
+
+        case CMD_STOP_CHIP_RESP:
+            DEBUGPRINT(3, "CMD_STOP_CHIP_RESP ch %d\n", cmd.stopChipResp.channel);
+            break;
+
+        case CMD_CHIP_STATE_EVENT: {
+            unsigned int chan = cmd.chipStateEvent.channel;
+            VCanChanData *vChd = vCard->chanData[chan];
+
+            if (chan < (unsigned)vCard->nrChannels) {
+                vChd->txErrorCounter = cmd.chipStateEvent.txErrorCounter;
+                vChd->rxErrorCounter = cmd.chipStateEvent.rxErrorCounter;
+            }
+
+            // ".busStatus" is the contents of the CnSTRH register.
+            switch (cmd.chipStateEvent.busStatus & (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
+            case 0:
+                vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
+                break;
+            case M16C_BUS_PASSIVE:
+                vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE | CHIPSTAT_ERROR_WARNING;
+                break;
+            case M16C_BUS_OFF:
+                vChd->chipState.state = CHIPSTAT_BUSOFF;
+                break;
+            case (M16C_BUS_PASSIVE | M16C_BUS_OFF):
+                vChd->chipState.state = CHIPSTAT_BUSOFF | CHIPSTAT_ERROR_PASSIVE |
+                                        CHIPSTAT_ERROR_WARNING;
+                break;
+            }
+            // Reset is treated like bus-off
+            if (cmd.chipStateEvent.busStatus & M16C_BUS_RESET) {
+                vChd->chipState.state = CHIPSTAT_BUSOFF;
+                vChd->txErrorCounter = 0;
+                vChd->rxErrorCounter = 0;
+            }
+
+            e.tag = V_CHIP_STATE;
+            e.timeStamp = pciCanTimeStamp(vCard, cmd.chipStateEvent.time);
+            e.transId = 0;
+            e.tagData.chipState.busStatus = (unsigned char)vChd->chipState.state;
+            e.tagData.chipState.txErrorCounter = (unsigned char)vChd->txErrorCounter;
+            e.tagData.chipState.rxErrorCounter = (unsigned char)vChd->rxErrorCounter;
+            vCanDispatchEvent(vChd, &e);
+
+            break;
+        }
+
+        case CMD_CLOCK_OVERFLOW_EVENT: {
+            unsigned long irqFlags;
+            spin_lock_irqsave(&hCd->timeHi_lock, irqFlags);
+            vCard->timeHi = cmd.clockOverflowEvent.currentTime & 0xFFFF0000;
+            spin_unlock_irqrestore(&hCd->timeHi_lock, irqFlags);
+            break;
+        }
+
+        case CMD_READ_CLOCK_RESP: {
+            unsigned long irqFlags;
+            DEBUGPRINT(3, "CMD_READ_CLOCK_RESP\n");
+
+            spin_lock_irqsave(&hCd->timeHi_lock, irqFlags);
+            vCard->timeHi = cmd.readClockResp.time[1] << 16;
+            spin_unlock_irqrestore(&hCd->timeHi_lock, irqFlags);
+            break;
+        }
+
+        case CMD_GET_CARD_INFO_RESP: {
+            unsigned int chan;
+            chan = cmd.getCardInfoResp.channelCount;
+            DEBUGPRINT(3, "CMD_GET_CARD_INFO_RESP chan = %d\n", chan);
+            if (!hCd->initDone) {
+                vCard->nrChannels = chan;
+            }
+            memcpy(vCard->ean, &cmd.getCardInfoResp.EAN[0], 8);
+            vCard->serialNumber = cmd.getCardInfoResp.serialNumberLow;
+            vCard->hwRevisionMajor = cmd.getCardInfoResp.hwRevision >> 4;
+            vCard->hwRevisionMinor = cmd.getCardInfoResp.hwRevision & 0x0F;
+            vCard->hw_type = HWTYPE_PCICAN_II;
+
+            set_capability_value(
+                vCard,
+                VCAN_CHANNEL_CAP_SEND_ERROR_FRAMES | VCAN_CHANNEL_CAP_RECEIVE_ERROR_FRAMES |
+                    VCAN_CHANNEL_CAP_TIMEBASE_ON_CARD | VCAN_CHANNEL_CAP_BUSLOAD_CALCULATION |
+                    VCAN_CHANNEL_CAP_EXTENDED_CAN | VCAN_CHANNEL_CAP_TXREQUEST |
+                    VCAN_CHANNEL_CAP_TXACKNOWLEDGE | VCAN_CHANNEL_CAP_ERROR_COUNTERS |
+                    VCAN_CHANNEL_CAP_SILENTMODE,
+                0xFFFFFFFF, 0xFFFFFFFF, MAX_CARD_CHANNELS);
+
+            if (hCd->isWaiting) {
+                wake_up_interruptible(&hCd->waitHwInfo);
+            }
+            hCd->receivedHwInfo = 1;
+            break;
+        }
+
+        case CMD_GET_SOFTWARE_INFO_RESP: {
+            uint32_t appVersion = cmd.getSoftwareInfoResp.applicationVersion;
+            vCard->firmwareVersionMajor = appVersion >> 24;
+            vCard->firmwareVersionMinor = (appVersion >> 16) & 0xFF;
+            vCard->firmwareVersionBuild = (appVersion & 0xFFFF);
+
+            if (hCd->isWaiting) {
+                wake_up_interruptible(&hCd->waitSwInfo);
+            }
+            hCd->receivedSwInfo = 1;
+
+            DEBUGPRINT(3, "PCIcanII firmware version %d.%d.%d\n", (int)(appVersion >> 24) & 0xFF,
+                       (int)(appVersion >> 16) & 0xFF, (int)appVersion & 0xFFFF);
+
+            if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_BETA) {
+                DEBUGPRINT(6, "Beta\n");
+                vCard->card_flags |= DEVHND_CARD_FIRMWARE_BETA;
+            }
+
+            if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_RC) {
+                DEBUGPRINT(6, "Release Candidate\n");
+                vCard->card_flags |= DEVHND_CARD_FIRMWARE_RC;
+            }
+
+            if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_AUTO_TX_BUFFER) {
+                DEBUGPRINT(6, "Auto tx buffer\n");
+                vCard->card_flags |= DEVHND_CARD_AUTO_TX_OBJBUFS;
+            }
+            break;
+        }
+
+        case CMD_AUTO_TX_BUFFER_RESP: {
+            if (cmd.autoTxBufferResp.responseType == AUTOTXBUFFER_CMD_GET_INFO) {
+                hCd->autoTxBufferCount = cmd.autoTxBufferResp.bufferCount;
+                hCd->autoTxBufferResolution = cmd.autoTxBufferResp.timerResolution;
+                DEBUGPRINT(1, "AUTOTXBUFFER_CMD_GET_INFO: count=%d resolution=%d\n",
+                           hCd->autoTxBufferCount, hCd->autoTxBufferResolution);
+            }
+            break;
+        }
+
+        case CMD_GET_TRANSCEIVER_INFO_RESP: {
+            unsigned int chan = cmd.getTransceiverInfoResp.channel;
+            VCanChanData *vChd = vCard->chanData[chan];
+            DEBUGPRINT(3, "CMD_GET_TRANSCEIVER_INFO_RESP chan = %d\n", chan);
+            if (chan < (unsigned)vCard->nrChannels) {
+                vChd = vCard->chanData[chan];
+                vChd->transType = cmd.getTransceiverInfoResp.transceiverType;
+            }
+            // Wake up
+            break;
+        }
+
+        case CMD_CAN_ERROR_EVENT: {
+            int errorCounterChanged;
+            // first channel
+            VCanChanData *vChd = vCard->chanData[0];
+
+            // Known problem: if the error counters of both channels
+            // are max then there is no way of knowing which channel got an errorframe
+
+            // It's an error frame if any of our error counters has
+            // increased..
+            errorCounterChanged = (cmd.canErrorEvent.txErrorCounterCh0 > vChd->txErrorCounter);
+            errorCounterChanged |= (cmd.canErrorEvent.rxErrorCounterCh0 > vChd->rxErrorCounter);
+
+            // It's also an error frame if we have seen a bus error while
+            // the other channel hasn't seen any bus errors at all.
+            errorCounterChanged |= ((cmd.canErrorEvent.busStatusCh0 & M16C_BUS_ERROR) &&
+                                    !(cmd.canErrorEvent.busStatusCh1 & M16C_BUS_ERROR));
+
+            vChd->txErrorCounter = cmd.canErrorEvent.txErrorCounterCh0;
+            vChd->rxErrorCounter = cmd.canErrorEvent.rxErrorCounterCh0;
+
+            switch (cmd.canErrorEvent.busStatusCh0 & (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
+            case 0:
+                vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
+                break;
+
+            case M16C_BUS_PASSIVE:
+                vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE | CHIPSTAT_ERROR_WARNING;
+                break;
+
+            case M16C_BUS_OFF:
+                vChd->chipState.state = CHIPSTAT_BUSOFF;
+                errorCounterChanged = 0;
+                break;
+
+            case (M16C_BUS_PASSIVE | M16C_BUS_OFF):
+                vChd->chipState.state = CHIPSTAT_BUSOFF | CHIPSTAT_ERROR_PASSIVE |
+                                        CHIPSTAT_ERROR_WARNING;
+                errorCounterChanged = 0;
+                break;
+
+            default:
                 break;
             }
 
-            case CMD_CLOCK_OVERFLOW_EVENT:
-            {
-                unsigned long irqFlags;
-                spin_lock_irqsave(&hCd->timeHi_lock, irqFlags);
-                vCard->timeHi = cmd.clockOverflowEvent.currentTime & 0xFFFF0000;
-                spin_unlock_irqrestore(&hCd->timeHi_lock, irqFlags);
-                break;
+            // Reset is treated like bus-off
+            if (cmd.canErrorEvent.busStatusCh0 & M16C_BUS_RESET) {
+                vChd->chipState.state = CHIPSTAT_BUSOFF;
+                vChd->txErrorCounter = 0;
+                vChd->rxErrorCounter = 0;
+                errorCounterChanged = 0;
             }
 
-            case CMD_READ_CLOCK_RESP:
-            {
-                unsigned long irqFlags;
-                DEBUGPRINT(3, "CMD_READ_CLOCK_RESP\n");
+            e.tag = V_CHIP_STATE;
+            e.timeStamp = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
+            e.transId = 0;
+            e.tagData.chipState.busStatus = vChd->chipState.state;
+            e.tagData.chipState.txErrorCounter = vChd->txErrorCounter;
+            e.tagData.chipState.rxErrorCounter = vChd->rxErrorCounter;
+            vCanDispatchEvent(vChd, &e);
 
-                spin_lock_irqsave(&hCd->timeHi_lock, irqFlags);
-                vCard->timeHi = cmd.readClockResp.time[1] << 16;
-                spin_unlock_irqrestore(&hCd->timeHi_lock, irqFlags);
-                break;
+            if (errorCounterChanged) {
+                e.tag = V_RECEIVE_MSG;
+                e.transId = 0;
+                e.timeStamp = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
+                e.tagData.msg.id = 0;
+                e.tagData.msg.flags = VCAN_MSG_FLAG_ERROR_FRAME;
+                e.tagData.msg.dlc = 0;
+                vCanDispatchEvent(vChd, &e);
             }
 
-            case CMD_GET_CARD_INFO_RESP:
-            {
-                unsigned int chan;
-                chan = cmd.getCardInfoResp.channelCount;
-                DEBUGPRINT(3, "CMD_GET_CARD_INFO_RESP chan = %d\n",chan);
-                if (!hCd->initDone) {
-                    vCard->nrChannels = chan;
-                }
-                memcpy(vCard->ean, &cmd.getCardInfoResp.EAN[0], 8);
-                vCard->serialNumber = cmd.getCardInfoResp.serialNumberLow;
-                vCard->hwRevisionMajor = cmd.getCardInfoResp.hwRevision >> 4;
-                vCard->hwRevisionMinor = cmd.getCardInfoResp.hwRevision & 0x0F;
-                vCard->hw_type         = HWTYPE_PCICAN_II;
-
-                set_capability_value (vCard,
-                                      VCAN_CHANNEL_CAP_SEND_ERROR_FRAMES    |
-                                      VCAN_CHANNEL_CAP_RECEIVE_ERROR_FRAMES |
-                                      VCAN_CHANNEL_CAP_TIMEBASE_ON_CARD     |
-                                      VCAN_CHANNEL_CAP_BUSLOAD_CALCULATION  |
-                                      VCAN_CHANNEL_CAP_EXTENDED_CAN         |
-                                      VCAN_CHANNEL_CAP_TXREQUEST            |
-                                      VCAN_CHANNEL_CAP_TXACKNOWLEDGE        |
-                                      VCAN_CHANNEL_CAP_ERROR_COUNTERS       |
-                                      VCAN_CHANNEL_CAP_SILENTMODE,
-                                      0xFFFFFFFF,
-                                      0xFFFFFFFF,
-                                      MAX_CARD_CHANNELS);
-
-                if (hCd->isWaiting) {
-                    wake_up_interruptible(&hCd->waitHwInfo);
-                }
-                hCd->receivedHwInfo = 1;
-                break;
-            }
-
-            case CMD_GET_SOFTWARE_INFO_RESP:
-            {
-                uint32_t appVersion = cmd.getSoftwareInfoResp.applicationVersion;
-                vCard->firmwareVersionMajor = appVersion >> 24;
-                vCard->firmwareVersionMinor = (appVersion >> 16) & 0xFF;
-                vCard->firmwareVersionBuild = (appVersion & 0xFFFF);
-
-                if (hCd->isWaiting) {
-                    wake_up_interruptible(&hCd->waitSwInfo);
-                }
-                hCd->receivedSwInfo = 1;
-
-                DEBUGPRINT(3, "PCIcanII firmware version %d.%d.%d\n",
-                           (int)(appVersion >> 24) & 0xFF,
-                           (int)(appVersion >> 16) & 0xFF,
-                           (int)appVersion & 0xFFFF);
-
-                if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_BETA) {
-                    DEBUGPRINT(6, "Beta\n");
-                    vCard->card_flags |= DEVHND_CARD_FIRMWARE_BETA;
-                }
-
-                if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_RC) {
-                    DEBUGPRINT(6, "Release Candidate\n");
-                    vCard->card_flags |= DEVHND_CARD_FIRMWARE_RC;
-                }
-
-                if (cmd.getSoftwareInfoResp.swOptions & SWOPTION_AUTO_TX_BUFFER) {
-                    DEBUGPRINT(6, "Auto tx buffer\n");
-                    vCard->card_flags |= DEVHND_CARD_AUTO_TX_OBJBUFS;
-                }
-                break;
-            }
-
-            case CMD_AUTO_TX_BUFFER_RESP:
-            {
-                if (cmd.autoTxBufferResp.responseType ==
-                      AUTOTXBUFFER_CMD_GET_INFO) {
-                    hCd->autoTxBufferCount      = cmd.autoTxBufferResp.bufferCount;
-                    hCd->autoTxBufferResolution = cmd.autoTxBufferResp.timerResolution;
-                    DEBUGPRINT(1, "AUTOTXBUFFER_CMD_GET_INFO: count=%d resolution=%d\n",
-                               hCd->autoTxBufferCount, hCd->autoTxBufferResolution);
-                }
-                break;
-            }
-
-            case CMD_GET_TRANSCEIVER_INFO_RESP:
-            {
-                unsigned int chan = cmd.getTransceiverInfoResp.channel;
-                VCanChanData *vChd = vCard->chanData[chan];
-                DEBUGPRINT(3, "CMD_GET_TRANSCEIVER_INFO_RESP chan = %d\n",chan);
-                if (chan < (unsigned)vCard->nrChannels) {
-                    vChd = vCard->chanData[chan];
-                    vChd->transType = cmd.getTransceiverInfoResp.transceiverType;
-                }
-                // Wake up
-                break;
-            }
-
-            case CMD_CAN_ERROR_EVENT:
-            {
-                int errorCounterChanged;
-                // first channel
-                VCanChanData *vChd = vCard->chanData[0];
-
-                // Known problem: if the error counters of both channels
-                // are max then there is no way of knowing which channel got an errorframe
+            // Next channel
+            if ((unsigned)vCard->nrChannels > 0) {
+                VCanChanData *vChd = vCard->chanData[1];
 
                 // It's an error frame if any of our error counters has
                 // increased..
-                errorCounterChanged =  (cmd.canErrorEvent.txErrorCounterCh0 >
-                                        vChd->txErrorCounter);
-                errorCounterChanged |= (cmd.canErrorEvent.rxErrorCounterCh0 >
-                                        vChd->rxErrorCounter);
+                errorCounterChanged = (cmd.canErrorEvent.txErrorCounterCh1 > vChd->txErrorCounter);
+                errorCounterChanged |= (cmd.canErrorEvent.rxErrorCounterCh1 > vChd->rxErrorCounter);
 
                 // It's also an error frame if we have seen a bus error while
                 // the other channel hasn't seen any bus errors at all.
-                errorCounterChanged |= ( (cmd.canErrorEvent.busStatusCh0 &
-                                          M16C_BUS_ERROR) &&
-                                        !(cmd.canErrorEvent.busStatusCh1 &
-                                          M16C_BUS_ERROR));
+                errorCounterChanged |= ((cmd.canErrorEvent.busStatusCh1 & M16C_BUS_ERROR) &&
+                                        !(cmd.canErrorEvent.busStatusCh0 & M16C_BUS_ERROR));
 
-                vChd->txErrorCounter = cmd.canErrorEvent.txErrorCounterCh0;
-                vChd->rxErrorCounter = cmd.canErrorEvent.rxErrorCounterCh0;
+                vChd->txErrorCounter = cmd.canErrorEvent.txErrorCounterCh1;
+                vChd->rxErrorCounter = cmd.canErrorEvent.rxErrorCounterCh1;
 
-                switch (cmd.canErrorEvent.busStatusCh0 &
-                        (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
-                    case 0:
-                        vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
-                        break;
+                switch (cmd.canErrorEvent.busStatusCh1 & (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
+                case 0:
+                    vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
+                    break;
 
-                    case M16C_BUS_PASSIVE:
-                        vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE |
-                                                CHIPSTAT_ERROR_WARNING;
-                        break;
+                case M16C_BUS_PASSIVE:
+                    vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE | CHIPSTAT_ERROR_WARNING;
+                    break;
 
-                    case M16C_BUS_OFF:
-                        vChd->chipState.state = CHIPSTAT_BUSOFF;
-                        errorCounterChanged = 0;
-                        break;
+                case M16C_BUS_OFF:
+                    vChd->chipState.state = CHIPSTAT_BUSOFF;
+                    errorCounterChanged = 0;
+                    break;
 
-                    case (M16C_BUS_PASSIVE|M16C_BUS_OFF):
-                        vChd->chipState.state = CHIPSTAT_BUSOFF        |
-                                                CHIPSTAT_ERROR_PASSIVE |
-                                                CHIPSTAT_ERROR_WARNING;
-                        errorCounterChanged = 0;
-                        break;
+                case (M16C_BUS_PASSIVE | M16C_BUS_OFF):
+                    vChd->chipState.state = CHIPSTAT_BUSOFF | CHIPSTAT_ERROR_PASSIVE |
+                                            CHIPSTAT_ERROR_WARNING;
+                    errorCounterChanged = 0;
+                    break;
 
-                    default:
-                        break;
+                default:
+                    break;
                 }
 
                 // Reset is treated like bus-off
-                if (cmd.canErrorEvent.busStatusCh0 & M16C_BUS_RESET) {
+                if (cmd.canErrorEvent.busStatusCh1 & M16C_BUS_RESET) {
                     vChd->chipState.state = CHIPSTAT_BUSOFF;
                     vChd->txErrorCounter = 0;
                     vChd->rxErrorCounter = 0;
                     errorCounterChanged = 0;
                 }
 
-                e.tag       = V_CHIP_STATE;
+                e.tag = V_CHIP_STATE;
                 e.timeStamp = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
-                e.transId                           = 0;
-                e.tagData.chipState.busStatus       = vChd->chipState.state;
-                e.tagData.chipState.txErrorCounter  = vChd->txErrorCounter;
-                e.tagData.chipState.rxErrorCounter  = vChd->rxErrorCounter;
+                e.transId = 0;
+                e.tagData.chipState.busStatus = vChd->chipState.state;
+                e.tagData.chipState.txErrorCounter = vChd->txErrorCounter;
+                e.tagData.chipState.rxErrorCounter = vChd->rxErrorCounter;
                 vCanDispatchEvent(vChd, &e);
 
                 if (errorCounterChanged) {
-                  e.tag               = V_RECEIVE_MSG;
-                  e.transId           = 0;
-                  e.timeStamp         = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
-                  e.tagData.msg.id    = 0;
-                  e.tagData.msg.flags = VCAN_MSG_FLAG_ERROR_FRAME;
-                  e.tagData.msg.dlc   = 0;
-                  vCanDispatchEvent(vChd, &e);
-                }
-
-                // Next channel
-                if ((unsigned)vCard->nrChannels > 0) {
-
-                    VCanChanData *vChd = vCard->chanData[1];
-
-                    // It's an error frame if any of our error counters has
-                    // increased..
-                    errorCounterChanged  = (cmd.canErrorEvent.txErrorCounterCh1 >
-                                            vChd->txErrorCounter);
-                    errorCounterChanged |= (cmd.canErrorEvent.rxErrorCounterCh1 >
-                                            vChd->rxErrorCounter);
-
-                    // It's also an error frame if we have seen a bus error while
-                    // the other channel hasn't seen any bus errors at all.
-                    errorCounterChanged |= ( (cmd.canErrorEvent.busStatusCh1 &
-                                              M16C_BUS_ERROR) &&
-                                            !(cmd.canErrorEvent.busStatusCh0 &
-                                              M16C_BUS_ERROR));
-
-                    vChd->txErrorCounter = cmd.canErrorEvent.txErrorCounterCh1;
-                    vChd->rxErrorCounter = cmd.canErrorEvent.rxErrorCounterCh1;
-
-                    switch (cmd.canErrorEvent.busStatusCh1 &
-                            (M16C_BUS_PASSIVE | M16C_BUS_OFF)) {
-                        case 0:
-                            vChd->chipState.state = CHIPSTAT_ERROR_ACTIVE;
-                            break;
-
-                        case M16C_BUS_PASSIVE:
-                            vChd->chipState.state = CHIPSTAT_ERROR_PASSIVE |
-                                                    CHIPSTAT_ERROR_WARNING;
-                            break;
-
-                        case M16C_BUS_OFF:
-                            vChd->chipState.state = CHIPSTAT_BUSOFF;
-                            errorCounterChanged = 0;
-                            break;
-
-                        case (M16C_BUS_PASSIVE | M16C_BUS_OFF):
-                            vChd->chipState.state = CHIPSTAT_BUSOFF        |
-                                                    CHIPSTAT_ERROR_PASSIVE |
-                                                    CHIPSTAT_ERROR_WARNING;
-                            errorCounterChanged = 0;
-                            break;
-
-                        default:
-                            break;
-                    }
-
-                    // Reset is treated like bus-off
-                    if (cmd.canErrorEvent.busStatusCh1 & M16C_BUS_RESET) {
-                        vChd->chipState.state = CHIPSTAT_BUSOFF;
-                        vChd->txErrorCounter  = 0;
-                        vChd->rxErrorCounter  = 0;
-                        errorCounterChanged   = 0;
-                    }
-
-                    e.tag       = V_CHIP_STATE;
+                    e.tag = V_RECEIVE_MSG;
+                    e.transId = 0;
                     e.timeStamp = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
-                    e.transId                           = 0;
-                    e.tagData.chipState.busStatus       = vChd->chipState.state;
-                    e.tagData.chipState.txErrorCounter  = vChd->txErrorCounter;
-                    e.tagData.chipState.rxErrorCounter  = vChd->rxErrorCounter;
+                    e.tagData.msg.id = 0;
+                    e.tagData.msg.flags = VCAN_MSG_FLAG_ERROR_FRAME;
+                    e.tagData.msg.dlc = 0;
                     vCanDispatchEvent(vChd, &e);
-
-                    if (errorCounterChanged) {
-                      e.tag               = V_RECEIVE_MSG;
-                      e.transId           = 0;
-                      e.timeStamp         = pciCanTimeStamp(vCard, cmd.canErrorEvent.time);
-                      e.tagData.msg.id    = 0;
-                      e.tagData.msg.flags = VCAN_MSG_FLAG_ERROR_FRAME;
-                      e.tagData.msg.dlc   = 0;
-                      vCanDispatchEvent(vChd, &e);
-                    }
                 }
-                break;
             }
-
-            case CMD_ERROR_EVENT:
-            {
-#ifdef PCICAN2_DEBUG
-              VCanChanData *vChd = vCard->chanData[0];
-              DEBUGPRINT(1, "CMD_ERROR_EVENT, chan = %d\n", vChd->channel);
-#endif
-              break;
-            }
-            case 0:
-                // This means we have read corrupted data
-                DEBUGPRINT(1, "ERROR: Corrupt data.\n");
-                return;
-
-            default:
-                DEBUGPRINT(1, "Unknown command %d received.\n", cmd.head.cmdNo);
-                break;
+            break;
         }
 
+        case CMD_ERROR_EVENT: {
+#ifdef PCICAN2_DEBUG
+            VCanChanData *vChd = vCard->chanData[0];
+            DEBUGPRINT(1, "CMD_ERROR_EVENT, chan = %d\n", vChd->channel);
+#endif
+            break;
+        }
+        case 0:
+            // This means we have read corrupted data
+            DEBUGPRINT(1, "ERROR: Corrupt data.\n");
+            return;
+
+        default:
+            DEBUGPRINT(1, "Unknown command %d received.\n", cmd.head.cmdNo);
+            break;
+        }
 
         if (cmd.head.cmdNo > CMD_TX_EXT_MESSAGE) {
             // Copy command and wakeup those who are waiting for this reply
@@ -1162,8 +1063,7 @@ static void pciCanReceiveIsr (VCanCardData *vCard)
             read_lock_irqsave(&hCd->replyWaitListLock, irqFlags);
             list_for_each_safe(currHead, tmpHead, &hCd->replyWaitList) {
                 currNode = list_entry(currHead, WaitNode, list);
-                if (currNode->cmdNr == cmd.head.cmdNo &&
-                    getTransId(&cmd) == currNode->transId) {
+                if (currNode->cmdNr == cmd.head.cmdNo && getTransId(&cmd) == currNode->transId) {
                     memcpy(currNode->replyPtr, &cmd, cmd.head.cmdLen);
                     complete(&currNode->waitCompletion);
                 }
@@ -1174,23 +1074,16 @@ static void pciCanReceiveIsr (VCanCardData *vCard)
 
 } // pciCanReceiveIsr
 
-
 //======================================================================
 //  Main ISR
 //======================================================================
-// Interrupt handler prototype changed in 2.6.19.
-static irqreturn_t
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-pciCanInterrupt (int irq, void *dev_id, struct pt_regs *regs)
-#else
-pciCanInterrupt (int irq, void *dev_id)
-#endif
+static irqreturn_t pciCanInterrupt(int irq, void *dev_id)
 {
-    VCanCardData      *vCard   = (VCanCardData *)dev_id;
-    PciCan2CardData  *hCd     = vCard->hwCardData;
-    unsigned long     tmp;
-    unsigned int      loopMax  = 1000;
-    int               handled  = 0;
+    VCanCardData *vCard = (VCanCardData *)dev_id;
+    PciCan2CardData *hCd = vCard->hwCardData;
+    unsigned long tmp;
+    unsigned int loopMax = 1000;
+    int handled = 0;
 
     tmp = ioread32(hCd->baseAddr + DPRAM_INTERRUPT_REG);
 
@@ -1217,19 +1110,17 @@ pciCanInterrupt (int irq, void *dev_id)
     return IRQ_RETVAL(handled);
 } // pciCanInterrupt
 
-
 //======================================================================
 //  Sends a can message
 //======================================================================
-static int pciCanTransmitMessage (VCanChanData *vChd, CAN_MSG *m)
+static int pciCanTransmitMessage(VCanChanData *vChd, CAN_MSG *m)
 {
     PciCan2CardData *hCard = vChd->vCard->hwCardData;
-    PciCan2ChanData *hChd  = vChd->hwChanData;
-    heliosCmd         msg;
-    int               transId;
+    PciCan2ChanData *hChd = vChd->hwChanData;
+    heliosCmd msg;
+    int transId;
 
-    if (!atomic_add_unless(&hChd->outstanding_tx, 1,
-                           HELIOS_MAX_OUTSTANDING_TX)) {
+    if (!atomic_add_unless(&hChd->outstanding_tx, 1, HELIOS_MAX_OUTSTANDING_TX)) {
         DEBUGPRINT(1, "Trying to increase outstanding_tx above max\n");
         return VCAN_STAT_NO_RESOURCES;
     }
@@ -1238,37 +1129,33 @@ static int pciCanTransmitMessage (VCanChanData *vChd, CAN_MSG *m)
     transId = atomic_read(&vChd->transId);
 
     if (hChd->current_tx_message[transId - 1].user_data) {
-        DEBUGPRINT(2, "In use: %x %d   %x %d\n",
-                   hChd->current_tx_message[transId - 1].id, transId,
+        DEBUGPRINT(2, "In use: %x %d   %x %d\n", hChd->current_tx_message[transId - 1].id, transId,
                    m->id, atomic_read(&hChd->outstanding_tx));
     }
 
     hChd->current_tx_message[transId - 1] = *m;
 
-    msg.txCanMessage.cmdLen       = sizeof(cmdTxCanMessage);
-    msg.txCanMessage.channel      = (unsigned char)vChd->channel;
-    msg.txCanMessage.transId      = (unsigned char)transId;
+    msg.txCanMessage.cmdLen = sizeof(cmdTxCanMessage);
+    msg.txCanMessage.channel = (unsigned char)vChd->channel;
+    msg.txCanMessage.transId = (unsigned char)transId;
 
     if (m->id & VCAN_EXT_MSG_ID) { // Extended CAN
-        msg.txCanMessage.cmdNo         = CMD_TX_EXT_MESSAGE;
+        msg.txCanMessage.cmdNo = CMD_TX_EXT_MESSAGE;
         msg.txCanMessage.rawMessage[0] = (unsigned char)((m->id >> 24) & 0x1F);
         msg.txCanMessage.rawMessage[1] = (unsigned char)((m->id >> 18) & 0x3F);
         msg.txCanMessage.rawMessage[2] = (unsigned char)((m->id >> 14) & 0x0F);
-        msg.txCanMessage.rawMessage[3] = (unsigned char)((m->id >>  6) & 0xFF);
-        msg.txCanMessage.rawMessage[4] = (unsigned char)((m->id      ) & 0x3F);
-    }
-    else { // Standard CAN
-        msg.txCanMessage.cmdNo         = CMD_TX_STD_MESSAGE;
-        msg.txCanMessage.rawMessage[0] = (unsigned char)((m->id >>  6) & 0x1F);
-        msg.txCanMessage.rawMessage[1] = (unsigned char)((m->id      ) & 0x3F);
+        msg.txCanMessage.rawMessage[3] = (unsigned char)((m->id >> 6) & 0xFF);
+        msg.txCanMessage.rawMessage[4] = (unsigned char)((m->id) & 0x3F);
+    } else { // Standard CAN
+        msg.txCanMessage.cmdNo = CMD_TX_STD_MESSAGE;
+        msg.txCanMessage.rawMessage[0] = (unsigned char)((m->id >> 6) & 0x1F);
+        msg.txCanMessage.rawMessage[1] = (unsigned char)((m->id) & 0x3F);
     }
     msg.txCanMessage.rawMessage[5] = m->length & 0x0F;
     memcpy(&msg.txCanMessage.rawMessage[6], m->data, 8);
 
-    msg.txCanMessage.flags = m->flags & (VCAN_MSG_FLAG_TX_NOTIFY   |
-                                         VCAN_MSG_FLAG_TX_START    |
-                                         VCAN_MSG_FLAG_ERROR_FRAME |
-                                         VCAN_MSG_FLAG_REMOTE_FRAME);
+    msg.txCanMessage.flags = m->flags & (VCAN_MSG_FLAG_TX_NOTIFY | VCAN_MSG_FLAG_TX_START |
+                                         VCAN_MSG_FLAG_ERROR_FRAME | VCAN_MSG_FLAG_REMOTE_FRAME);
     // Transmit is capable of retrying without involving pciCanNoResponse().
     if (QCmd(hCard, &msg)) {
         // We must restore outstanding_tx here!
@@ -1280,65 +1167,58 @@ static int pciCanTransmitMessage (VCanChanData *vChd, CAN_MSG *m)
     // Update transId after we know QCmd() was succesful!
     if (transId + 1 > HELIOS_MAX_OUTSTANDING_TX) {
         atomic_set(&vChd->transId, 1);
-    }
-    else {
+    } else {
         atomic_add(1, &vChd->transId);
     }
 
     return VCAN_STAT_OK;
 } // pciCanTransmitMessage
 
-
 //======================================================================
 //  Read transmit error counter
 //======================================================================
-static int pciCanGetTxErr (VCanChanData *vChd)
+static int pciCanGetTxErr(VCanChanData *vChd)
 {
     pciCanRequestChipState(vChd);
 
     return vChd->txErrorCounter;
 }
 
-
 //======================================================================
 //  Read transmit error counter
 //======================================================================
-static int pciCanGetRxErr (VCanChanData *vChd)
+static int pciCanGetRxErr(VCanChanData *vChd)
 {
     pciCanRequestChipState(vChd);
 
     return vChd->rxErrorCounter;
 }
 
-
-
-
 //======================================================================
 //  Read transmit queue length in hardware/firmware
 //======================================================================
-static unsigned long pciCanTxQLen (VCanChanData *vChd)
+static unsigned long pciCanTxQLen(VCanChanData *vChd)
 {
-    PciCan2ChanData *hChd  = vChd->hwChanData;
+    PciCan2ChanData *hChd = vChd->hwChanData;
 
     return atomic_read(&hChd->outstanding_tx);
 }
 
-
 //======================================================================
 //  Clear send buffer on card
 //======================================================================
-static int pciCanFlushSendBuffer (VCanChanData *vChan)
+static int pciCanFlushSendBuffer(VCanChanData *vChan)
 {
-    PciCan2ChanData *hChd  = vChan->hwChanData;
-    VCanCardData     *vCard = vChan->vCard;
+    PciCan2ChanData *hChd = vChan->hwChanData;
+    VCanCardData *vCard = vChan->vCard;
     PciCan2CardData *hCard = vCard->hwCardData;
     heliosCmd cmd;
     int ret;
 
-    cmd.head.cmdNo         = CMD_FLUSH_QUEUE;
-    cmd.flushQueue.cmdLen  = sizeof(cmd.flushQueue);
+    cmd.head.cmdNo = CMD_FLUSH_QUEUE;
+    cmd.flushQueue.cmdLen = sizeof(cmd.flushQueue);
     cmd.flushQueue.channel = (unsigned char)vChan->channel;
-    cmd.flushQueue.flags   = 0;
+    cmd.flushQueue.flags = 0;
 
     ret = pciCanNoResponse(hCard, &cmd);
     if (ret == VCAN_STAT_OK) {
@@ -1352,17 +1232,16 @@ static int pciCanFlushSendBuffer (VCanChanData *vChan)
     return ret;
 }
 
-
 //======================================================================
 //  Initialize H/W
 //======================================================================
-static int pciCanInitHW (VCanCardData *vCard)
+static int pciCanInitHW(VCanCardData *vCard)
 {
-    PciCan2CardData  *hCard = vCard->hwCardData;
-    void __iomem      *addr;
-    int               timeOut = 0;
-    heliosCmd         cmd;
-    int               i;
+    PciCan2CardData *hCard = vCard->hwCardData;
+    void __iomem *addr;
+    int timeOut = 0;
+    heliosCmd cmd;
+    int i;
 
     // The card must be present!
     if (!vCard->cardPresent) {
@@ -1391,7 +1270,7 @@ static int pciCanInitHW (VCanCardData *vCard)
     // We should get a CMD_GET_CARD_INFO_RESP
     // and a CMD_GET_SOFTWARE_INFO_RESP back.
     pciCanInterrupts(vCard, 1);
-    cmd.head.cmdNo          = CMD_RESET_CARD_REQ;
+    cmd.head.cmdNo = CMD_RESET_CARD_REQ;
     cmd.resetCardReq.cmdLen = sizeof(cmd.resetCardReq);
     // This is at startup, so QCmd() should not fail.
     if (QCmd(hCard, &cmd)) {
@@ -1400,15 +1279,13 @@ static int pciCanInitHW (VCanCardData *vCard)
     }
 
     hCard->isWaiting = 1;
-    timeOut = wait_event_interruptible_timeout(hCard->waitHwInfo,
-                                               hCard->receivedHwInfo, 1000);
+    timeOut = wait_event_interruptible_timeout(hCard->waitHwInfo, hCard->receivedHwInfo, 1000);
     if (!timeOut) {
         DEBUGPRINT(1, "no HW wakeup\n");
         goto error;
     }
 
-    timeOut = wait_event_interruptible_timeout(hCard->waitSwInfo,
-                                               hCard->receivedSwInfo, 1000);
+    timeOut = wait_event_interruptible_timeout(hCard->waitSwInfo, hCard->receivedSwInfo, 1000);
     if (!timeOut) {
         DEBUGPRINT(1, "no SW wakeup\n");
         goto error;
@@ -1416,10 +1293,10 @@ static int pciCanInitHW (VCanCardData *vCard)
     hCard->isWaiting = 0;
 
     for (i = 0; i < vCard->nrChannels; i++) {
-        VCanChanData     *vChd = vCard->chanData[i];
+        VCanChanData *vChd = vCard->chanData[i];
 
-        cmd.resetChipReq.cmdNo   = CMD_RESET_CHIP_REQ;
-        cmd.resetChipReq.cmdLen  = sizeof(cmd.resetChipReq);
+        cmd.resetChipReq.cmdNo = CMD_RESET_CHIP_REQ;
+        cmd.resetChipReq.cmdLen = sizeof(cmd.resetChipReq);
         cmd.resetChipReq.channel = (unsigned char)vChd->channel;
 
         // This is at startup, so QCmd() should not fail.
@@ -1433,16 +1310,15 @@ static int pciCanInitHW (VCanCardData *vCard)
     if (vCard->card_flags & DEVHND_CARD_AUTO_TX_OBJBUFS) {
         cmdAutoTxBufferReq auto_cmd;
         heliosCmd reply;
-        auto_cmd.cmdLen      = sizeof(cmdAutoTxBufferReq);
-        auto_cmd.cmdNo       = CMD_AUTO_TX_BUFFER_REQ;
+        auto_cmd.cmdLen = sizeof(cmdAutoTxBufferReq);
+        auto_cmd.cmdNo = CMD_AUTO_TX_BUFFER_REQ;
         auto_cmd.requestType = AUTOTXBUFFER_CMD_GET_INFO;
-        if (pciCanWaitResponse(vCard, (heliosCmd *)&auto_cmd, &reply,
-                               CMD_AUTO_TX_BUFFER_RESP, auto_cmd.requestType) ==
-              VCAN_STAT_OK) {
-            DEBUGPRINT(1, "objbufs supported, count=%d resolution=%d\n",
-                       hCard->autoTxBufferCount, hCard->autoTxBufferResolution);
+        if (pciCanWaitResponse(vCard, (heliosCmd *)&auto_cmd, &reply, CMD_AUTO_TX_BUFFER_RESP,
+                               auto_cmd.requestType) == VCAN_STAT_OK) {
+            DEBUGPRINT(1, "objbufs supported, count=%d resolution=%d\n", hCard->autoTxBufferCount,
+                       hCard->autoTxBufferResolution);
         } else {
-          DEBUGPRINT(1, "objbufs supported, but could not check details\n");
+            DEBUGPRINT(1, "objbufs supported, but could not check details\n");
         }
     }
 
@@ -1453,68 +1329,65 @@ static int pciCanInitHW (VCanCardData *vCard)
 error:
     //os_if_delete_waitqueue_head(&hCard->waitHwInfo);
     //os_if_delete_waitqueue_head(&hCard->waitSwInfo);
-    hCard->isWaiting   = 0;
-    hCard->initDone    = 0;
+    hCard->isWaiting = 0;
+    hCard->initDone = 0;
     vCard->cardPresent = 0;
 
     return VCAN_STAT_FAIL;
 }
 
-
 //======================================================================
 //  Find out addresses for one card
 //======================================================================
-static int readPCIAddresses (struct pci_dev *dev, VCanCardData *vCard)
+static int readPCIAddresses(struct pci_dev *dev, VCanCardData *vCard)
 {
-  PciCan2CardData *hCd = vCard->hwCardData;
+    PciCan2CardData *hCd = vCard->hwCardData;
 
-  if (pci_request_regions(dev, "Kvaser PCIcanII")) {
-    DEBUGPRINT(1, "request regions failed\n");
-    return VCAN_STAT_FAIL;
-  }
+    if (pci_request_regions(dev, "Kvaser PCIcanII")) {
+        DEBUGPRINT(1, "request regions failed\n");
+        return VCAN_STAT_FAIL;
+    }
 
-  if (pci_enable_device(dev)) {
-    DEBUGPRINT(1, "enable device failed\n");
-    pci_release_regions(dev);
-    return VCAN_STAT_NO_DEVICE;
-  }
+    if (pci_enable_device(dev)) {
+        DEBUGPRINT(1, "enable device failed\n");
+        pci_release_regions(dev);
+        return VCAN_STAT_NO_DEVICE;
+    }
 
-  hCd->irq = dev->irq;
-  hCd->baseAddr = pci_iomap(dev, 0, 0);
+    hCd->irq = dev->irq;
+    hCd->baseAddr = pci_iomap(dev, 0, 0);
 
-  if (!hCd->baseAddr) {
-    DEBUGPRINT(1, "pci_iomap failed\n");
-    pci_disable_device(dev);
-    pci_release_regions(dev);
-    return VCAN_STAT_FAIL;
-  }
+    if (!hCd->baseAddr) {
+        DEBUGPRINT(1, "pci_iomap failed\n");
+        pci_disable_device(dev);
+        pci_release_regions(dev);
+        return VCAN_STAT_FAIL;
+    }
 
-  DEBUGPRINT(1, "baseAddr = 0x%lx\n", (long)hCd->baseAddr);
+    DEBUGPRINT(1, "baseAddr = 0x%lx\n", (long)hCd->baseAddr);
 
-  return VCAN_STAT_OK;
+    return VCAN_STAT_OK;
 }
-
 
 //======================================================================
 // Request send
 //======================================================================
-static void pciCanRequestSend (VCanCardData *vCard, VCanChanData *vChan)
+static void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChan)
 {
 #if !defined(TRY_DIRECT_SEND)
     PciCan2ChanData *hChan = vChan->hwChanData;
     if (pciCanTxAvailable(vChan)) {
-# if !defined(TRY_RT_QUEUE)
+#if !defined(TRY_RT_QUEUE)
         schedule_work(&hChan->txTaskQ);
-# else
+#else
         queue_work(hChan->txTaskQ, &hChan->txWork);
-# endif
+#endif
 #else
     int queuePos;
     if (pciCanTxAvailable(vChan)) {
         queuePos = queue_front(&vChan->txChanQueue);
         if (queuePos >= 0) {
-            if (pciCanTransmitMessage(vChan, &vChan->txChanBuffer[queuePos]) ==
-                VCAN_STAT_OK) {
+            if (pciCanTransmitMessage(vChan, &vChan->txChanBuffer[queuePos]) == VCAN_STAT_OK) {
                 DEBUGPRINT(2, "Message sent\n");
                 queue_pop(&vChan->txChanQueue);
                 queue_wakeup_on_space(&vChan->txChanQueue);
@@ -1524,8 +1397,8 @@ static void pciCanRequestSend (VCanCardData *vCard, VCanChanData *vChan)
                 queue_release(&vChan->txChanQueue);
             }
         } else {
-          DEBUGPRINT(2, "Nothing in queue\n");
-          queue_release(&vChan->txChanQueue);
+            DEBUGPRINT(2, "Nothing in queue\n");
+            queue_release(&vChan->txChanQueue);
         }
 #endif
     }
@@ -1536,72 +1409,60 @@ static void pciCanRequestSend (VCanCardData *vCard, VCanChanData *vChan)
 #endif
 }
 
-
 #if !defined(TRY_DIRECT_SEND)
 //======================================================================
 //  Process send Q - This function is called from the immediate queue
 //======================================================================
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void pciCanSend (void *void_chanData)
-#else
-static void pciCanSend (struct work_struct *work)
-#endif
+static void pciCanSend(struct work_struct *work)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-    VCanChanData *chd = (VCanChanData *)void_chanData;
-#else
-# if !defined(TRY_RT_QUEUE)
+#if !defined(TRY_RT_QUEUE)
     PciCan2ChanData *devChan = container_of(work, PciCan2ChanData, txTaskQ);
-# else
+#else
     PciCan2ChanData *devChan = container_of(work, PciCan2ChanData, txWork);
-# endif
-    VCanChanData   *chd = devChan->vChan;
 #endif
+    VCanChanData *chd = devChan->vChan;
     int queuePos;
 
     while (1) {
-      if (!chd->isOnBus) {
-        DEBUGPRINT(2, "Attempt to send when not on bus\n");
-        break;
-      }
-      
-      if (chd->minorNr < 0) {  // Channel not initialized?
-        DEBUGPRINT(2, "Attempt to send on unitialized channel\n");
-        break;
-      }
-      
-      if (!pciCanTxAvailable(chd)) {
-        DEBUGPRINT(2, "Maximum number of messages outstanding reached\n");
-        break;
-      }
-      
-      // Send Messages
-      queuePos = queue_front(&chd->txChanQueue);
-      if (queuePos >= 0) {
-        if (pciCanTransmitMessage(chd, &chd->txChanBuffer[queuePos]) == VCAN_STAT_OK) {
-          queue_pop(&chd->txChanQueue);
-          queue_wakeup_on_space(&chd->txChanQueue);
-        } else {
-          queue_release(&chd->txChanQueue);
-          break;
+        if (!chd->isOnBus) {
+            DEBUGPRINT(2, "Attempt to send when not on bus\n");
+            break;
         }
-      } else {
-        queue_release(&chd->txChanQueue);
-        break;
-      }
+
+        if (chd->minorNr < 0) { // Channel not initialized?
+            DEBUGPRINT(2, "Attempt to send on unitialized channel\n");
+            break;
+        }
+
+        if (!pciCanTxAvailable(chd)) {
+            DEBUGPRINT(2, "Maximum number of messages outstanding reached\n");
+            break;
+        }
+
+        // Send Messages
+        queuePos = queue_front(&chd->txChanQueue);
+        if (queuePos >= 0) {
+            if (pciCanTransmitMessage(chd, &chd->txChanBuffer[queuePos]) == VCAN_STAT_OK) {
+                queue_pop(&chd->txChanQueue);
+                queue_wakeup_on_space(&chd->txChanQueue);
+            } else {
+                queue_release(&chd->txChanQueue);
+                break;
+            }
+        } else {
+            queue_release(&chd->txChanQueue);
+            break;
+        }
     }
 }
 #endif
 
-
 //======================================================================
 // Send out a command and wait for a response with timeout
 //======================================================================
-static int pciCanWaitResponse (VCanCardData *vCard, heliosCmd *cmd,
-                               heliosCmd *replyPtr, unsigned char cmdNr,
-                               unsigned char transId)
+static int pciCanWaitResponse(VCanCardData *vCard, heliosCmd *cmd, heliosCmd *replyPtr,
+                              unsigned char cmdNr, unsigned char transId)
 {
-
     PciCan2CardData *hCard = vCard->hwCardData;
     WaitNode waitNode;
     unsigned long irqFlags = 0;
@@ -1610,8 +1471,8 @@ static int pciCanWaitResponse (VCanCardData *vCard, heliosCmd *cmd,
     init_completion(&waitNode.waitCompletion);
 
     waitNode.replyPtr = replyPtr;
-    waitNode.cmdNr    = cmdNr;
-    waitNode.transId  = transId;
+    waitNode.cmdNr = cmdNr;
+    waitNode.transId = transId;
     waitNode.timedOut = 0;
 
     // Add to card's list of expected responses
@@ -1628,7 +1489,8 @@ static int pciCanWaitResponse (VCanCardData *vCard, heliosCmd *cmd,
         return VCAN_STAT_NO_RESOURCES;
     }
 
-    timeout = wait_for_completion_timeout(&waitNode.waitCompletion, msecs_to_jiffies(PCICAN2_CMD_RESP_WAIT_TIME));
+    timeout = wait_for_completion_timeout(&waitNode.waitCompletion,
+                                          msecs_to_jiffies(PCICAN2_CMD_RESP_WAIT_TIME));
 
     // Now we either got a response or a timeout
     write_lock_irqsave(&hCard->replyWaitListLock, irqFlags);
@@ -1643,11 +1505,10 @@ static int pciCanWaitResponse (VCanCardData *vCard, heliosCmd *cmd,
     return VCAN_STAT_OK;
 }
 
-
 //======================================================================
 // Send out a command but do not wait for a response
 //======================================================================
-static int pciCanNoResponse (PciCan2CardData *hCard, heliosCmd *cmd)
+static int pciCanNoResponse(PciCan2CardData *hCard, heliosCmd *cmd)
 {
     if (QCmd(hCard, cmd) != MEM_Q_SUCCESS) {
         return VCAN_STAT_NO_RESOURCES;
@@ -1656,11 +1517,10 @@ static int pciCanNoResponse (PciCan2CardData *hCard, heliosCmd *cmd)
     return VCAN_STAT_OK;
 }
 
-
 //======================================================================
 //  Initialize H/W specific data
 //======================================================================
-static void pciCanInitData (VCanCardData *vCard)
+static void pciCanInitData(VCanCardData *vCard)
 {
     PciCan2CardData *hCd = vCard->hwCardData;
 
@@ -1671,8 +1531,8 @@ static void pciCanInitData (VCanCardData *vCard)
 
 #if defined(TRY_DIRECT_SEND)
     for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
-      VCanChanData *vChd = vCard->chanData[chNr];
-      queue_irq_lock(&vChd->txChanQueue);
+        VCanChanData *vChd = vCard->chanData[chNr];
+        queue_irq_lock(&vChd->txChanQueue);
     }
 #endif
 
@@ -1680,49 +1540,39 @@ static void pciCanInitData (VCanCardData *vCard)
 
     rwlock_init(&hCd->replyWaitListLock);
     spin_lock_init(&hCd->timeHi_lock);
-    spin_lock_init(&hCd->memQLock);   // Only used in memQ.c
+    spin_lock_init(&hCd->memQLock); // Only used in memQ.c
 
     for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
-        VCanChanData *vChd     = vCard->chanData[chNr];
+        VCanChanData *vChd = vCard->chanData[chNr];
         PciCan2ChanData *hChd = vChd->hwChanData;
 #if !defined(TRY_DIRECT_SEND)
-# if !defined(TRY_RT_QUEUE)
+#if !defined(TRY_RT_QUEUE)
         hChd->vChan = vChd;
-#    if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20))
-        INIT_WORK(&hChd->txTaskQ, pciCanSend, vChd);
-#    else
         INIT_WORK(&hChd->txTaskQ, pciCanSend);
-#    endif
-# else
+#else
         char name[] = "pcicanII_txX";
-        name[11]    = '0' + chNr;   // Replace the X with channel number
+        name[11] = '0' + chNr; // Replace the X with channel number
         hChd->vChan = vChd;
-#  if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20))
-        INIT_WORK(&hChd->txWork, pciCanSend, vChd);
-#  else
         INIT_WORK(&hChd->txWork, pciCanSend);
-#  endif
         // Note that this will not create an RT task if the kernel
         // does not actually support it (only 2.6.28+ do).
         // In that case, you must (for now) do it manually using chrt.
         hChd->txTaskQ = create_rt_workqueue(name, &hChd->txWork);
-# endif
+#endif
 #endif
         memset(hChd->current_tx_message, 0, sizeof(hChd->current_tx_message));
         atomic_set(&hChd->outstanding_tx, 0);
         atomic_set(&vChd->transId, 1);
-        vChd->overrun    = 0;
+        vChd->overrun = 0;
         vChd->errorCount = 0;
-        vChd->errorTime  = 0;
+        vChd->errorTime = 0;
     }
 }
-
 
 //======================================================================
 // Initialize the HW for one card
 //======================================================================
-static int pciCanInitOne (struct pci_dev *dev,
-                          const struct pci_device_id *id)
+static int pciCanInitOne(struct pci_dev *dev, const struct pci_device_id *id)
 {
     // Helper struct for allocation
     typedef struct {
@@ -1738,9 +1588,9 @@ static int pciCanInitOne (struct pci_dev *dev,
     VCanCardData *vCard;
 
     // Allocate data area for this card
-    vCard  = kmalloc(sizeof(VCanCardData) + sizeof(PciCan2CardData), GFP_KERNEL);
+    vCard = kmalloc(sizeof(VCanCardData) + sizeof(PciCan2CardData), GFP_KERNEL);
     if (!vCard) {
-      goto card_alloc_err;
+        goto card_alloc_err;
     }
     memset(vCard, 0, sizeof(VCanCardData) + sizeof(PciCan2CardData));
 
@@ -1751,15 +1601,15 @@ static int pciCanInitOne (struct pci_dev *dev,
     // Allocate memory for n channels
     chs = kmalloc(sizeof(ChanHelperStruct), GFP_KERNEL);
     if (!chs) {
-      goto chan_alloc_err;
+        goto chan_alloc_err;
     }
     memset(chs, 0, sizeof(ChanHelperStruct));
 
     // Init array and hwChanData
-    for (chNr = 0; chNr < MAX_CARD_CHANNELS; chNr++){
-        chs->dataPtrArray[chNr]    = &chs->vChd[chNr];
+    for (chNr = 0; chNr < MAX_CARD_CHANNELS; chNr++) {
+        chs->dataPtrArray[chNr] = &chs->vChd[chNr];
         chs->vChd[chNr].hwChanData = &chs->hChd[chNr];
-        chs->vChd[chNr].minorNr    = -1;   // No preset minor number
+        chs->vChd[chNr].minorNr = -1; // No preset minor number
     }
     vCard->chanData = chs->dataPtrArray;
 
@@ -1782,13 +1632,7 @@ static int pciCanInitOne (struct pci_dev *dev,
 
     // ISR
     // SA_* changed name in 2.6.18 and the old ones were to go away January '07
-    if (request_irq(hCd->irq, pciCanInterrupt,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18))
-                    SA_SHIRQ,
-#else
-                    IRQF_SHARED,
-#endif
-                    "Kvaser PCIcanII", vCard)) {
+    if (request_irq(hCd->irq, pciCanInterrupt, IRQF_SHARED, "Kvaser PCIcanII", vCard)) {
         printk("<1>request_irq failed");
         goto irq_err;
     }
@@ -1805,6 +1649,13 @@ static int pciCanInitOne (struct pci_dev *dev,
     driverData.canCards = vCard;
     spin_unlock(&driverData.canCardsLock);
 
+    for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
+        VCanChanData *vChd = vCard->chanData[chNr];
+
+        if (vCanAddCardChannel(vChd) != VCAN_STAT_OK) {
+            goto inithw_err;
+        }
+    }
     return VCAN_STAT_OK;
 
 inithw_err:
@@ -1813,8 +1664,8 @@ irq_err:
     pci_set_drvdata(dev, NULL);
     for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
 #if defined(TRY_RT_QUEUE)
-      PciCan2ChanData *hChd = vCard->chanData[chNr]->hwChanData;
-      destroy_workqueue(hChd->txTaskQ);
+        PciCan2ChanData *hChd = vCard->chanData[chNr]->hwChanData;
+        destroy_workqueue(hChd->txTaskQ);
 #endif
     }
 probe_err:
@@ -1830,107 +1681,103 @@ card_alloc_err:
     return VCAN_STAT_FAIL;
 } // pciCanInitOne
 
-
 //======================================================================
 // Shut down the HW for one card
 //======================================================================
-static void pciCanRemoveOne (struct pci_dev *dev)
+static void pciCanRemoveOne(struct pci_dev *dev)
 {
-  VCanCardData *vCard, *lastCard;
-  VCanChanData *vChan;
-  PciCan2CardData *hCd;
-  int chNr, i;
+    VCanCardData *vCard, *lastCard;
+    VCanChanData *vChan;
+    PciCan2CardData *hCd;
+    int chNr, i;
 
-  vCard = pci_get_drvdata(dev);
-  hCd   = vCard->hwCardData;
-  pci_set_drvdata(dev, NULL);
+    vCard = pci_get_drvdata(dev);
+    hCd = vCard->hwCardData;
+    pci_set_drvdata(dev, NULL);
 
-  pciCanInterrupts(vCard, 0);
+    pciCanInterrupts(vCard, 0);
 
-  free_irq(hCd->irq, vCard);
+    free_irq(hCd->irq, vCard);
 
-  vCard->cardPresent = 0;
+    vCard->cardPresent = 0;
 
-  DEBUGPRINT(3, "pcican2: Stopping all \"waitQueue's\"\n");
+    DEBUGPRINT(3, "pcican2: Stopping all \"waitQueue's\"\n");
 
-  for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
-    vCanCardRemoved(vCard->chanData[chNr]);
-  }
+    for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
+        vCanRemoveCardChannel(vCard->chanData[chNr]);
+    }
 
-  DEBUGPRINT(3, "pcican2: Stopping all \"WaitNode's\"\n");
-  {
-    struct list_head *currHead;
-    struct list_head *tmpHead;
-    WaitNode         *currNode;
-    unsigned long    irqFlags;
-
-    write_lock_irqsave(&hCd->replyWaitListLock, irqFlags);
-    list_for_each_safe(currHead, tmpHead, &hCd->replyWaitList)
+    DEBUGPRINT(3, "pcican2: Stopping all \"WaitNode's\"\n");
     {
-      currNode = list_entry(currHead, WaitNode, list);
-      currNode->timedOut = 1;
-      complete(&currNode->waitCompletion);
-    }
-    write_unlock_irqrestore(&hCd->replyWaitListLock, irqFlags);
-  }
+        struct list_head *currHead;
+        struct list_head *tmpHead;
+        WaitNode *currNode;
+        unsigned long irqFlags;
 
-  for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
-    vChan = vCard->chanData[chNr];
-    DEBUGPRINT(3, "pcican2: Waiting for all closed on minor %d\n", vChan->minorNr);
-    while (atomic_read(&vChan->fileOpenCount) > 0) {
-      set_current_state(TASK_UNINTERRUPTIBLE);
-      schedule_timeout(msecs_to_jiffies(10));
+        write_lock_irqsave(&hCd->replyWaitListLock, irqFlags);
+        list_for_each_safe(currHead, tmpHead, &hCd->replyWaitList) {
+            currNode = list_entry(currHead, WaitNode, list);
+            currNode->timedOut = 1;
+            complete(&currNode->waitCompletion);
+        }
+        write_unlock_irqrestore(&hCd->replyWaitListLock, irqFlags);
     }
-  }
 
-  for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
+    for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
+        vChan = vCard->chanData[chNr];
+        DEBUGPRINT(3, "pcican2: Waiting for all closed on minor %d\n", vChan->minorNr);
+        while (atomic_read(&vChan->fileOpenCount) > 0) {
+            set_current_state(TASK_UNINTERRUPTIBLE);
+            schedule_timeout(msecs_to_jiffies(10));
+        }
+    }
+
+    for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
 #if defined(TRY_RT_QUEUE)
-    PciCan2ChanData *hChd = vCard->chanData[chNr]->hwChanData;
-    destroy_workqueue(hChd->txTaskQ);
+        PciCan2ChanData *hChd = vCard->chanData[chNr]->hwChanData;
+        destroy_workqueue(hChd->txTaskQ);
 #endif
-  }
-
-
-  pci_iounmap(dev, hCd->baseAddr);
-  pci_disable_device(dev);
-  pci_release_regions(dev);
-
-  // Remove from canCards list
-  spin_lock(&driverData.canCardsLock);
-  lastCard = driverData.canCards;
-  if (lastCard == vCard) {
-    driverData.canCards = vCard->next;
-  } else {
-    while (lastCard && (lastCard->next != vCard)) {
-      lastCard = lastCard->next;
     }
-    if (!lastCard) {
-      DEBUGPRINT(1, "Card not in list!\n");
+
+    pci_iounmap(dev, hCd->baseAddr);
+    pci_disable_device(dev);
+    pci_release_regions(dev);
+
+    // Remove from canCards list
+    spin_lock(&driverData.canCardsLock);
+    lastCard = driverData.canCards;
+    if (lastCard == vCard) {
+        driverData.canCards = vCard->next;
     } else {
-      lastCard->next = vCard->next;
+        while (lastCard && (lastCard->next != vCard)) {
+            lastCard = lastCard->next;
+        }
+        if (!lastCard) {
+            DEBUGPRINT(1, "Card not in list!\n");
+        } else {
+            lastCard->next = vCard->next;
+        }
     }
-  }
-  spin_unlock(&driverData.canCardsLock);
+    spin_unlock(&driverData.canCardsLock);
 
-  for(i = 0; i < MAX_CARD_CHANNELS; i++) {
-    VCanChanData *vChd     = vCard->chanData[i];
-    PciCan2ChanData *hChd = vChd->hwChanData;
-    if (hChd->objbufs) {
-      DEBUGPRINT(2, "Free vCard->chanData[i]->hwChanData->objbufs[%d]\n", i);
-      kfree(hChd->objbufs);
-      hChd->objbufs = NULL;
+    for (i = 0; i < MAX_CARD_CHANNELS; i++) {
+        VCanChanData *vChd = vCard->chanData[i];
+        PciCan2ChanData *hChd = vChd->hwChanData;
+        if (hChd->objbufs) {
+            DEBUGPRINT(2, "Free vCard->chanData[i]->hwChanData->objbufs[%d]\n", i);
+            kfree(hChd->objbufs);
+            hChd->objbufs = NULL;
+        }
     }
-  }
 
-  kfree(vCard->chanData);
-  kfree(vCard);
+    kfree(vCard->chanData);
+    kfree(vCard);
 }
-
 
 //======================================================================
 // Find and initialize all cards
 //======================================================================
-static int pciCanInitAllDevices (void)
+static int pciCanInitAllDevices(void)
 {
     int found;
 
@@ -1940,14 +1787,13 @@ static int pciCanInitAllDevices (void)
     DEBUGPRINT(1, "pciCanInitAllDevices %d\n", found);
 
     // We need to find at least one
-    return  (found < 0) ? found : 0;
+    return (found < 0) ? found : 0;
 } // pciCanInitAllDevices
-
 
 //======================================================================
 // Shut down and free resources before unloading driver
 //======================================================================
-static int pciCanCloseAllDevices (void)
+static int pciCanCloseAllDevices(void)
 {
     DEBUGPRINT(1, "pciCanCloseAllDevices\n");
     pci_unregister_driver(&pcican_tbl);
@@ -1955,354 +1801,341 @@ static int pciCanCloseAllDevices (void)
     return 0;
 } // pciCanCloseAllDevices
 
-
 /***************************************************************************/
 /* Free an object buffer (or free all) */
-static int pciCanObjbufFree (VCanChanData *chd, int bufType, int bufNo)
+static int pciCanObjbufFree(VCanChanData *chd, int bufType, int bufNo)
 {
-  int ret;
-  heliosCmd cmd;
-  int start, stop, i;
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    int ret;
+    heliosCmd cmd;
+    int start, stop, i;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        if (bufNo == -1) {
+            // All buffers.. cleanup in progress, so we are happy.
+            return VCAN_STAT_OK;
+        }
+        // Tried to free a nonexistent buffer; this is an error.
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+
+    DEBUGPRINT(4, "hwif_objbuf_free\n");
+
     if (bufNo == -1) {
-      // All buffers.. cleanup in progress, so we are happy.
-      return VCAN_STAT_OK;
+        start = 0;
+        stop = dev->autoTxBufferCount; // ci->cc.auto...
+    } else {
+        start = bufNo;
+        stop = bufNo + 1;
     }
-    // Tried to free a nonexistent buffer; this is an error.
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
 
-  DEBUGPRINT(4, "hwif_objbuf_free\n");
+    for (i = start; i < stop; i++) {
+        hChd->objbufs[i].in_use = 0;
 
-  if (bufNo == -1) {
-    start = 0;
-    stop  = dev->autoTxBufferCount;  // ci->cc.auto...
-  } else {
-    start = bufNo;
-    stop  = bufNo + 1;
-  }
+        memset(&cmd, 0, sizeof(cmd));
+        cmd.autoTxBufferReq.cmdNo = CMD_AUTO_TX_BUFFER_REQ;
+        cmd.autoTxBufferReq.cmdLen = sizeof(cmd.autoTxBufferReq);
+        cmd.autoTxBufferReq.requestType = AUTOTXBUFFER_CMD_DEACTIVATE;
+        cmd.autoTxBufferReq.channel = (unsigned char)chd->channel;
+        cmd.autoTxBufferReq.bufNo = (unsigned char)i;
 
-  for (i = start; i < stop; i++) {
-    hChd->objbufs[i].in_use = 0;
-
-    memset(&cmd, 0, sizeof(cmd));
-    cmd.autoTxBufferReq.cmdNo       = CMD_AUTO_TX_BUFFER_REQ;
-    cmd.autoTxBufferReq.cmdLen      = sizeof(cmd.autoTxBufferReq);
-    cmd.autoTxBufferReq.requestType = AUTOTXBUFFER_CMD_DEACTIVATE;
-    cmd.autoTxBufferReq.channel     = (unsigned char)chd->channel;
-    cmd.autoTxBufferReq.bufNo       = (unsigned char)i;
-
-    ret = pciCanNoResponse(vCard->hwCardData, &cmd);
-    if (ret != VCAN_STAT_OK) {
-      return VCAN_STAT_NO_MEMORY;
+        ret = pciCanNoResponse(vCard->hwCardData, &cmd);
+        if (ret != VCAN_STAT_OK) {
+            return VCAN_STAT_NO_MEMORY;
+        }
     }
-  }
 
-  return VCAN_STAT_OK;
+    return VCAN_STAT_OK;
 }
-
 
 /***************************************************************************/
 /* Allocate an object buffer */
-static int pciCanObjbufAlloc (VCanChanData *chd, int bufType, int *bufNo)
+static int pciCanObjbufAlloc(VCanChanData *chd, int bufType, int *bufNo)
 {
-  int i;
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    int i;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (dev->autoTxBufferCount == 0 || dev->autoTxBufferResolution == 0) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (dev->autoTxBufferCount == 0 || dev->autoTxBufferResolution == 0) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  DEBUGPRINT(4, "hwif_objbuf_alloc\n");
+    DEBUGPRINT(4, "hwif_objbuf_alloc\n");
 
-  if (!hChd->objbufs) {
-    DEBUGPRINT(4, "Allocating hChd->objbufs[]\n");
-    hChd->objbufs = kmalloc(sizeof(OBJECT_BUFFER) * dev->autoTxBufferCount, GFP_KERNEL);
     if (!hChd->objbufs) {
-      return VCAN_STAT_NO_MEMORY;
+        DEBUGPRINT(4, "Allocating hChd->objbufs[]\n");
+        hChd->objbufs = kmalloc(sizeof(OBJECT_BUFFER) * dev->autoTxBufferCount, GFP_KERNEL);
+        if (!hChd->objbufs) {
+            return VCAN_STAT_NO_MEMORY;
+        }
+
+        memset(hChd->objbufs, 0, sizeof(OBJECT_BUFFER) * dev->autoTxBufferCount);
     }
 
-    memset(hChd->objbufs, 0, sizeof(OBJECT_BUFFER) * dev->autoTxBufferCount);
-  }
-
-  for (i = 0; i < dev->autoTxBufferCount; i++) {
-    if (!hChd->objbufs[i].in_use) {
-      hChd->objbufs[i].in_use = 1;
-      *bufNo = i;
-      return VCAN_STAT_OK;
+    for (i = 0; i < dev->autoTxBufferCount; i++) {
+        if (!hChd->objbufs[i].in_use) {
+            hChd->objbufs[i].in_use = 1;
+            *bufNo = i;
+            return VCAN_STAT_OK;
+        }
     }
-  }
 
-  return VCAN_STAT_NO_MEMORY;
+    return VCAN_STAT_NO_MEMORY;
 }
-
 
 /***************************************************************************/
 /* Write data to an object buffer */
-static int pciCanObjbufWrite (VCanChanData *chd, int bufType, int bufNo,
-                              int id, int flags, int dlc, unsigned char *data)
+static int pciCanObjbufWrite(VCanChanData *chd, int bufType, int bufNo, int id, int flags, int dlc,
+                             unsigned char *data)
 {
-  int ret;
-  heliosCmd cmd;
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    int ret;
+    heliosCmd cmd;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (!hChd->objbufs[bufNo].in_use) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (!hChd->objbufs[bufNo].in_use) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  DEBUGPRINT(4, "hwif_objbuf_write, id=0x%x flags=0x%x dlc=%d\n",
-             id, flags, dlc);
+    DEBUGPRINT(4, "hwif_objbuf_write, id=0x%x flags=0x%x dlc=%d\n", id, flags, dlc);
 
-  hChd->objbufs[bufNo].msg.id     = id;
-  hChd->objbufs[bufNo].msg.flags  = (unsigned char)flags;
-  hChd->objbufs[bufNo].msg.length = (unsigned char)dlc;
-  memcpy(hChd->objbufs[bufNo].msg.data, data, (dlc > 8) ? 8 : dlc);
+    hChd->objbufs[bufNo].msg.id = id;
+    hChd->objbufs[bufNo].msg.flags = (unsigned char)flags;
+    hChd->objbufs[bufNo].msg.length = (unsigned char)dlc;
+    memcpy(hChd->objbufs[bufNo].msg.data, data, (dlc > 8) ? 8 : dlc);
 
-  memset(&cmd, 0, sizeof(cmd));
-  cmd.setAutoTxBuffer.cmdNo   = CMD_SET_AUTO_TX_BUFFER;
-  cmd.setAutoTxBuffer.cmdLen  = sizeof(cmd.setAutoTxBuffer);
-  cmd.setAutoTxBuffer.channel = (unsigned char)chd->channel;
-  cmd.setAutoTxBuffer.bufNo   = (unsigned char)bufNo;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.setAutoTxBuffer.cmdNo = CMD_SET_AUTO_TX_BUFFER;
+    cmd.setAutoTxBuffer.cmdLen = sizeof(cmd.setAutoTxBuffer);
+    cmd.setAutoTxBuffer.channel = (unsigned char)chd->channel;
+    cmd.setAutoTxBuffer.bufNo = (unsigned char)bufNo;
 
-  cmd.setAutoTxBuffer.flags = 0;
-  if (id & EXT_MSG) {
-    cmd.setAutoTxBuffer.flags        |= AUTOTXBUFFER_MSG_EXT;
-    cmd.setAutoTxBuffer.rawMessage[0] = (unsigned char)((id >> 24) & 0x1F);
-    cmd.setAutoTxBuffer.rawMessage[1] = (unsigned char)((id >> 18) & 0x3F);
-    cmd.setAutoTxBuffer.rawMessage[2] = (unsigned char)((id >> 14) & 0x0F);
-    cmd.setAutoTxBuffer.rawMessage[3] = (unsigned char)((id >>  6) & 0xFF);
-    cmd.setAutoTxBuffer.rawMessage[4] = (unsigned char)((id      ) & 0x3F);
-  } else {
-    cmd.setAutoTxBuffer.rawMessage[0] = (unsigned char)((id >>  6) & 0x1F);
-    cmd.setAutoTxBuffer.rawMessage[1] = (unsigned char)((id      ) & 0x3F);
-  }
-  cmd.setAutoTxBuffer.rawMessage[5] = dlc & 0x0F;
-  memcpy(&cmd.setAutoTxBuffer.rawMessage[6], data, 8);
+    cmd.setAutoTxBuffer.flags = 0;
+    if (id & EXT_MSG) {
+        cmd.setAutoTxBuffer.flags |= AUTOTXBUFFER_MSG_EXT;
+        cmd.setAutoTxBuffer.rawMessage[0] = (unsigned char)((id >> 24) & 0x1F);
+        cmd.setAutoTxBuffer.rawMessage[1] = (unsigned char)((id >> 18) & 0x3F);
+        cmd.setAutoTxBuffer.rawMessage[2] = (unsigned char)((id >> 14) & 0x0F);
+        cmd.setAutoTxBuffer.rawMessage[3] = (unsigned char)((id >> 6) & 0xFF);
+        cmd.setAutoTxBuffer.rawMessage[4] = (unsigned char)((id)&0x3F);
+    } else {
+        cmd.setAutoTxBuffer.rawMessage[0] = (unsigned char)((id >> 6) & 0x1F);
+        cmd.setAutoTxBuffer.rawMessage[1] = (unsigned char)((id)&0x3F);
+    }
+    cmd.setAutoTxBuffer.rawMessage[5] = dlc & 0x0F;
+    memcpy(&cmd.setAutoTxBuffer.rawMessage[6], data, 8);
 
-  if (flags & MSGFLAG_REMOTE_FRAME) {
-    cmd.setAutoTxBuffer.flags |= AUTOTXBUFFER_MSG_REMOTE_FRAME;
-  }
+    if (flags & MSGFLAG_REMOTE_FRAME) {
+        cmd.setAutoTxBuffer.flags |= AUTOTXBUFFER_MSG_REMOTE_FRAME;
+    }
 
-  ret = pciCanNoResponse(vCard->hwCardData, &cmd);
+    ret = pciCanNoResponse(vCard->hwCardData, &cmd);
 
-  return (ret != VCAN_STAT_OK) ? VCAN_STAT_NO_MEMORY : VCAN_STAT_OK;
+    return (ret != VCAN_STAT_OK) ? VCAN_STAT_NO_MEMORY : VCAN_STAT_OK;
 }
-
 
 /***************************************************************************/
 /* Set filters on an object buffer */
-static int pciCanObjbufSetFilter (VCanChanData *chd, int bufType, int bufNo,
-                                  int code, int mask)
+static int pciCanObjbufSetFilter(VCanChanData *chd, int bufType, int bufNo, int code, int mask)
 {
-  PciCan2ChanData  *hChd = chd->hwChanData;
+    PciCan2ChanData *hChd = chd->hwChanData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+
+    DEBUGPRINT(4, "hwif_objbuf_set_filter\n");
+    // This operation is irrelevant, so we fail.
+
     return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  DEBUGPRINT(4, "hwif_objbuf_set_filter\n");
-  // This operation is irrelevant, so we fail.
-
-  return VCAN_STAT_BAD_PARAMETER;
 }
-
 
 /***************************************************************************/
 /* Set flags on an object buffer */
-static int pciCanObjbufSetFlags (VCanChanData *chd, int bufType, int bufNo,
-                                 int flags)
+static int pciCanObjbufSetFlags(VCanChanData *chd, int bufType, int bufNo, int flags)
 {
-  PciCan2ChanData  *hChd = chd->hwChanData;
+    PciCan2ChanData *hChd = chd->hwChanData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
+
+    DEBUGPRINT(4, "hwif_objbuf_set_flags\n");
+    // This operation is irrelevant.
+
     return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  DEBUGPRINT(4, "hwif_objbuf_set_flags\n");
-  // This operation is irrelevant.
-
-  return VCAN_STAT_BAD_PARAMETER;
 }
-
 
 /***************************************************************************/
 /* Enable/disable an object buffer (or enable/disable all) */
-static int pciCanObjbufEnable (VCanChanData *chd, int bufType, int bufNo,
-                               int enable)
+static int pciCanObjbufEnable(VCanChanData *chd, int bufType, int bufNo, int enable)
 {
-  int ret;
-  heliosCmd cmd;
-  int start, stop, i;
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    int ret;
+    heliosCmd cmd;
+    int start, stop, i;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
-
-  DEBUGPRINT(4, "hwif_objbuf_enable\n");
-
-  if (bufNo == -1) {
-    start = 0;
-    stop  = dev->autoTxBufferCount;
-  } else {
-    start = bufNo;
-    stop  = bufNo + 1;
-    if (!hChd->objbufs[start].in_use) {
-      return VCAN_STAT_BAD_PARAMETER;
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
     }
-  }
 
-  for (i = start; i < stop; i++) {
-    hChd->objbufs[i].active = enable;
-
-    memset(&cmd, 0, sizeof(cmd));
-    cmd.autoTxBufferReq.cmdNo       = CMD_AUTO_TX_BUFFER_REQ;
-    cmd.autoTxBufferReq.cmdLen      = sizeof(cmd.autoTxBufferReq);
-    cmd.autoTxBufferReq.requestType = enable ? AUTOTXBUFFER_CMD_ACTIVATE :
-                                               AUTOTXBUFFER_CMD_DEACTIVATE;
-    cmd.autoTxBufferReq.channel     = (unsigned char)chd->channel;
-    cmd.autoTxBufferReq.bufNo       = (unsigned char)i;
-
-    ret = pciCanNoResponse(vCard->hwCardData, &cmd);
-    if (ret != VCAN_STAT_OK) {
-      return VCAN_STAT_NO_MEMORY;
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
     }
-  }
 
-  return VCAN_STAT_OK;
+    DEBUGPRINT(4, "hwif_objbuf_enable\n");
+
+    if (bufNo == -1) {
+        start = 0;
+        stop = dev->autoTxBufferCount;
+    } else {
+        start = bufNo;
+        stop = bufNo + 1;
+        if (!hChd->objbufs[start].in_use) {
+            return VCAN_STAT_BAD_PARAMETER;
+        }
+    }
+
+    for (i = start; i < stop; i++) {
+        hChd->objbufs[i].active = enable;
+
+        memset(&cmd, 0, sizeof(cmd));
+        cmd.autoTxBufferReq.cmdNo = CMD_AUTO_TX_BUFFER_REQ;
+        cmd.autoTxBufferReq.cmdLen = sizeof(cmd.autoTxBufferReq);
+        cmd.autoTxBufferReq.requestType = enable ? AUTOTXBUFFER_CMD_ACTIVATE :
+                                                   AUTOTXBUFFER_CMD_DEACTIVATE;
+        cmd.autoTxBufferReq.channel = (unsigned char)chd->channel;
+        cmd.autoTxBufferReq.bufNo = (unsigned char)i;
+
+        ret = pciCanNoResponse(vCard->hwCardData, &cmd);
+        if (ret != VCAN_STAT_OK) {
+            return VCAN_STAT_NO_MEMORY;
+        }
+    }
+
+    return VCAN_STAT_OK;
 }
 
 /***************************************************************************/
 /* Set the transmission interval (in microseconds) for an object buffer */
-static int pciCanObjbufSetPeriod (VCanChanData *chd, int bufType, int bufNo,
-                                  int period)
+static int pciCanObjbufSetPeriod(VCanChanData *chd, int bufType, int bufNo, int period)
 {
-  int ret;
-  heliosCmd cmd;
-  unsigned int interval;
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    int ret;
+    heliosCmd cmd;
+    unsigned int interval;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (!hChd->objbufs) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (!hChd->objbufs) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (!hChd->objbufs[bufNo].in_use) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (!hChd->objbufs[bufNo].in_use) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  if (dev->autoTxBufferCount == 0 || dev->autoTxBufferResolution == 0) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    if (dev->autoTxBufferCount == 0 || dev->autoTxBufferResolution == 0) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  ret = 0;
-  interval = (period + dev->autoTxBufferResolution / 2) /
-             dev->autoTxBufferResolution;
-  if ((interval == 0) || (interval > 0xffff)) {
-    return VCAN_STAT_BAD_PARAMETER;
-  }
+    ret = 0;
+    interval = (period + dev->autoTxBufferResolution / 2) / dev->autoTxBufferResolution;
+    if ((interval == 0) || (interval > 0xffff)) {
+        return VCAN_STAT_BAD_PARAMETER;
+    }
 
-  DEBUGPRINT(4, "hwif_objbuf_set_period period=%d (scaled)interval=%d\n",
-             period, interval);
+    DEBUGPRINT(4, "hwif_objbuf_set_period period=%d (scaled)interval=%d\n", period, interval);
 
-  hChd->objbufs[bufNo].period = period;
+    hChd->objbufs[bufNo].period = period;
 
-  memset(&cmd, 0, sizeof(cmd));
-  cmd.autoTxBufferReq.cmdNo       = CMD_AUTO_TX_BUFFER_REQ;
-  cmd.autoTxBufferReq.cmdLen      = sizeof(cmd.autoTxBufferReq);
-  cmd.autoTxBufferReq.requestType = AUTOTXBUFFER_CMD_SET_INTERVAL;
-  cmd.autoTxBufferReq.channel     = (unsigned char)chd->channel;
-  cmd.autoTxBufferReq.bufNo       = (unsigned char)bufNo;
-  cmd.autoTxBufferReq.interval    = interval;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.autoTxBufferReq.cmdNo = CMD_AUTO_TX_BUFFER_REQ;
+    cmd.autoTxBufferReq.cmdLen = sizeof(cmd.autoTxBufferReq);
+    cmd.autoTxBufferReq.requestType = AUTOTXBUFFER_CMD_SET_INTERVAL;
+    cmd.autoTxBufferReq.channel = (unsigned char)chd->channel;
+    cmd.autoTxBufferReq.bufNo = (unsigned char)bufNo;
+    cmd.autoTxBufferReq.interval = interval;
 
-  ret = pciCanNoResponse(vCard->hwCardData, &cmd);
+    ret = pciCanNoResponse(vCard->hwCardData, &cmd);
 
-  return (ret != VCAN_STAT_OK) ? VCAN_STAT_NO_MEMORY : VCAN_STAT_OK;
+    return (ret != VCAN_STAT_OK) ? VCAN_STAT_NO_MEMORY : VCAN_STAT_OK;
 }
 
 /***************************************************************************/
-static int pciCanObjbufExists (VCanChanData *chd, int bufType, int bufNo)
+static int pciCanObjbufExists(VCanChanData *chd, int bufType, int bufNo)
 {
-  PciCan2ChanData  *hChd  = chd->hwChanData;
-  VCanCardData      *vCard = chd->vCard;
-  PciCan2CardData  *dev   = (PciCan2CardData *)vCard->hwCardData;
+    PciCan2ChanData *hChd = chd->hwChanData;
+    VCanCardData *vCard = chd->vCard;
+    PciCan2CardData *dev = (PciCan2CardData *)vCard->hwCardData;
 
-  if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
-    return 0;
-  }
+    if (bufType != OBJBUF_TYPE_PERIODIC_TX) {
+        return 0;
+    }
 
-  if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
-    return 0;
-  }
+    if (bufNo < 0 || bufNo >= dev->autoTxBufferCount) {
+        return 0;
+    }
 
-  if (!hChd->objbufs) {
-    return 0;
-  }
+    if (!hChd->objbufs) {
+        return 0;
+    }
 
-  if (!hChd->objbufs[bufNo].in_use) {
-    return 0;
-  }
+    if (!hChd->objbufs[bufNo].in_use) {
+        return 0;
+    }
 
-  return 1;
+    return 1;
 }
 
-int init_module (void)
+int init_module(void)
 {
-  driverData.hwIf = &hwIf;
-  return vCanInit (&driverData, MAX_DRIVER_CHANNELS);
+    driverData.hwIf = &hwIf;
+    return vCanInit(&driverData, MAX_DRIVER_CHANNELS);
 }
 
-void cleanup_module (void)
+void cleanup_module(void)
 {
-  vCanCleanup (&driverData);
+    vCanCleanup(&driverData);
 }

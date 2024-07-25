@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -86,26 +86,25 @@
 
 #define DEVICE_NAME_STRING "pcicanII"
 
-#define MAX_CARD_CHANNELS 2
+#define MAX_CARD_CHANNELS   2
 #define MAX_DRIVER_CHANNELS 128
 
-#define PCICAN2_VENDOR 0x10e8  // AMCC.
-#define PCICAN2_ID 0x8407      // Allocated to Kvaser by AMCC
+#define PCICAN2_VENDOR 0x10e8 // AMCC.
+#define PCICAN2_ID     0x8407 // Allocated to Kvaser by AMCC
 
-#define KVASER_VENDOR 0x1a07    // KVASER
-#define PC104PLUS_ID 0x6        // KVASER PC104+
-#define PCICANX2_ID 0x7        // KVASER PCIcanx II
-#define PCI104_ID    0x9        // KVASER PCI104
+#define KVASER_VENDOR 0x1a07 // KVASER
+#define PC104PLUS_ID  0x6 // KVASER PC104+
+#define PCICANX2_ID   0x7 // KVASER PCIcanx II
+#define PCI104_ID     0x9 // KVASER PCI104
 
 // Standard value: Pushpull  (OCTP1|OCTN1|OCTP0|OCTN0|OCM1)
 #define OCR_DEFAULT_STD 0xDA
 // For Galathea piggyback.
 #define OCR_DEFAULT_GAL 0xDB
 
-#define MAX_ERROR_COUNT 128
-#define ERROR_RATE 30000
+#define MAX_ERROR_COUNT          128
+#define ERROR_RATE               30000
 #define PCICAN_BYTES_PER_CIRCUIT 0x20
-
 
 /*****************************************************************************/
 /* Xilinx                                                                    */
@@ -114,24 +113,23 @@
 //
 // These register values are valid for revision 14 of the Xilinx logic.
 //
-#define XILINX_OUTA         0   // Bit 7 used to write bits to serial memory DS2430.
-#define XILINX_INA          1   // Bit 7 used to read back bits from serial memory DS2430.
-#define XILINX_CTRLA        2   // Sets the function of the Xilinx pins normally set to zero.
-#define XILINX_UNUSED       3
-#define XILINX_OUTB         4   // Bit 7 used to reset the SJA-1000.
-#define XILINX_INB          5   // Bit 7 used to read back the reset line value.
-#define XILINX_CTRLB        6   // Sets the function of the Xilinx pins normally set to zero.
-#define XILINX_VERINT       7   // Lower nibble simulate interrupts, high nibble version number.
+#define XILINX_OUTA   0 // Bit 7 used to write bits to serial memory DS2430.
+#define XILINX_INA    1 // Bit 7 used to read back bits from serial memory DS2430.
+#define XILINX_CTRLA  2 // Sets the function of the Xilinx pins normally set to zero.
+#define XILINX_UNUSED 3
+#define XILINX_OUTB   4 // Bit 7 used to reset the SJA-1000.
+#define XILINX_INB    5 // Bit 7 used to read back the reset line value.
+#define XILINX_CTRLB  6 // Sets the function of the Xilinx pins normally set to zero.
+#define XILINX_VERINT 7 // Lower nibble simulate interrupts, high nibble version number.
 
-#define XILINX_PRESUMED_VERSION     14
+#define XILINX_PRESUMED_VERSION 14
 
-#define HELIOS_MAX_OUTSTANDING_TX   16
-#define PCICAN2_TICKS_PER_10US       1
+#define HELIOS_MAX_OUTSTANDING_TX  16
+#define PCICAN2_TICKS_PER_10US     1
 #define PCICAN2_CMD_RESP_WAIT_TIME 200
 
 /* Channel specific data */
-typedef struct PciCan2ChanData
-{
+typedef struct PciCan2ChanData {
     CAN_MSG current_tx_message[HELIOS_MAX_OUTSTANDING_TX];
     //unsigned int outstanding_tx;
     atomic_t outstanding_tx;
@@ -149,31 +147,31 @@ typedef struct PciCan2ChanData
     unsigned char sjw;
     unsigned char tseg1;
     unsigned char tseg2;
-    VCanChanData  *vChan;
+    VCanChanData *vChan;
 } PciCan2ChanData;
 
 /*  Cards specific data */
 typedef struct PciCan2CardData {
-    unsigned int         card_flags;
-    int                  initDone;  // all init is done
-    int                  isWaiting; // wait for interrupt
-    int                  receivedHwInfo;
-    int                  receivedSwInfo;
-    int                  waitForChipState; // wait for chip state event
-    void __iomem         *baseAddr;
-    int                  irq;
-    wait_queue_head_t    waitHwInfo;
-    wait_queue_head_t    waitSwInfo;
-    wait_queue_head_t    waitResponse;
-    wait_queue_head_t    waitClockResp;
-    spinlock_t           timeHi_lock;
-    spinlock_t           memQLock;
+    unsigned int card_flags;
+    int initDone; // all init is done
+    int isWaiting; // wait for interrupt
+    int receivedHwInfo;
+    int receivedSwInfo;
+    int waitForChipState; // wait for chip state event
+    void __iomem *baseAddr;
+    int irq;
+    wait_queue_head_t waitHwInfo;
+    wait_queue_head_t waitSwInfo;
+    wait_queue_head_t waitResponse;
+    wait_queue_head_t waitClockResp;
+    spinlock_t timeHi_lock;
+    spinlock_t memQLock;
 
-    int                  autoTxBufferCount;
-    int                  autoTxBufferResolution;
+    int autoTxBufferCount;
+    int autoTxBufferResolution;
 
-    struct list_head     replyWaitList;
-    rwlock_t             replyWaitListLock;
+    struct list_head replyWaitList;
+    rwlock_t replyWaitListLock;
 } PciCan2CardData;
 
-#endif  /* _PCICAN_HW_IF_H_ */
+#endif /* _PCICAN_HW_IF_H_ */

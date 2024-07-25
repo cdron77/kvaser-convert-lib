@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -63,8 +63,10 @@
 #  -----------------------------------------------------------------------------
 #
 
-MODNAME=kvpcicanII
+DEV=pcicanII
+MODNAME=kv$DEV
 DEPMOD=`which depmod`
+MODULES_LOAD_DIR=/etc/modules-load.d
 DIR="${0%/*}"
 DEVEL=
 PURGE=
@@ -86,7 +88,7 @@ while getopts 'dph' flag ; do
   esac
 done
 
-/usr/sbin/pcicanII.sh stop 2>/dev/null
+modprobe -r $MODNAME 2>/dev/null
 
 if [ "$PURGE" = true ] ; then
     find /lib/modules/*/kernel/drivers/char/ -name $MODNAME.ko -exec rm -f {} +
@@ -102,28 +104,8 @@ else
   rm -f /lib/modules/`uname -r`/kernel/drivers/char/$MODNAME.ko
 fi
 
-rm -f /usr/sbin/pcicanII.sh
-
-echo Remove SocketCAN Kvaser PCI driver from blacklist.
-
-if [ -f /etc/modprobe.conf ] ; then
-  # CentOS/Redhat/RHEL/Fedora Linux...
-  CONF=/etc/modprobe.conf
-  BLACKLIST=$(printf "alias     kvaser_pci   /dev/null\nalias     kvaser_pciefd  /dev/null")
-else
-  # Debian/Ubuntu Linux
-  CONF=/etc/modprobe.d/kvaser.conf
-  BLACKLIST=$(printf "blacklist kvaser_pci\nblacklist kvaser_pciefd")
-  if [ ! -f $CONF ] ; then
-    touch $CONF
-  fi
-fi
-
-# Remove blacklist and pcicanII settings
-grep -v "^${BLACKLIST}\|pcicanII" < $CONF                > newconf
-
-cat newconf > $CONF
-rm newconf
+# Remove modules-load.d config file
+rm -f $MODULES_LOAD_DIR/kvaser-$MODNAME.conf
 
 if [ "$DEVEL" = true ] ; then
   echo "Ignoring $DEPMOD -a for now.."
@@ -132,12 +114,4 @@ else
   if [ "$?" -ne 0 ] ; then
     echo Failed to execute $DEPMOD -a
   fi
-fi
-
-MODCONF=/etc/modules-load.d/kvaser.conf
-
-if [ -f $MODCONF ] ; then
-  grep -v "$MODNAME" < $MODCONF   >   newmodules
-  cat newmodules > $MODCONF
-  rm newmodules
 fi

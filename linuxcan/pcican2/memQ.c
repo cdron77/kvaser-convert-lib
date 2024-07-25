@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -61,14 +61,12 @@
 ** -----------------------------------------------------------------------------
 */
 
-
 // memQ  --  Structs and functions for manipulating memQ
 
 //--------------------------------------------------
 // NOTE! module_versioning HAVE to be included first
 #include "module_versioning.h"
 //--------------------------------------------------
-
 
 #include <asm/io.h>
 
@@ -77,14 +75,14 @@
 
 /////////////////////////////////////////////
 
-#define MEM_Q_TX_BUFFER       1
-#define MEM_Q_RX_BUFFER       2
+#define MEM_Q_TX_BUFFER 1
+#define MEM_Q_RX_BUFFER 2
 
 /////////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////////
 
-int MemQSanityCheck (PciCan2CardData *ci)
+int MemQSanityCheck(PciCan2CardData *ci)
 {
     uint32_t p;
     unsigned long irqFlags;
@@ -121,9 +119,8 @@ error:
 //help fkt for Tx/Rx- FreeSpace(...)
 /////////////////////////////////////////////////////////////////////////
 
-static int AvailableSpace (unsigned int  cmdLen, unsigned long rAddr,
-                           unsigned long wAddr,  unsigned long bufStart,
-                           unsigned int bufSize)
+static int AvailableSpace(unsigned int cmdLen, unsigned long rAddr, unsigned long wAddr,
+                          unsigned long bufStart, unsigned int bufSize)
 {
     int remaining;
     //cmdLen in bytes
@@ -133,18 +130,17 @@ static int AvailableSpace (unsigned int  cmdLen, unsigned long rAddr,
     // guarantees that the write pointer will never be too close to
     // the top of the buffer, so the first case below will always be ok).
     if (wAddr >= rAddr) {
-      remaining = bufSize - (wAddr - bufStart) - cmdLen;
+        remaining = bufSize - (wAddr - bufStart) - cmdLen;
     } else {
-      remaining = (rAddr - wAddr - 1) - cmdLen;
+        remaining = (rAddr - wAddr - 1) - cmdLen;
     }
 
     // Shout if enough space not available!
     if (remaining < 0) {
-      static int count = 0;
-      if (count++ % 1000 == 0) {
-        printk("<1>memQ: Too little space remaining (%d): %d\n",
-               remaining, count);
-      }
+        static int count = 0;
+        if (count++ % 1000 == 0) {
+            printk("<1>memQ: Too little space remaining (%d): %d\n", remaining, count);
+        }
     }
 
     return remaining >= 0;
@@ -153,23 +149,20 @@ static int AvailableSpace (unsigned int  cmdLen, unsigned long rAddr,
 ////////////////////////////////////////////////////////////////////////////
 //returns true if there is enough room for cmd in Tx-memQ, else false
 ////////////////////////////////////////////////////////////////////////////
-static int TxAvailableSpace (PciCan2CardData *ci, unsigned int cmdLen)
+static int TxAvailableSpace(PciCan2CardData *ci, unsigned int cmdLen)
 {
     unsigned long hwp, crp;
-    int      tmp;
+    int tmp;
 
     hwp = ioread32(ci->baseAddr + DPRAM_HOST_WRITE_PTR);
     crp = ioread32(ci->baseAddr + DPRAM_M16C_READ_PTR);
 
-    tmp = AvailableSpace(cmdLen,
-                        (unsigned long)(ci->baseAddr + crp),
-                        (unsigned long)(ci->baseAddr + hwp),
-                        (unsigned long)(ci->baseAddr + DPRAM_TX_BUF_START),
-                        DPRAM_TX_BUF_SIZE);
+    tmp = AvailableSpace(cmdLen, (unsigned long)(ci->baseAddr + crp),
+                         (unsigned long)(ci->baseAddr + hwp),
+                         (unsigned long)(ci->baseAddr + DPRAM_TX_BUF_START), DPRAM_TX_BUF_SIZE);
 
     return tmp;
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -179,14 +172,13 @@ typedef struct _tmp_context {
     int res;
 } TMP_CONTEXT;
 
-
-int QCmd (PciCan2CardData *ci, heliosCmd *cmd)
+int QCmd(PciCan2CardData *ci, heliosCmd *cmd)
 {
-    int           i;
-    void __iomem  *p;
-    uint32_t      hwp, crp;
-    uint32_t      *tmp;
-    void __iomem  *addr = ci->baseAddr;
+    int i;
+    void __iomem *p;
+    uint32_t hwp, crp;
+    uint32_t *tmp;
+    void __iomem *addr = ci->baseAddr;
     unsigned long irqFlags;
 
     spin_lock_irqsave(&ci->memQLock, irqFlags);
@@ -220,15 +212,14 @@ int QCmd (PciCan2CardData *ci, heliosCmd *cmd)
     return MEM_Q_SUCCESS;
 }
 
-
 /////////////////////////////////////////////////////////////////////
-int GetCmdFromQ (PciCan2CardData *ci, heliosCmd *cmdPtr)
+int GetCmdFromQ(PciCan2CardData *ci, heliosCmd *cmdPtr)
 {
-    void __iomem  *p;
-    uint32_t      hrp, cwp;
-    uint32_t      *tmp;
-    int           empty;
-    void __iomem  *addr = ci->baseAddr;
+    void __iomem *p;
+    uint32_t hrp, cwp;
+    uint32_t *tmp;
+    int empty;
+    void __iomem *addr = ci->baseAddr;
     unsigned long irqFlags;
 
     spin_lock_irqsave(&ci->memQLock, irqFlags);
@@ -264,8 +255,7 @@ int GetCmdFromQ (PciCan2CardData *ci, heliosCmd *cmdPtr)
         spin_unlock_irqrestore(&ci->memQLock, irqFlags);
 
         return MEM_Q_SUCCESS;
-    }
-    else {
+    } else {
         spin_unlock_irqrestore(&ci->memQLock, irqFlags);
 
         return MEM_Q_EMPTY;
