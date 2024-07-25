@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -63,15 +63,20 @@
 #  -----------------------------------------------------------------------------
 #
 
-MODNAME=kvpcican
+DEV=pcican
+MODNAME=kv$DEV
 DEPMOD=`which depmod`
 DIR="${0%/*}"
 KERNEL_VER=`uname -r` # Kernel version at install time
+SOCKETCAN_DRIVER=kvaser_pci
+MODPROBE_DIR=/etc/modprobe.d
+MODULES_LOAD_DIR=/etc/modules-load.d
+BLACKLIST_FILE=$MODPROBE_DIR/blacklist-$SOCKETCAN_DRIVER.conf
 
 # append to file in case installer is run several times on different kernels
-echo $KERNEL_VER >> $DIR/kernel_ver 
+echo $KERNEL_VER >> $DIR/kernel_ver
 
-# Determine wether or not this is called by DKMS
+# Determine whether or not this is called by DKMS
 DKMS_HOOK=0
 if [ "$1" = "dkms-install" -o "$1" = "dkms-load" ]; then
   DKMS_HOOK=1
@@ -84,53 +89,24 @@ if [ $DKMS_HOOK -eq 0 ]; then
     exit 1
   fi
 fi
-install -m 755 pcican.sh /usr/sbin/
-if [ "$?" -ne 0 ] ; then
-  exit 1
-fi
-/usr/sbin/pcican.sh stop 2>/dev/null
 
-echo Checking for loaded SocketCAN driver for Kvaser PCI devices.
-if lsmod | grep kvaser_pci ; then
-  echo Unloading SocketCAN driver...
-  modprobe -r kvaser_pci
-  if lsmod | grep -q kvaser_pciefd ; then
-    modprobe -r kvaser_pciefd
-  fi
-else
-  echo SocketCAN driver not found.
+# Remove previously installed obsolete driver script, modprobe config and
+# modules-load config
+rm -f /usr/sbin/$DEV.sh $MODPROBE_DIR/kvaser.conf $MODULES_LOAD_DIR/kvaser.conf
+
+modprobe -r $MODNAME 2> /dev/null
+rm -f /dev/$DEV[0-9]*
+
+if lsmod | grep $SOCKETCAN_DRIVER ; then
+  modprobe -r $SOCKETCAN_DRIVER
 fi
 
-echo Blacklisting SocketCAN Kvaser PCI driver to prevent it from auto-loading.
-
-if [ -f /etc/modprobe.conf ] ; then
-  # CentOS/Redhat/RHEL/Fedora Linux...
-  CONF=/etc/modprobe.conf
-  BLACKLIST=$(printf "alias     kvaser_pci   /dev/null\nalias     kvaser_pciefd  /dev/null")
-else
-  # Debian/Ubuntu Linux
-  CONF=/etc/modprobe.d/kvaser.conf
-  BLACKLIST=$(printf "blacklist kvaser_pci\nblacklist kvaser_pciefd")
-  if [ ! -f $CONF ] ; then
-    touch $CONF
-  fi
+if [ ! -f $BLACKLIST_FILE ] ; then
+  echo "Blacklisting SocketCAN driver $SOCKETCAN_DRIVER to prevent it from auto-loading."
+  install -m 755 -d $MODPROBE_DIR
+  echo "blacklist $SOCKETCAN_DRIVER" > $BLACKLIST_FILE
 fi
 
-# First, remove any old PCIcan settings.
-# The space after pcican in the grep below is needed to not match pcicanII.
-grep -v "pcican "        < $CONF                          > newconfx
-grep -v "^${BLACKLIST}"  < newconfx                       > newconf
-rm newconfx
-
-# Add PCIcan.
-echo "alias     pcican       $MODNAME"                  >> newconf
-echo "install   $MODNAME     /usr/sbin/pcican.sh start" >> newconf
-echo "remove    $MODNAME     /usr/sbin/pcican.sh stop"  >> newconf
-# Since it conflicts with pcican, we disable kvaser_pci (SocketCAN).
-echo "${BLACKLIST}"                                     >> newconf
-
-cat newconf > $CONF
-rm newconf
 
 if [ "$#" -gt 0 ] && [ $1 = "develinstall" ] ; then
   echo "Ignoring $DEPMOD -a for now.."
@@ -141,15 +117,8 @@ else
   fi
 fi
 
-MODCONF=/etc/modules-load.d/kvaser.conf
-
 if [ "$#" -gt 0 ] && [ $1 = "load" -o "$1" = "dkms-load" ] ; then
-  /usr/sbin/pcican.sh start
-  touch $MODCONF
-  if [ -f $MODCONF ] ; then
-    grep -v "$MODNAME" < $MODCONF    > newmodules
-    echo "$MODNAME"                 >> newmodules
-    cat newmodules > $MODCONF
-    rm newmodules
-  fi
+  modprobe $MODNAME
+  install -m 755 -d $MODULES_LOAD_DIR
+  echo "$MODNAME"  > $MODULES_LOAD_DIR/kvaser-$MODNAME.conf
 fi

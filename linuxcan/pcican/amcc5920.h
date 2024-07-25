@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -80,21 +80,17 @@
 //
 // PCI Interrupt Control/status Register (INTCSR)
 //
-#define INTCSR_INTERRUPT_ASSERTED_V     23
-#define INTCSR_INTERRUPT_ASSERTED_M     0x800000
-#define INTCSR_ADDON_INTSTAT_V          22
-#define INTCSR_ADDON_INTSTAT_M          0x400000
-#define INTCSR_ADDON_INTENABLE_V        13
-#define INTCSR_ADDON_INTENABLE_M        0x2000
-
+#define INTCSR_INTERRUPT_ASSERTED_V 23
+#define INTCSR_INTERRUPT_ASSERTED_M 0x800000
+#define INTCSR_ADDON_INTSTAT_V      22
+#define INTCSR_ADDON_INTSTAT_M      0x400000
+#define INTCSR_ADDON_INTENABLE_V    13
+#define INTCSR_ADDON_INTENABLE_M    0x2000
 
 //
 // PCI Reset Control Register (RCR)
 //
-#define RCR_ADDON_RESET_V   24
-#define RCR_ADDON_RESET_M   0x1000000
-
-
+#define RCR_ADDON_RESET_V 24
+#define RCR_ADDON_RESET_M 0x1000000
 
 #endif
-
