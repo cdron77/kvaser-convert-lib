@@ -1,5 +1,5 @@
 #
-#             Copyright 2021 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -140,8 +140,6 @@ install:
 
 uninstall:
 	@for dir in $(call reverse,$(DRIVERS)) ; do cd $$dir; echo Uninstalling $$dir;./uninstallscript.sh || exit 1; cd ..; done
-	rm -f /etc/udev/rules.d/10-kvaser.rules
-	rm -f /etc/modules-load.d/kvaser.conf
 
 load:
 	@for dir in $(DRIVERS) ; do cd $$dir; echo Installing $$dir;./installscript.sh dkms-load || exit 1; cd ..; done
