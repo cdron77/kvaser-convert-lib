@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -80,36 +80,34 @@
 #define wait_queue_entry_t wait_queue_t
 #endif /* KERNEL_VERSION < 4.13.0 */
 
-
-typedef enum {Normal_lock, Softirq_lock, Irq_lock} Lock_type;
+typedef enum { Normal_lock, Softirq_lock, Irq_lock } Lock_type;
 typedef struct {
-  int size;
-  int head;
-  int tail;
-  atomic_t length;      // For length queries without locking
-  unsigned long flags;  // Only used when holding the lock (Sparc incompatible)!
-  wait_queue_head_t space_event;
-  Lock_type lock_type;
-  spinlock_t lock;
-  int locked;           // For debugging
-  int line;             // For debugging
+    int size;
+    int head;
+    int tail;
+    atomic_t length; // For length queries without locking
+    unsigned long flags; // Only used when holding the lock (Sparc incompatible)!
+    wait_queue_head_t space_event;
+    Lock_type lock_type;
+    spinlock_t lock;
+    int locked; // For debugging
+    int line; // For debugging
 } Queue;
-
 
 extern void queue_reinit(Queue *queue);
 extern void queue_init(Queue *queue, int size);
 extern void queue_irq_lock(Queue *queue);
-extern int  queue_length(Queue *queue);
-extern int  queue_full(Queue *queue);
-extern int  queue_empty(Queue *queue);
+extern int queue_length(Queue *queue);
+extern int queue_full(Queue *queue);
+extern int queue_empty(Queue *queue);
 
 // queue_back/front _must_ always be paired with queue_push/pop or _release.
 // The first two grab the Queue lock and the last three release it again.
 // Make _sure_ not to sleep inbetween and do as little work as possible
 // (the interrupts are disabled while holding the lock).
-extern int  queue_back(Queue *queue);
+extern int queue_back(Queue *queue);
 extern void queue_push(Queue *queue);
-extern int  queue_front(Queue *queue);
+extern int queue_front(Queue *queue);
 extern void queue_pop(Queue *queue);
 extern void queue_release(Queue *queue);
 

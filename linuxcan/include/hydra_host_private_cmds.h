@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -64,38 +64,38 @@
 #ifndef HYDRA_PRIVATE_CMDS_H_
 #define HYDRA_PRIVATE_CMDS_H_
 
-#define CMD_PARAMETER_READ                216
+#define CMD_PARAMETER_READ 216
 
 /* Subcommands for read - hcmdParameterReadReq.subcmd */
-#define PARAMETER_SUBCMD_READ               1
-#define PARAMETER_SUBCMD_READ_WITH_UID      2
-#define PARAMETER_SUBCMD_READ_HW            3
+#define PARAMETER_SUBCMD_READ          1
+#define PARAMETER_SUBCMD_READ_WITH_UID 2
+#define PARAMETER_SUBCMD_READ_HW       3
 
 
-#define FIRMWARE_PARAMETER_MAX_SIZE        20
+#define FIRMWARE_PARAMETER_MAX_SIZE 20
 
 
 typedef struct {
-  uint8_t   subcmd;
-  uint8_t   len;
-  uint16_t  paramNo;
-  uint16_t  userId;
-  uint8_t   _reserved[2];
-  uint8_t   data[FIRMWARE_PARAMETER_MAX_SIZE];
+    uint8_t subcmd;
+    uint8_t len;
+    uint16_t paramNo;
+    uint16_t userId;
+    uint8_t _reserved[2];
+    uint8_t data[FIRMWARE_PARAMETER_MAX_SIZE];
 } hcmdParameterReadReq;
 
 typedef struct {
-  uint16_t  number;
-  uint8_t   status;
-  uint8_t   len;
-  uint8_t   _padding[4];
-  uint8_t   data[FIRMWARE_PARAMETER_MAX_SIZE];
+    uint16_t number;
+    uint8_t status;
+    uint8_t len;
+    uint8_t _padding[4];
+    uint8_t data[FIRMWARE_PARAMETER_MAX_SIZE];
 } hcmdParameterReadResp;
 
 
 typedef union {
-  hcmdParameterReadReq           parameterReadReq;
-  hcmdParameterReadResp          parameterReadResp;
+    hcmdParameterReadReq parameterReadReq;
+    hcmdParameterReadResp parameterReadResp;
 } hcmdHydraOtherCommand;
 
 #endif

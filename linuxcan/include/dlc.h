@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -70,14 +70,14 @@
 #include <stdint.h>
 #endif
 
-uint32_t dlc_bytes_to_dlc_fd (uint32_t n_bytes);
-uint32_t dlc_dlc_to_bytes_fd (uint32_t dlc);
+uint32_t dlc_bytes_to_dlc_fd(uint32_t n_bytes);
+uint32_t dlc_dlc_to_bytes_fd(uint32_t dlc);
 
 /*
   use this function when you want to create and check a tx-frame.
   returns 1 if dlc is ok.
 */
-uint32_t dlc_is_dlc_ok (uint32_t accept_large_dlc, uint32_t is_fd, uint32_t dlc);
+uint32_t dlc_is_dlc_ok(uint32_t accept_large_dlc, uint32_t is_fd, uint32_t dlc);
 
-uint32_t dlc_dlc_to_bytes_classic (uint32_t dlc);
+uint32_t dlc_dlc_to_bytes_classic(uint32_t dlc);
 #endif

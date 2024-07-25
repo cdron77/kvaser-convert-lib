@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -64,11 +64,11 @@
 #ifndef VCANEVT_H
 #define VCANEVT_H
 
-#   if !defined(__KERNEL__)
-#      include <stdint.h>
-#   else
-#      include <linux/types.h>
-#   endif
+#if !defined(__KERNEL__)
+#include <stdint.h>
+#else
+#include <linux/types.h>
+#endif
 
 /***************************************************************************/
 
@@ -78,206 +78,190 @@
 
 // If these values can't coexist (they can!!!), they ought to be contigues values instead
 enum e_vevent_type {
-       V_NO_COMMAND            = 1,
-       V_RECEIVE_MSG           = 2,     // coexist with V_TRANSMIT_MSG and V_CHIP_STATE in filter.eventMask
-       V_STATISTIC_STD         = 4,
-       V_STATISTIC_EXT         = 8,
-       V_CHIP_STATE            = 16,    // (BusOn/BusOff) coexist with V_RECEIVE_MSG and V_TRANSMIT_MSG
-       V_TRANSCEIVER           = 32,
-       V_TIMER                 = 64,
-       V_TRANSMIT_MSG          = 128,   // coexist with V_RECEIVE_MSG and V_CHIP_STATE
-       V_ENVVAR_NOTIFY         = 5,     // new value 256 is too big if just 1 byte
-       V_PRINTF_MSG            = 9      // new value 512 is too big if just 1 byte
-     };
+    V_NO_COMMAND = 1,
+    V_RECEIVE_MSG = 2, // coexist with V_TRANSMIT_MSG and V_CHIP_STATE in filter.eventMask
+    V_STATISTIC_STD = 4,
+    V_STATISTIC_EXT = 8,
+    V_CHIP_STATE = 16, // (BusOn/BusOff) coexist with V_RECEIVE_MSG and V_TRANSMIT_MSG
+    V_TRANSCEIVER = 32,
+    V_TIMER = 64,
+    V_TRANSMIT_MSG = 128, // coexist with V_RECEIVE_MSG and V_CHIP_STATE
+    V_ENVVAR_NOTIFY = 5, // new value 256 is too big if just 1 byte
+    V_PRINTF_MSG = 9 // new value 512 is too big if just 1 byte
+};
 
 typedef unsigned char VeventTag;
-
 
 /* Structure for V_RECEIVE_MSG, V_TRANSMIT_MSG */
 
 /* Message flags */
-#define MAX_MSG_LEN                 128
-#define EXT_MSG                     0x80000000 // signs an extended identifier
-#define VCAN_EXT_MSG_ID             EXT_MSG
-#define VCAN_MSG_ID_UNDEF           0U
+#define MAX_MSG_LEN       128
+#define EXT_MSG           0x80000000 // signs an extended identifier
+#define VCAN_EXT_MSG_ID   EXT_MSG
+#define VCAN_MSG_ID_UNDEF 0U
 
-#define VCAN_MSG_FLAG_ERROR_FRAME   0x01
-#define VCAN_MSG_FLAG_OVERRUN       0x02  /* Overrun in Driver or CAN Controller */
-                                          /* special case: OVERRUN combined with TIMER
+#define VCAN_MSG_FLAG_ERROR_FRAME  0x01
+#define VCAN_MSG_FLAG_OVERRUN      0x02 /* Overrun in Driver or CAN Controller */
+/* special case: OVERRUN combined with TIMER
                                            * means the 32 bit timer has overrun
                                            */
-#define VCAN_MSG_FLAG_NERR          0x04  /* Line Error on Lowspeed */
-#define VCAN_MSG_FLAG_WAKEUP        0x08  /* High Voltage Message on Single Wire CAN */
-#define VCAN_MSG_FLAG_REMOTE_FRAME  0x10
-#define VCAN_MSG_FLAG_RESERVED_1    0x20
-#define VCAN_MSG_FLAG_TX_NOTIFY     0x40  /* Message Transmitted */
-#define VCAN_MSG_FLAG_TXACK         0x40  /* Message Transmitted */
-#define VCAN_MSG_FLAG_TX_START      0x80  /* Transmit Message stored into Controller  */
-#define VCAN_MSG_FLAG_TXRQ          0x80  /* Transmit Message stored into Controller  */
+#define VCAN_MSG_FLAG_NERR         0x04 /* Line Error on Lowspeed */
+#define VCAN_MSG_FLAG_WAKEUP       0x08 /* High Voltage Message on Single Wire CAN */
+#define VCAN_MSG_FLAG_REMOTE_FRAME 0x10
+#define VCAN_MSG_FLAG_RESERVED_1   0x20
+#define VCAN_MSG_FLAG_TX_NOTIFY    0x40 /* Message Transmitted */
+#define VCAN_MSG_FLAG_TXACK        0x40 /* Message Transmitted */
+#define VCAN_MSG_FLAG_TX_START     0x80 /* Transmit Message stored into Controller  */
+#define VCAN_MSG_FLAG_TXRQ         0x80 /* Transmit Message stored into Controller  */
 
-#define VCAN_MSG_FLAG_EDL           0x100  /* Obsolete, use VCAN_MSG_FLAG_FDF instead */
-#define VCAN_MSG_FLAG_FDF           0x100  /* Extended Data Length (CAN FD) */
-#define VCAN_MSG_FLAG_BRS           0x200  /* Bit Rate Switch (CAN FD)  */
-#define VCAN_MSG_FLAG_ESI           0x400  /* Error Status Indication (CAN FD)  */
-#define VCAN_MSG_FLAG_SINGLE_SHOT   0x800  /* Send message as single shot (only tx) */
-#define VCAN_MSG_FLAG_SSM_NACK     0x1000  /* Single shot failed (only rx)  */
-#define VCAN_MSG_FLAG_SSM_NACK_ABL 0x2000  /* Single shot failed due to arbitration loss (only rx) */
+#define VCAN_MSG_FLAG_EDL          0x100 /* Obsolete, use VCAN_MSG_FLAG_FDF instead */
+#define VCAN_MSG_FLAG_FDF          0x100 /* Extended Data Length (CAN FD) */
+#define VCAN_MSG_FLAG_BRS          0x200 /* Bit Rate Switch (CAN FD)  */
+#define VCAN_MSG_FLAG_ESI          0x400 /* Error Status Indication (CAN FD)  */
+#define VCAN_MSG_FLAG_SINGLE_SHOT  0x800 /* Send message as single shot (only tx) */
+#define VCAN_MSG_FLAG_SSM_NACK     0x1000 /* Single shot failed (only rx)  */
+#define VCAN_MSG_FLAG_SSM_NACK_ABL 0x2000 /* Single shot failed due to arbitration loss (only rx) */
 
-#define VCAN_MSG_FLAG_LOCAL_TXACK  0x4000  /* Message Transmitted on other handle*/
-
-
+#define VCAN_MSG_FLAG_LOCAL_TXACK 0x4000 /* Message Transmitted on other handle*/
 
 /* Used for objbuf write, we need these since the brs flag above is made to fit in flags2 BRS */
-#define VCAN_AUTOTX_MSG_FLAG_REMOTE_FRAME  0x10
-#define VCAN_AUTOTX_MSG_FLAG_FDF           0x20
-#define VCAN_AUTOTX_MSG_FLAG_BRS           0x40
+#define VCAN_AUTOTX_MSG_FLAG_REMOTE_FRAME 0x10
+#define VCAN_AUTOTX_MSG_FLAG_FDF          0x20
+#define VCAN_AUTOTX_MSG_FLAG_BRS          0x40
 
-
-struct s_vcan_msg {  /* 14 Bytes */
-  uint32_t           id;
-  unsigned short int flags;
-  unsigned char      dlc;
-  unsigned char      data[MAX_MSG_LEN];   // 128 bytes
+struct s_vcan_msg { /* 14 Bytes */
+    uint32_t id;
+    unsigned short int flags;
+    unsigned char dlc;
+    unsigned char data[MAX_MSG_LEN]; // 128 bytes
 };
-
 
 /* Structure for V_CHIP_STATE */
 
-#define CHIPSTAT_BUSOFF              0x01
-#define CHIPSTAT_ERROR_PASSIVE       0x02
-#define CHIPSTAT_ERROR_WARNING       0x04
-#define CHIPSTAT_ERROR_ACTIVE        0x08
+#define CHIPSTAT_BUSOFF        0x01
+#define CHIPSTAT_ERROR_PASSIVE 0x02
+#define CHIPSTAT_ERROR_WARNING 0x04
+#define CHIPSTAT_ERROR_ACTIVE  0x08
 
 struct s_vcan_chip_state {
-         unsigned char busStatus;
-         unsigned char txErrorCounter;
-         unsigned char rxErrorCounter;
-       };
-
+    unsigned char busStatus;
+    unsigned char txErrorCounter;
+    unsigned char rxErrorCounter;
+};
 
 /* Structure for V_STATISTIC_STD */
 struct s_vcan_statistic_std {
-         uint32_t       stdData;
-         uint32_t       stdRemote;
-         uint32_t       errFrame;
-         unsigned short busLoad; // 0.00-100.00%
-       };
-
+    uint32_t stdData;
+    uint32_t stdRemote;
+    uint32_t errFrame;
+    unsigned short busLoad; // 0.00-100.00%
+};
 
 /* Structure for V_STATISTIC_EXT */
 struct s_vcan_statistic_ext {
-         uint32_t extData;
-         uint32_t extRemote;
-         uint32_t ovrFrame;
-       };
-
+    uint32_t extData;
+    uint32_t extRemote;
+    uint32_t ovrFrame;
+};
 
 /* Structure for V_ERROR */
 struct s_vcan_error {
-         unsigned char code;
-       };
-
+    unsigned char code;
+};
 
 #define VCAN_EVT_PRINTF_HEADER 0
 #define VCAN_EVT_PRINTF_DATA   1
 
 // flags in printf_header
-#define DM_FLAG_PRINTF  0x8000
-#define DM_FLAG_DEBUG   0x4000
-#define DM_FLAG_ERROR   0x2000
-
+#define DM_FLAG_PRINTF 0x8000
+#define DM_FLAG_DEBUG  0x4000
+#define DM_FLAG_ERROR  0x2000
 
 struct s_printf_msg {
-        unsigned char type;       // VCAN_EVT_PRINTF_HEADER or VCAN_EVT_PRINTF_DATA
-        union {
-          struct {
-            unsigned char  slot;  // valid if flags = DM_FLAG_PRINTF
+    unsigned char type; // VCAN_EVT_PRINTF_HEADER or VCAN_EVT_PRINTF_DATA
+    union {
+        struct {
+            unsigned char slot; // valid if flags = DM_FLAG_PRINTF
             unsigned short datalen;
-            unsigned short flags; // a combination of DM_FLAG_PRINTF, DM_FLAG_DEBUG, DM_FLAG_ERROR, DM_FLAG_FATAL, canSTAT_SW_OVERRUN, canSTAT_RX_PENDING
-          } printf_header;
-          struct {
+            unsigned short
+                flags; // a combination of DM_FLAG_PRINTF, DM_FLAG_DEBUG, DM_FLAG_ERROR, DM_FLAG_FATAL, canSTAT_SW_OVERRUN, canSTAT_RX_PENDING
+        } printf_header;
+        struct {
             char payload[13];
-          } printf_data;
-        };
-      };
-
+        } printf_data;
+    };
+};
 
 /* Structure for SET_OUTPUT_MODE */
 #define OUTPUT_MODE_SILENT 0
 #define OUTPUT_MODE_NORMAL 1
 
-
 /* Transceiver modes */
 #define TRANSCEIVER_EVENT_ERROR   1
 #define TRANSCEIVER_EVENT_CHANGED 2
 
-
-
 /* Transceiver modes */
-#define VCAN_TRANSCEIVER_LINEMODE_NA            0 // Not Affected/Not available.
-#define VCAN_TRANSCEIVER_LINEMODE_TWO_LINE      1 // W210 two-line.
-#define VCAN_TRANSCEIVER_LINEMODE_CAN_H         2 // W210 single-line CAN_H
-#define VCAN_TRANSCEIVER_LINEMODE_CAN_L         3 // W210 single-line CAN_L
-#define VCAN_TRANSCEIVER_LINEMODE_SWC_SLEEP     4 // SWC Sleep Mode.
-#define VCAN_TRANSCEIVER_LINEMODE_SWC_NORMAL    5 // SWC Normal Mode.
-#define VCAN_TRANSCEIVER_LINEMODE_SWC_FAST      6 // SWC High-Speed Mode.
-#define VCAN_TRANSCEIVER_LINEMODE_SWC_WAKEUP    7 // SWC Wakeup Mode.
-#define VCAN_TRANSCEIVER_LINEMODE_SLEEP         8 // Sleep mode for those supporting it.
-#define VCAN_TRANSCEIVER_LINEMODE_NORMAL        9 // Normal mode (the inverse of sleep mode) for those supporting it.
-#define VCAN_TRANSCEIVER_LINEMODE_STDBY        10 // Standby for those who support it
-#define VCAN_TRANSCEIVER_LINEMODE_TT_CAN_H     11 // Truck & Trailer: operating mode single wire using CAN high
-#define VCAN_TRANSCEIVER_LINEMODE_TT_CAN_L     12 // Truck & Trailer: operating mode single wire using CAN low
-#define VCAN_TRANSCEIVER_LINEMODE_OEM1         13 // Reserved for OEM apps
-#define VCAN_TRANSCEIVER_LINEMODE_OEM2         14 // Reserved for OEM apps
-#define VCAN_TRANSCEIVER_LINEMODE_OEM3         15 // Reserved for OEM apps
-#define VCAN_TRANSCEIVER_LINEMODE_OEM4         16 // Reserved for OEM apps
+#define VCAN_TRANSCEIVER_LINEMODE_NA         0 // Not Affected/Not available.
+#define VCAN_TRANSCEIVER_LINEMODE_TWO_LINE   1 // W210 two-line.
+#define VCAN_TRANSCEIVER_LINEMODE_CAN_H      2 // W210 single-line CAN_H
+#define VCAN_TRANSCEIVER_LINEMODE_CAN_L      3 // W210 single-line CAN_L
+#define VCAN_TRANSCEIVER_LINEMODE_SWC_SLEEP  4 // SWC Sleep Mode.
+#define VCAN_TRANSCEIVER_LINEMODE_SWC_NORMAL 5 // SWC Normal Mode.
+#define VCAN_TRANSCEIVER_LINEMODE_SWC_FAST   6 // SWC High-Speed Mode.
+#define VCAN_TRANSCEIVER_LINEMODE_SWC_WAKEUP 7 // SWC Wakeup Mode.
+#define VCAN_TRANSCEIVER_LINEMODE_SLEEP      8 // Sleep mode for those supporting it.
+#define VCAN_TRANSCEIVER_LINEMODE_NORMAL \
+    9 // Normal mode (the inverse of sleep mode) for those supporting it.
+#define VCAN_TRANSCEIVER_LINEMODE_STDBY 10 // Standby for those who support it
+#define VCAN_TRANSCEIVER_LINEMODE_TT_CAN_H \
+    11 // Truck & Trailer: operating mode single wire using CAN high
+#define VCAN_TRANSCEIVER_LINEMODE_TT_CAN_L \
+    12 // Truck & Trailer: operating mode single wire using CAN low
+#define VCAN_TRANSCEIVER_LINEMODE_OEM1 13 // Reserved for OEM apps
+#define VCAN_TRANSCEIVER_LINEMODE_OEM2 14 // Reserved for OEM apps
+#define VCAN_TRANSCEIVER_LINEMODE_OEM3 15 // Reserved for OEM apps
+#define VCAN_TRANSCEIVER_LINEMODE_OEM4 16 // Reserved for OEM apps
 
-
-#define VCAN_TRANSCEIVER_RESNET_NA              0
-#define VCAN_TRANSCEIVER_RESNET_MASTER          1
-#define VCAN_TRANSCEIVER_RESNET_MASTER_STBY     2
-#define VCAN_TRANSCEIVER_RESNET_SLAVE           3
-
+#define VCAN_TRANSCEIVER_RESNET_NA          0
+#define VCAN_TRANSCEIVER_RESNET_MASTER      1
+#define VCAN_TRANSCEIVER_RESNET_MASTER_STBY 2
+#define VCAN_TRANSCEIVER_RESNET_SLAVE       3
 
 /* VCAN_EVENT structure */
 union s_vcan_tag_data {
-        struct s_vcan_msg                  msg;
-        struct s_vcan_chip_state           chipState;
-        struct s_vcan_statistic_std        statisticStd;
-        struct s_vcan_statistic_ext        statisticExt;
-        struct s_vcan_error                error;
-        struct s_printf_msg                printfMsg;
-      };
-
+    struct s_vcan_msg msg;
+    struct s_vcan_chip_state chipState;
+    struct s_vcan_statistic_std statisticStd;
+    struct s_vcan_statistic_ext statisticExt;
+    struct s_vcan_error error;
+    struct s_printf_msg printfMsg;
+};
 
 /* Event type definition */
 struct s_vcan_event {
-         VeventTag     tag;             // 1
-         unsigned char chanIndex;       // 1
-         unsigned char transId;         // 1
-         unsigned char unused_1;        // 1 internal use only !!!!
-         unsigned long timeStamp;       // 4 or 8
-         union s_vcan_tag_data
-                       tagData;         // 14 Bytes (_VMessage)
-       };
-                                        // --------
-                                        // 22 or 26 Bytes
+    VeventTag tag; // 1
+    unsigned char chanIndex; // 1
+    unsigned char transId; // 1
+    unsigned char unused_1; // 1 internal use only !!!!
+    unsigned long timeStamp; // 4 or 8
+    union s_vcan_tag_data tagData; // 14 Bytes (_VMessage)
+};
+// --------
+// 22 or 26 Bytes
 
 typedef struct s_vcan_event VCAN_EVENT, Vevent, *PVevent;
 
-
 typedef struct s_can_msg {
-  VeventTag          tag;
-  unsigned char      channel_index;
-  unsigned char      user_data;
-  unsigned char      unused_1;
-  unsigned long      timestamp;
-  uint32_t           id;
-  unsigned short int flags;
-  unsigned char      length;
-  unsigned char      data [MAX_MSG_LEN];
+    VeventTag tag;
+    unsigned char channel_index;
+    unsigned char user_data;
+    unsigned char unused_1;
+    unsigned long timestamp;
+    uint32_t id;
+    unsigned short int flags;
+    unsigned char length;
+    unsigned char data[MAX_MSG_LEN];
 } CAN_MSG;
-
 
 /*****************************************************************************/
 
@@ -286,4 +270,3 @@ typedef struct s_can_msg {
 /*****************************************************************************/
 
 #endif /* VCANEVT_H */
-

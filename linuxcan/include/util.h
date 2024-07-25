@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -60,13 +60,38 @@
 **
 ** -----------------------------------------------------------------------------
 */
-
 #ifndef UTIL_H
 #define UTIL_H
 
+#ifdef __KERNEL__
+
+/**** Linux kernel ****/
 #include <linux/usb.h>
+#include <linux/version.h>
+#include "kernel_backports.h"
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+#define MSLEEP_SHORT(ms) (msleep(ms))
+#else
+// Sleep 1 - 10 ms with increased precision
+#define MSLEEP_SHORT(ms) (usleep_range(1000 * (ms)-100, 1000 * (ms) + 100))
+#endif /* LINUX_VERSION_CODE < 2.6.36 */
+
+unsigned int get_usb_root_hub_id(struct usb_device *udev);
+
+#else /* #ifdef __KERNEL__ */
+
+/**** Linux user-space ****/
+#include <unistd.h> /* usleep */
+
+#define MSLEEP_SHORT(ms) (usleep((ms)*1000))
+
+#endif /* __KERNEL__ */
+
+// Suppress warning about unused variable
+#define NOT_USED(p) ((void)p)
 
 void packed_EAN_to_BCD_with_csum(unsigned char *ean, unsigned char *bcd);
 unsigned int calculateCRC32(void *buf, unsigned int bufsiz);
-unsigned int get_usb_root_hub_id (struct usb_device *udev);
-#endif
+
+#endif /* UTIL_H */

@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -73,11 +73,11 @@
 #endif
 
 typedef struct {
-  uint64_t  high16;
-  uint32_t  state;
-}ticks_class;
+    uint64_t high16;
+    uint32_t state;
+} ticks_class;
 
-void     ticks_init         (ticks_class* self);
-uint64_t ticks_to_64bit_ns  (ticks_class* self, uint64_t n_ticks, uint32_t freq_mhz);
+void ticks_init(ticks_class *self);
+uint64_t ticks_to_64bit_ns(ticks_class *self, uint64_t n_ticks, uint32_t freq_mhz);
 
 #endif

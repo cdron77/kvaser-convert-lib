@@ -1,5 +1,5 @@
 /*
- *             Copyright 2021 by Kvaser AB, Molndal, Sweden
+ *             Copyright 2023 by Kvaser AB, Molndal, Sweden
  *                         http://www.kvaser.com
  *
  * This software is dual licensed under the following two licenses:
@@ -64,30 +64,30 @@
 #ifndef HYDRA_IMGHEADER_H_
 #define HYDRA_IMGHEADER_H_
 
-#define IMG_TYPE_SYSTEM_CONTAINER       4
+#define IMG_TYPE_SYSTEM_CONTAINER 4
 
 typedef struct {
-  unsigned int headerType:32;
-  unsigned int hdLength:32;
-  unsigned int imgLength:32;
-  unsigned int imgType:16;
-  unsigned int imgStatus:16;
-  unsigned int eanHi:32;
-  unsigned int eanLo:32;
-  unsigned int version:32;
-  unsigned int sequenceNumber:32;
-  unsigned int prgAddr:32;
-  unsigned int runAddr:32;
-  unsigned int runImgAddr:32;
-  unsigned int copy:32;
-  unsigned int imgCrc:32;
-  unsigned int hdCrc:32;
+    unsigned int headerType : 32;
+    unsigned int hdLength : 32;
+    unsigned int imgLength : 32;
+    unsigned int imgType : 16;
+    unsigned int imgStatus : 16;
+    unsigned int eanHi : 32;
+    unsigned int eanLo : 32;
+    unsigned int version : 32;
+    unsigned int sequenceNumber : 32;
+    unsigned int prgAddr : 32;
+    unsigned int runAddr : 32;
+    unsigned int runImgAddr : 32;
+    unsigned int copy : 32;
+    unsigned int imgCrc : 32;
+    unsigned int hdCrc : 32;
 } HydraImgHeader;
 
 typedef struct {
-  unsigned int imgStartAddr;
-  unsigned int length;
-  unsigned int addr;
+    unsigned int imgStartAddr;
+    unsigned int length;
+    unsigned int addr;
 } ImageContainerInfo;
 
 #endif

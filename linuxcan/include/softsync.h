@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -65,77 +65,75 @@
 #define SOFTSYNC_H
 
 // Make sure all timestamps handed to this module has 1 GHz resolution!
-#define SOFTSYNC_DIFF_ALLOWED        10000  // 10 us @ 1 GHz
-#define SOFTSYNC_DIFF_WARNING          500  // 0.5 us @ 1 GHz
+#define SOFTSYNC_DIFF_ALLOWED 10000 // 10 us @ 1 GHz
+#define SOFTSYNC_DIFF_WARNING 500 // 0.5 us @ 1 GHz
 
-#define SOFTSYNC_MAXNMATCHED  3  // do not set lower than 2!!!
-#define SOFTSYNC_MAXNTREFS    16  // set to a power of two
+#define SOFTSYNC_MAXNMATCHED 3 // do not set lower than 2!!!
+#define SOFTSYNC_MAXNTREFS   16 // set to a power of two
 
 typedef struct VCanCardData CARD_INFO;
 typedef spinlock_t FAST_MUTEX;
 typedef struct s_softsync_data SOFTSYNC_DATA;
 
 typedef struct s_softsync_tRef_list {
-    uint64_t         tRef;
-    unsigned int     id;
-    unsigned int     padding;
-  } SOFTSYNC_TREF_LIST;
+    uint64_t tRef;
+    unsigned int id;
+    unsigned int padding;
+} SOFTSYNC_TREF_LIST;
 
 typedef struct s_softsync_match_list {
     uint64_t loc;
     uint64_t glob;
-  } SOFTSYNC_MATCH_LIST;
+} SOFTSYNC_MATCH_LIST;
 
 typedef struct s_softsync_master SOFTSYNC_MASTER;
 
 struct s_softsync_master {
-  SOFTSYNC_DATA            *master;
-  SOFTSYNC_MASTER          *next;
-  SOFTSYNC_MASTER          *prev;
+    SOFTSYNC_DATA *master;
+    SOFTSYNC_MASTER *next;
+    SOFTSYNC_MASTER *prev;
 };
 
 
 struct s_softsync_data {
+    int id;
 
-  int                      id;
+    SOFTSYNC_TREF_LIST tRefList[SOFTSYNC_MAXNTREFS];
 
-  SOFTSYNC_TREF_LIST       tRefList[SOFTSYNC_MAXNTREFS];
+    int oldestTRef;
+    int nTRef;
+    int nMatched;
 
-  int                      oldestTRef;
-  int                      nTRef;
-  int                      nMatched;
+    SOFTSYNC_MATCH_LIST matchList[SOFTSYNC_MAXNMATCHED];
 
-  SOFTSYNC_MATCH_LIST      matchList[SOFTSYNC_MAXNMATCHED];
+    int64_t locDiff;
+    int64_t globDiff;
+    int64_t newDiff;
+    int64_t diffDiff;
+    int64_t instab;
+    int64_t instabMax;
+    int64_t instabMin;
 
-  int64_t                  locDiff;
-  int64_t                  globDiff;
-  int64_t                  newDiff;
-  int64_t                  diffDiff;
-  int64_t                  instab;
-  int64_t                  instabMax;
-  int64_t                  instabMin;
+    int64_t masterDiff;
 
-  int64_t                  masterDiff;
+    FAST_MUTEX softSyncAccessMutex;
+    CARD_INFO *ci;
 
-  FAST_MUTEX               softSyncAccessMutex;
-  CARD_INFO                *ci;
+    SOFTSYNC_DATA *next;
+    SOFTSYNC_DATA *prev;
 
-  SOFTSYNC_DATA            *next;
-  SOFTSYNC_DATA            *prev;
-
-  SOFTSYNC_MASTER          *masterData;
+    SOFTSYNC_MASTER *masterData;
 };
 
-uint64_t softSyncLoc2Glob (CARD_INFO *ci, uint64_t stamp);
-uint64_t softSyncGlob2Loc (CARD_INFO *ci, uint64_t stamp);
-long softSyncInstab (CARD_INFO *ci);
-void softSyncInstabMaxMin (CARD_INFO *ci, long *max, long *min);
-void softSyncHandleTRef (CARD_INFO *ci, uint64_t tRef, unsigned id);
-int  softSyncAddMember (CARD_INFO *ci, int id);
-void softSyncRemoveMember (CARD_INFO *ci);
-int softSyncInitialize (void);
-void softSyncDeinitialize (void);
-int softSyncGetTRefList (CARD_INFO *ci, void *buf, int bufsiz);
-
+uint64_t softSyncLoc2Glob(CARD_INFO *ci, uint64_t stamp);
+uint64_t softSyncGlob2Loc(CARD_INFO *ci, uint64_t stamp);
+long softSyncInstab(CARD_INFO *ci);
+void softSyncInstabMaxMin(CARD_INFO *ci, long *max, long *min);
+void softSyncHandleTRef(CARD_INFO *ci, uint64_t tRef, unsigned id);
+int softSyncAddMember(CARD_INFO *ci, int id);
+void softSyncRemoveMember(CARD_INFO *ci);
+int softSyncInitialize(void);
+void softSyncDeinitialize(void);
+int softSyncGetTRefList(CARD_INFO *ci, void *buf, int bufsiz);
 
 #endif

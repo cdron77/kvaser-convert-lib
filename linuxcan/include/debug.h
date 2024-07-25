@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -64,13 +64,20 @@
 #if !defined(DEBUG_H)
 #define DEBUG_H
 
+#define TXT(t)                  t
+#define TXT2(t)                 t
+#define DEBUGPRINTHELP(args...) args
 
-#    define TXT(t)                    t
-#    define TXT2(t)                   t
-#    define DEBUGPRINTHELP(args...)   args
-#    define DEBUGOUT(c, arg)          if (c)                                 \
-                                        printk("<" #c ">" DEBUGPRINTHELP arg)
+#ifdef __KERNEL__
+#define DEBUGOUT(c, arg) \
+    if (c)               \
+    printk("<" #c ">" DEBUGPRINTHELP arg)
 
+#else
+#include <stdio.h>
+#define DEBUGOUT(c, arg) \
+    if (c)               \
+    printf("<" #c ">" DEBUGPRINTHELP arg)
+#endif /* __KERNEL__ */
 //----------------------------------------------------------------------------
 #endif
-

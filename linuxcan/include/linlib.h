@@ -1,5 +1,5 @@
 /*
- *             Copyright 2017 by Kvaser AB, Molndal, Sweden
+ *             Copyright 2023 by Kvaser AB, Molndal, Sweden
  *                         http://www.kvaser.com
  *
  * This software is dual licensed under the following two licenses:
@@ -89,11 +89,11 @@ typedef int LinHandle;
 /**
  * Invalid LIN handle
  */
-#define linINVALID_HANDLE      ((LinHandle)(-1))
+#define linINVALID_HANDLE ((LinHandle)(-1))
 
 typedef unsigned char BYTE;
-typedef unsigned int  DWORD;
-typedef unsigned int  BOOL;
+typedef unsigned int DWORD;
+typedef unsigned int BOOL;
 
 /**
  * \ingroup lin_status_codes Status Codes
@@ -105,56 +105,56 @@ typedef unsigned int  BOOL;
  * @{
  */
 typedef enum {
-  linOK                  = 0,      ///< OK - no error
-  linERR_NOMSG           = -1,     ///< No messages available
+    linOK                  = 0, ///< OK - no error
+    linERR_NOMSG           = -1, ///< No messages available
 
-  /**
-   * Handle not on-bus.<br>
-   * Some functions requires that the handle is on-bus before being called, i.e \ref linRequestMessage().<br>
-   * Call \ref linBusOn() to go on-bus.
-   */
-  linERR_NOTRUNNING      = -3,
+    /**
+     * Handle not on-bus.<br>
+     * Some functions requires that the handle is on-bus before being called, i.e \ref linRequestMessage().<br>
+     * Call \ref linBusOn() to go on-bus.
+     */
+    linERR_NOTRUNNING      = -3,
 
-  /**
-   * Handle not off-bus.<br>
-   * Some functions requires that the handle is off-bus before being called, i.e \ref linSetBitrate().<br>
-   * Call \ref linBusOff() to go off-bus.
-   */
-  linERR_RUNNING         = -4,
-  
-  /**
-   * Only for a master.<br>
-   * A call to a function that only a master can execute, i.e \ref linRequestMessage().
-   */
-  linERR_MASTERONLY      = -5,
-  
-  /**
-   * Only for a slave.<br>
-   * A call to a function that only a slave can execute, i.e \ref linUpdateMessage().
-   */
-  linERR_SLAVEONLY       = -6,
+    /**
+     * Handle not off-bus.<br>
+     * Some functions requires that the handle is off-bus before being called, i.e \ref linSetBitrate().<br>
+     * Call \ref linBusOff() to go off-bus.
+     */
+    linERR_RUNNING         = -4,
+
+    /**
+     * Only for a master.<br>
+     * A call to a function that only a master can execute, i.e \ref linRequestMessage().
+     */
+    linERR_MASTERONLY      = -5,
+
+    /**
+     * Only for a slave.<br>
+     * A call to a function that only a slave can execute, i.e \ref linUpdateMessage().
+     */
+    linERR_SLAVEONLY       = -6,
 
 
-  linERR_PARAM           = -7,     ///< Error in parameter
-  linERR_NOTFOUND        = -8,     ///< Specified hardware not found. This error is reported when the LIN transceiver isn't powered up
-  linERR_NOMEM           = -9,     ///< Out of memory
-  linERR_NOCHANNELS      = -10,    ///< No channels avaliable
-  linERR_TIMEOUT         = -11,    ///< Timeout occurred
-  linERR_NOTINITIALIZED  = -12,    ///< Library not initialized
-  linERR_NOHANDLES       = -13,    ///< Can't get handle
-  linERR_INVHANDLE       = -14,    ///< Handle is invalid
-  linERR_CANERROR        = -15,    ///< Internal error in the driver
-  linERR_ERRRESP         = -16,    ///< There was an error response from the LIN interface
-  linERR_WRONGRESP       = -17,    ///< The LIN interface response wasn't the expected one
-  linERR_DRIVER          = -18,    ///< CAN driver type not supported
-  linERR_DRIVERFAILED    = -19,    ///< DeviceIOControl failed
-  linERR_NOCARD          = -20,    ///< The card was removed or not inserted
-  linERR_LICENSE         = -21,    ///< The license is not valid
-  linERR_INTERNAL        = -22,    ///< Internal error in the driver
-  linERR_NO_ACCESS       = -23,    ///< Access denied
-  linERR_VERSION         = -24,    ///< Function not supported in this version
-  linERR_NO_REF_POWER    = -25,    ///< Function not supported in this version
-  linERR_NOT_IMPLEMENTED = -26     ///< The requested feature or function is not implemented in the device you are trying to use it on
+    linERR_PARAM           = -7, ///< Error in parameter
+    linERR_NOTFOUND        = -8, ///< Specified hardware not found. This error is reported when the LIN transceiver isn't powered up
+    linERR_NOMEM           = -9, ///< Out of memory
+    linERR_NOCHANNELS      = -10, ///< No channels avaliable
+    linERR_TIMEOUT         = -11, ///< Timeout occurred
+    linERR_NOTINITIALIZED  = -12, ///< Library not initialized
+    linERR_NOHANDLES       = -13, ///< Can't get handle
+    linERR_INVHANDLE       = -14, ///< Handle is invalid
+    linERR_CANERROR        = -15, ///< Internal error in the driver
+    linERR_ERRRESP         = -16, ///< There was an error response from the LIN interface
+    linERR_WRONGRESP       = -17, ///< The LIN interface response wasn't the expected one
+    linERR_DRIVER          = -18, ///< CAN driver type not supported
+    linERR_DRIVERFAILED    = -19, ///< DeviceIOControl failed
+    linERR_NOCARD          = -20, ///< The card was removed or not inserted
+    linERR_LICENSE         = -21, ///< The license is not valid
+    linERR_INTERNAL        = -22, ///< Internal error in the driver
+    linERR_NO_ACCESS       = -23, ///< Access denied
+    linERR_VERSION         = -24, ///< Function not supported in this version
+    linERR_NO_REF_POWER    = -25, ///< Function not supported in this version
+    linERR_NOT_IMPLEMENTED = -26  ///< The requested feature or function is not implemented in the device you are trying to use it on
 } LinStatus;
 /** @} */
 
@@ -176,65 +176,65 @@ typedef enum {
  * well.
  */
 typedef struct {
-  /**
-   * Kvaser DRV Lin timestamp - Timestamp in milliseconds of the falling edge of
-   * the synch break of the message. Uses the canlib CAN timer.
-   *
-   * Kvaser LIN Leaf timestamp - Timestamp in milliseconds of the falling edge
-   * of the synch break of the message. Uses the canlib CAN timer.
-   *
-   * \note All Kvaser Leaf with Kvaser MagiSync&tm; are synchronized
-   * (also with CAN channels).
-   */
-  unsigned long timestamp;
+    /**
+     * Kvaser DRV Lin timestamp - Timestamp in milliseconds of the falling edge of
+     * the synch break of the message. Uses the canlib CAN timer.
+     *
+     * Kvaser LIN Leaf timestamp - Timestamp in milliseconds of the falling edge
+     * of the synch break of the message. Uses the canlib CAN timer.
+     *
+     * \note All Kvaser Leaf with Kvaser MagiSync&tm; are synchronized
+     * (also with CAN channels).
+     */
+    unsigned long timestamp;
 
-  /**
-   * Length of the synch break in microseconds.
-   * [650 .. 13000],  [400 .. 8000] for a wakeup signal.
-   */
-  unsigned long synchBreakLength;
+    /**
+     * Length of the synch break in microseconds.
+     * [650 .. 13000],  [400 .. 8000] for a wakeup signal.
+     */
+    unsigned long synchBreakLength;
 
-  /**
-   * The total frame length in microseconds; from the synch break to the
-   * end of the crc. [2200 .. 173600]
-   */
-  unsigned long frameLength;
+    /**
+     * The total frame length in microseconds; from the synch break to the
+     * end of the crc. [2200 .. 173600]
+     */
+    unsigned long frameLength;
 
-  /**
-   * The bitrate of the message in bits per seconds.
-   * Range [1000 .. 20000] (plus some margin)
-   */
-  unsigned long bitrate;
+    /**
+     * The bitrate of the message in bits per seconds.
+     * Range [1000 .. 20000] (plus some margin)
+     */
+    unsigned long bitrate;
 
-  /**
-   * The checksum as read from the LIN bus. Might not
-   * match the data in case of \ref LIN_CSUM_ERROR.
-   */
-  unsigned char checkSum;
+    /**
+     * The checksum as read from the LIN bus. Might not
+     * match the data in case of \ref LIN_CSUM_ERROR.
+     */
+    unsigned char checkSum;
 
-  /**
-   * The id with parity of the message as read from the
-   * LIN bus. Might be invalid in case of \ref LIN_PARITY_ERROR.
-   */
-  unsigned char idPar;
+    /**
+     * The id with parity of the message as read from the
+     * LIN bus. Might be invalid in case of \ref LIN_PARITY_ERROR.
+     */
+    unsigned char idPar;
 
-  unsigned short z; ///< Dummy for alignment
+    unsigned short z; ///< Dummy for alignment
 
-  /**
-   * Time in microseconds of the falling edges in the
-   * synch byte relative the falling edge of the start bit.
-   *
-   * \note Not supported by all devices.
-   */
-  unsigned long synchEdgeTime[4];
+    /**
+     * Time in microseconds of the falling edges in the
+     * synch byte relative the falling edge of the start bit.
+     *
+     * \note Not supported by all devices.
+     */
+    unsigned long synchEdgeTime[4];
 
-  /**
-   * Start time in microseconds of each data byte. In case of 8-byte messages,
-   * the crc time isn't included (but can be deduced from frameLength).
-   *
-   * \note Not supported by all devices.
-   */
-   unsigned long byteTime[8];
+    /**
+     * Start time in microseconds of each data byte. In case of 8-byte messages,
+     * the crc time isn't included (but can be deduced from frameLength).
+     *
+     * \note Not supported by all devices.
+     */
+     unsigned long byteTime[8];
 } LinMessageInfo;
 
 
@@ -247,14 +247,14 @@ typedef struct {
  *
  * @{
  */
-#define LIN_TX              1   ///< The message was something we transmitted on the bus
-#define LIN_RX              2   ///< The message was something we received from the bus
-#define LIN_WAKEUP_FRAME    4   ///< A wake up frame was received. Id/msg/dlc are undefined
-#define LIN_NODATA          8   ///< No data, only a header
-#define LIN_CSUM_ERROR      16  ///< Checksum error
-#define LIN_PARITY_ERROR    32  ///< ID parity error
-#define LIN_SYNCH_ERROR     64  ///< A synch error
-#define LIN_BIT_ERROR       128 ///< Bit error when transmitting
+#define LIN_TX           1 ///< The message was something we transmitted on the bus
+#define LIN_RX           2 ///< The message was something we received from the bus
+#define LIN_WAKEUP_FRAME 4 ///< A wake up frame was received. Id/msg/dlc are undefined
+#define LIN_NODATA       8 ///< No data, only a header
+#define LIN_CSUM_ERROR   16 ///< Checksum error
+#define LIN_PARITY_ERROR 32 ///< ID parity error
+#define LIN_SYNCH_ERROR  64 ///< A synch error
+#define LIN_BIT_ERROR    128 ///< Bit error when transmitting
 /** @} */
 
 
@@ -277,7 +277,7 @@ typedef struct {
    * number, listed in order from the most significant to the least
    * significant.
    */
-#define linCHANNELDATA_CARD_FIRMWARE_REV  9
+#define linCHANNELDATA_CARD_FIRMWARE_REV 9
 /** @} */
 
 
@@ -385,7 +385,7 @@ LinHandle LINLIBAPI linOpenChannel(int channel, int flags);
  * @{
  */
 #define LIN_MASTER 1 ///< The LIN interface will be a LIN master
-#define LIN_SLAVE 2  ///< The LIN interface will be a LIN slave
+#define LIN_SLAVE  2 ///< The LIN interface will be a LIN slave
 /** @} */
 
 

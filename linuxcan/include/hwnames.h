@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -71,9 +71,8 @@
 #ifndef _HWNAMES_H_
 #define _HWNAMES_H_
 
-
 #ifdef HWTYPE_NONE
-#  error HWTYPE_NONE is already defined.
+#error HWTYPE_NONE is already defined.
 #endif
 
 //
@@ -88,90 +87,88 @@
 #define HWTYPE_CANAC2PCI       6
 #define HWTYPE_CANCARD         7
 #define HWTYPE_PCCAN           8
-#define HWTYPE_HERMES          9  // also the deceased ISAcan
+#define HWTYPE_HERMES          9 // also the deceased ISAcan
 #define HWTYPE_PCICAN          HWTYPE_HERMES
-#define HWTYPE_NEWPCMCIA      10  // Was Mars; now unused.
-#define HWTYPE_DAPHNE         11  // also HWTYPE_NEWUSB
-#define HWTYPE_CANCARDY       12  // the one-channel CANcardX
+#define HWTYPE_NEWPCMCIA       10 // Was Mars; now unused.
+#define HWTYPE_DAPHNE          11 // also HWTYPE_NEWUSB
+#define HWTYPE_CANCARDY        12 // the one-channel CANcardX
 /* 13-39 are reserved to Vector, just to be sure */
 /* Vector will use all odd numbers and Kvaser all even numbers, as per a
    semi-official agreement */
 // Vector CANcardXL           15  // Information only.
 // Vector CANcaseXL           21  // Information only
-#define HWTYPE_HELIOS         40  // Helios / PCIcan II
-#define HWTYPE_PCICAN_II      HWTYPE_HELIOS
+#define HWTYPE_HELIOS          40 // Helios / PCIcan II
+#define HWTYPE_PCICAN_II       HWTYPE_HELIOS
 // Reserved to Vector      41
-#define HWTYPE_DEMETER        42  // USBcan II, Memorator et al
-#define HWTYPE_SIMULATION     44  // kcanc for Creator
-#define HWTYPE_AURORA         46
-#define HWTYPE_FILO           48  // Leaf
-#define HWTYPE_LEAF           HWTYPE_FILO
-#define HWTYPE_PC104_PLUS     50
-#define HWTYPE_PCICANX_II     52
-#define HWTYPE_MEMORATOR_II   54
-#define HWTYPE_MEMORATOR_PRO  HWTYPE_MEMORATOR_II
-#define HWTYPE_USBCAN_PRO     56
-#define HWTYPE_BLACKBIRD      58
-#define HWTYPE_IRIS           HWTYPE_BLACKBIRD
-#define HWTYPE_MEMORATOR_LIGHT  60  // Memorator Light
-#define HWTYPE_MINIHYDRA      62
-#define HWTYPE_EAGLE          62
-#define HWTYPE_BAGEL          64
-#define HWTYPE_MINIPCIE       66
-#define HWTYPE_USBCAN_KLINE   68
-#define HWTYPE_ETHERCAN       70
-#define HWTYPE_USBCAN_LIGHT   72
-#define HWTYPE_USBCAN_PRO2    74
-#define HWTYPE_PCIE_V2        76
-#define HWTYPE_PCIECANFD      HWTYPE_PCIE_V2
-#define HWTYPE_MEMORATOR_PRO2 78
-#define HWTYPE_LEAF2              80  ///< Kvaser Leaf Pro HS (2nd generation)
-#define HWTYPE_MEMORATOR_V2   82  ///< Kvaser Memorator (2nd generation)
-#define HWTYPE_CANLINHYBRID   84
-
+#define HWTYPE_DEMETER         42 // USBcan II, Memorator et al
+#define HWTYPE_SIMULATION      44 // kcanc for Creator
+#define HWTYPE_AURORA          46
+#define HWTYPE_FILO            48 // Leaf
+#define HWTYPE_LEAF            HWTYPE_FILO
+#define HWTYPE_PC104_PLUS      50
+#define HWTYPE_PCICANX_II      52
+#define HWTYPE_MEMORATOR_II    54
+#define HWTYPE_MEMORATOR_PRO   HWTYPE_MEMORATOR_II
+#define HWTYPE_USBCAN_PRO      56
+#define HWTYPE_BLACKBIRD       58
+#define HWTYPE_IRIS            HWTYPE_BLACKBIRD
+#define HWTYPE_MEMORATOR_LIGHT 60 // Memorator Light
+#define HWTYPE_MINIHYDRA       62
+#define HWTYPE_EAGLE           62
+#define HWTYPE_BAGEL           64
+#define HWTYPE_MINIPCIE        66
+#define HWTYPE_USBCAN_KLINE    68
+#define HWTYPE_ETHERCAN        70
+#define HWTYPE_USBCAN_LIGHT    72
+#define HWTYPE_USBCAN_PRO2     74
+#define HWTYPE_PCIE_V2         76
+#define HWTYPE_PCIECANFD       HWTYPE_PCIE_V2
+#define HWTYPE_MEMORATOR_PRO2  78
+#define HWTYPE_LEAF2           80 ///< Kvaser Leaf Pro HS (2nd generation)
+#define HWTYPE_MEMORATOR_V2    82 ///< Kvaser Memorator (2nd generation)
+#define HWTYPE_CANLINHYBRID    84
 
 /* Transceiver types */
 #ifdef VCAN_TRANSCEIVER_TYPE_NONE
-#  error VCAN_TRANSCEIVER_TYPE_NONE is already defined.
+#error VCAN_TRANSCEIVER_TYPE_NONE is already defined.
 #endif
-#define VCAN_TRANSCEIVER_TYPE_NONE              0
-#define VCAN_TRANSCEIVER_TYPE_251               1
-#define VCAN_TRANSCEIVER_TYPE_252               2
-#define VCAN_TRANSCEIVER_TYPE_DNOPTO            3
-#define VCAN_TRANSCEIVER_TYPE_W210              4
-#define VCAN_TRANSCEIVER_TYPE_SWC_PROTO         5  // Prototype. Driver may latch-up.
-#define VCAN_TRANSCEIVER_TYPE_SWC               6
-#define VCAN_TRANSCEIVER_TYPE_FIBER             8
-#define VCAN_TRANSCEIVER_TYPE_K                10  // K-line, without CAN
-#define VCAN_TRANSCEIVER_TYPE_1054_OPTO        11  // 1054 with optical isolation
-#define VCAN_TRANSCEIVER_TYPE_SWC_OPTO         12  // SWC with optical isolation
-#define VCAN_TRANSCEIVER_TYPE_B10011S          13  // B10011S truck-and-trailer
-#define VCAN_TRANSCEIVER_TYPE_1050             14  // 1050
-#define VCAN_TRANSCEIVER_TYPE_1050_OPTO        15  // 1050 with optical isolation
-#define VCAN_TRANSCEIVER_TYPE_1041             16  // 1041
-#define VCAN_TRANSCEIVER_TYPE_1041_OPTO        17  // 1041 with optical isolation
-#define VCAN_TRANSCEIVER_TYPE_RS485            18  // J1708
-#define VCAN_TRANSCEIVER_TYPE_LIN              19  // LIN
-#define VCAN_TRANSCEIVER_TYPE_KONE             20  // KONE piggyback
-#define VCAN_TRANSCEIVER_TYPE_GAL              VCAN_TRANSCEIVER_TYPE_KONE  // Galathea piggyback
+#define VCAN_TRANSCEIVER_TYPE_NONE      0
+#define VCAN_TRANSCEIVER_TYPE_251       1
+#define VCAN_TRANSCEIVER_TYPE_252       2
+#define VCAN_TRANSCEIVER_TYPE_DNOPTO    3
+#define VCAN_TRANSCEIVER_TYPE_W210      4
+#define VCAN_TRANSCEIVER_TYPE_SWC_PROTO 5 // Prototype. Driver may latch-up.
+#define VCAN_TRANSCEIVER_TYPE_SWC       6
+#define VCAN_TRANSCEIVER_TYPE_FIBER     8
+#define VCAN_TRANSCEIVER_TYPE_K         10 // K-line, without CAN
+#define VCAN_TRANSCEIVER_TYPE_1054_OPTO 11 // 1054 with optical isolation
+#define VCAN_TRANSCEIVER_TYPE_SWC_OPTO  12 // SWC with optical isolation
+#define VCAN_TRANSCEIVER_TYPE_B10011S   13 // B10011S truck-and-trailer
+#define VCAN_TRANSCEIVER_TYPE_1050      14 // 1050
+#define VCAN_TRANSCEIVER_TYPE_1050_OPTO 15 // 1050 with optical isolation
+#define VCAN_TRANSCEIVER_TYPE_1041      16 // 1041
+#define VCAN_TRANSCEIVER_TYPE_1041_OPTO 17 // 1041 with optical isolation
+#define VCAN_TRANSCEIVER_TYPE_RS485     18 // J1708
+#define VCAN_TRANSCEIVER_TYPE_LIN       19 // LIN
+#define VCAN_TRANSCEIVER_TYPE_KONE      20 // KONE piggyback
+#define VCAN_TRANSCEIVER_TYPE_GAL       VCAN_TRANSCEIVER_TYPE_KONE // Galathea piggyback
 // Agreement: Vector to use all odd numbers, Kvaser all even numbers
-#define VCAN_TRANSCEIVER_TYPE_CANFD            22  // Generic CAN-FD capable transceiver
-#define VCAN_TRANSCEIVER_TYPE_CANFD_LIN        24
+#define VCAN_TRANSCEIVER_TYPE_CANFD     22 // Generic CAN-FD capable transceiver
+#define VCAN_TRANSCEIVER_TYPE_CANFD_LIN 24
 
-#define VCAN_TRANSCEIVER_TYPE_LINX_LIN         64
-#define VCAN_TRANSCEIVER_TYPE_LINX_J1708       66
-#define VCAN_TRANSCEIVER_TYPE_LINX_K           68
-#define VCAN_TRANSCEIVER_TYPE_LINX_SWC         70
-#define VCAN_TRANSCEIVER_TYPE_LINX_LS          72
-
+#define VCAN_TRANSCEIVER_TYPE_LINX_LIN   64
+#define VCAN_TRANSCEIVER_TYPE_LINX_J1708 66
+#define VCAN_TRANSCEIVER_TYPE_LINX_K     68
+#define VCAN_TRANSCEIVER_TYPE_LINX_SWC   70
+#define VCAN_TRANSCEIVER_TYPE_LINX_LS    72
 
 /* old style transciver type names */
-#define TRANSCEIVER_TYPE_NONE           VCAN_TRANSCEIVER_TYPE_NONE
-#define TRANSCEIVER_TYPE_251            VCAN_TRANSCEIVER_TYPE_251
-#define TRANSCEIVER_TYPE_252            VCAN_TRANSCEIVER_TYPE_252
-#define TRANSCEIVER_TYPE_DNOPTO         VCAN_TRANSCEIVER_TYPE_DNOPTO
-#define TRANSCEIVER_TYPE_W210           VCAN_TRANSCEIVER_TYPE_W210
-#define TRANSCEIVER_TYPE_SWC_PROTO      VCAN_TRANSCEIVER_TYPE_SWC_PROTO
-#define TRANSCEIVER_TYPE_SWC            VCAN_TRANSCEIVER_TYPE_SWC
+#define TRANSCEIVER_TYPE_NONE      VCAN_TRANSCEIVER_TYPE_NONE
+#define TRANSCEIVER_TYPE_251       VCAN_TRANSCEIVER_TYPE_251
+#define TRANSCEIVER_TYPE_252       VCAN_TRANSCEIVER_TYPE_252
+#define TRANSCEIVER_TYPE_DNOPTO    VCAN_TRANSCEIVER_TYPE_DNOPTO
+#define TRANSCEIVER_TYPE_W210      VCAN_TRANSCEIVER_TYPE_W210
+#define TRANSCEIVER_TYPE_SWC_PROTO VCAN_TRANSCEIVER_TYPE_SWC_PROTO
+#define TRANSCEIVER_TYPE_SWC       VCAN_TRANSCEIVER_TYPE_SWC
 
 #endif

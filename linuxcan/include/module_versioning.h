@@ -64,10 +64,7 @@
 #ifndef _MODULE_VERSIONING_H_
 #define _MODULE_VERSIONING_H_
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
 #include <linux/bitops.h>
-#pragma GCC diagnostic pop
 #include <linux/version.h>
 
 // Check that CONFIG_* macros are included
