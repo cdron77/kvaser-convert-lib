@@ -1,5 +1,5 @@
 /*
-**             Copyright 2020 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -74,214 +74,208 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#define DEF2STR(x) case x: return #x;
+#define DEF2STR(x) \
+    case x:        \
+        return #x;
 
 static const char *fwStatusName(unsigned int fwuStatus)
 {
-  switch (fwuStatus) {
-  DEF2STR(FIRMWARE_STATUS_OK)
-  DEF2STR(FIRMWARE_ERROR_NOPRIV)
-  DEF2STR(FIRMWARE_ERROR_ADDR)
-  DEF2STR(FIRMWARE_ERROR_FLASH_FAILED)
-  DEF2STR(FIRMWARE_ERROR_COMMAND)
-  DEF2STR(FIRMWARE_ERROR_PARAM_FULL)
-  DEF2STR(FIRMWARE_ERROR_PWD_WRONG)
-  DEF2STR(FIRMWARE_ERROR_VERSION_WRONG)
-  DEF2STR(FIRMWARE_ERROR_BAD_CRC)
-  default:
-    return "FWU STATUS UNKNOWN";
-  }
+    switch (fwuStatus) {
+        DEF2STR(FIRMWARE_STATUS_OK)
+        DEF2STR(FIRMWARE_ERROR_NOPRIV)
+        DEF2STR(FIRMWARE_ERROR_ADDR)
+        DEF2STR(FIRMWARE_ERROR_FLASH_FAILED)
+        DEF2STR(FIRMWARE_ERROR_COMMAND)
+        DEF2STR(FIRMWARE_ERROR_PARAM_FULL)
+        DEF2STR(FIRMWARE_ERROR_PWD_WRONG)
+        DEF2STR(FIRMWARE_ERROR_VERSION_WRONG)
+        DEF2STR(FIRMWARE_ERROR_BAD_CRC)
+    default:
+        return "FWU STATUS UNKNOWN";
+    }
 }
 
 static const char *fwCmdName(unsigned int fwuCmd)
 {
-  switch (fwuCmd) {
-  DEF2STR(FIRMWARE_DOWNLOAD_COMMIT)
-  DEF2STR(FIRMWARE_DOWNLOAD_WRITE)
-  DEF2STR(FIRMWARE_DOWNLOAD_FINISH)
-  DEF2STR(FIRMWARE_DOWNLOAD_STARTUP)
-  DEF2STR(FIRMWARE_DOWNLOAD_ERASE)
-  default:
-    return "FWU CMD UNKNOWN";
-  }
+    switch (fwuCmd) {
+        DEF2STR(FIRMWARE_DOWNLOAD_COMMIT)
+        DEF2STR(FIRMWARE_DOWNLOAD_WRITE)
+        DEF2STR(FIRMWARE_DOWNLOAD_FINISH)
+        DEF2STR(FIRMWARE_DOWNLOAD_STARTUP)
+        DEF2STR(FIRMWARE_DOWNLOAD_ERASE)
+    default:
+        return "FWU CMD UNKNOWN";
+    }
 }
 
-int loadImageFromFile(const char *filename, uint8_t **imageBuffer,
-                      size_t *imageSize)
+int loadImageFromFile(const char *filename, uint8_t **imageBuffer, size_t *imageSize)
 {
-  int r;
-  FILE *f;
-  struct stat statbuf;
+    int r;
+    FILE *f;
+    struct stat statbuf;
 
-  assert(imageSize);
-  assert(imageBuffer);
-  assert(*imageBuffer);
-  assert(filename);
+    assert(imageSize);
+    assert(imageBuffer);
+    assert(filename);
 
-  f = fopen(filename, "rb");
-  if (!f) {
-    printf("Error: Unable to open file '%s'\n", filename);
-    return -1;
-  }
+    f = fopen(filename, "rb");
+    if (!f) {
+        printf("Error: Unable to open file '%s'\n", filename);
+        return -1;
+    }
 
-  if (fstat(fileno(f), &statbuf) < 0) {
-    printf("Error: Unable to stat file '%s'\n", filename);
+    if (fstat(fileno(f), &statbuf) < 0) {
+        printf("Error: Unable to stat file '%s'\n", filename);
+        fclose(f);
+        return -1;
+    }
+
+    *imageSize = statbuf.st_size;
+    *imageBuffer = (uint8_t *)calloc(1, *imageSize);
+
+    r = fread(*imageBuffer, 1, *imageSize, f);
+    if (r < 0) {
+        printf("Error: Unable to read file '%s'\n", filename);
+        fclose(f);
+        return -1;
+    }
+    if (r != statbuf.st_size) {
+        printf("Error: File '%s' was truncated\n", filename);
+        fclose(f);
+        return -1;
+    }
     fclose(f);
-    return -1;
-  }
 
-  *imageSize = statbuf.st_size;
-  *imageBuffer = (uint8_t *)calloc(1, *imageSize);
-
-  r = fread(*imageBuffer, 1, *imageSize, f);
-  if (r < 0) {
-    printf("Error: Unable to read file '%s'\n", filename);
-    fclose(f);
-    return -1;
-  }
-  if (r != statbuf.st_size) {
-    printf("Error: File '%s' was truncated\n", filename);
-    fclose(f);
-    return -1;
-  }
-  fclose(f);
-
-  return 0;
+    return 0;
 }
 
 int fwUpdateCommandNoParam(struct kvaser_device *device, int cmd)
 {
-  KCAN_FLASH_PROG io;
-  int ret;
+    KCAN_FLASH_PROG io;
+    int ret;
 
-  assert(device);
-  memset(&io, 0, sizeof(io));
-  io.tag = cmd;
+    assert(device);
+    memset(&io, 0, sizeof(io));
+    io.tag = cmd;
 
-  ret = kvaser_fwu_flash_prog(device, &io);
-  if (ret) {
-    printf("Error: kvaser_fwu_flash_prog for command %s failed: %u %m\n",
-           fwCmdName(io.tag), ret);
-    return -1;
-  }
+    ret = kvaser_fwu_flash_prog(device, &io);
+    if (io.status != FIRMWARE_STATUS_OK) {
+        printf("Error: command %s failed with status: %s\n", fwCmdName(io.tag),
+               fwStatusName(io.status));
+        return -1;
+    }
+    if (ret) {
+        printf("Error: kvaser_fwu_flash_prog for command %s failed: %d %m\n", fwCmdName(io.tag),
+               ret);
+        return -1;
+    }
 
-  if (io.status != FIRMWARE_STATUS_OK) {
-    printf("Error: command %s failed with status: %s\n", fwCmdName(io.tag),
-           fwStatusName(io.status));
-    return -1;
-  }
-
-  return 0;
+    return 0;
 }
 
-int fwUpdateStart(struct kvaser_device *device, tFwUpdateCfg *fwuCfg,
-                  unsigned int *buffer_size)
+int fwUpdateStart(struct kvaser_device *device, tFwUpdateCfg *fwuCfg, unsigned int *buffer_size)
 {
-  KCAN_FLASH_PROG io;
-  int ret;
+    KCAN_FLASH_PROG io;
+    int ret;
 
-  assert(device);
-  assert(fwuCfg);
-  assert(buffer_size);
+    assert(device);
+    assert(fwuCfg);
+    assert(buffer_size);
 
-  memset(&io, 0, sizeof(io));
+    memset(&io, 0, sizeof(io));
 
-  io.tag = FIRMWARE_DOWNLOAD_STARTUP;
-  io.x.setup.ean[0] = fwuCfg->eanLo;
-  io.x.setup.ean[1] = fwuCfg->eanHi;
-  io.x.setup.dryrun = fwuCfg->dryRun;
-  /* currently only support for version 0 */
-  io.x.setup.flash_procedure_version = 0; /* Legacy transfer mode */
-  io.x.setup.buffer_size = 0;
+    io.tag = FIRMWARE_DOWNLOAD_STARTUP;
+    io.x.setup.ean[0] = fwuCfg->eanLo;
+    io.x.setup.ean[1] = fwuCfg->eanHi;
+    io.x.setup.dryrun = fwuCfg->dryRun;
+    /* currently only support for version 0 */
+    io.x.setup.flash_procedure_version = 0; /* Legacy transfer mode */
+    io.x.setup.buffer_size = 0;
 
-  ret = kvaser_fwu_flash_prog(device, &io);
-  if (ret) {
-    printf("Error: kvaser_fwu_flash_prog for command %s failed: %m\n",
-           fwCmdName(io.tag));
-    return -1;
-  }
+    ret = kvaser_fwu_flash_prog(device, &io);
+    if (ret) {
+        printf("Error: kvaser_fwu_flash_prog for command %s failed: %m\n", fwCmdName(io.tag));
+        return -1;
+    }
 
-  if (io.status != FIRMWARE_STATUS_OK) {
-    printf("Error: command %s failed with status: %s\n", fwCmdName(io.tag),
-           fwStatusName(io.status));
-    return -1;
-  }
+    if (io.status != FIRMWARE_STATUS_OK) {
+        printf("Error: command %s failed with status: %s\n", fwCmdName(io.tag),
+               fwStatusName(io.status));
+        return -1;
+    }
 
-  *buffer_size = io.x.setup.buffer_size;
+    *buffer_size = io.x.setup.buffer_size;
 
-  return 0;
+    return 0;
 }
 
-int fwUpdateDownload(struct kvaser_device *device, uint32_t address, int len,
-                     uint8_t *data)
+int fwUpdateDownload(struct kvaser_device *device, uint32_t address, int len, uint8_t *data)
 {
-  KCAN_FLASH_PROG io;
-  int ret;
+    KCAN_FLASH_PROG io;
+    int ret;
 
-  assert(device);
-  if (!data) {
-    return -1;
-  }
-  if (len <= 0) {
-    return -1;
-  }
+    assert(device);
+    if (!data) {
+        return -1;
+    }
+    if (len <= 0) {
+        return -1;
+    }
 
-  if (len > KCAN_FLASH_DOWNLOAD_CHUNK) {
-    return -1;
-  }
+    if (len > KCAN_FLASH_DOWNLOAD_CHUNK) {
+        return -1;
+    }
 
-  memset(&io, 0, sizeof(io));
-  io.status = 0;
-  io.tag = FIRMWARE_DOWNLOAD_WRITE;
-  io.x.data.address = address;
-  io.x.data.len = len;
+    memset(&io, 0, sizeof(io));
+    io.status = 0;
+    io.tag = FIRMWARE_DOWNLOAD_WRITE;
+    io.x.data.address = address;
+    io.x.data.len = len;
 
-  if (len > (int)sizeof(io.x.data.data)) {
-    return -1;
-  }
+    if (len > (int)sizeof(io.x.data.data)) {
+        return -1;
+    }
 
-  memcpy(io.x.data.data, data, len);
+    memcpy(io.x.data.data, data, len);
 
-  ret = kvaser_fwu_flash_prog(device, &io);
-  if (ret) {
-    printf("Error: kvaser_fwu_flash_prog for command %s failed: %m\n",
-           fwCmdName(io.tag));
-    return -1;
-  }
+    ret = kvaser_fwu_flash_prog(device, &io);
+    if (ret) {
+        printf("Error: kvaser_fwu_flash_prog for command %s failed: %m\n", fwCmdName(io.tag));
+        return -1;
+    }
 
-  if (io.status != FIRMWARE_STATUS_OK) {
-    printf("Error: Download failed (addr=0x%08x, len=0x%x, status=%s)\n",
-           address, len, fwStatusName(io.status));
-    return -1;
-  }
+    if (io.status != FIRMWARE_STATUS_OK) {
+        printf("Error: Download failed (addr=0x%08x, len=0x%x, status=%s)\n", address, len,
+               fwStatusName(io.status));
+        return -1;
+    }
 
-  return 0;
+    return 0;
 }
 
 /* load image, verify and parse key information */
-int fwUpdateLoadImageFile(char *filename, tFwImageType imageType,
-                          tFwImageInfo *image)
+int fwUpdateLoadImageFile(char *filename, tFwImageType imageType, tFwImageInfo *image)
 {
-  int result = -1;
+    int result = -1;
 
-  assert(filename);
-  assert(image);
-  switch (imageType) {
-  case FW_IMG_TYPE_HYDRA:
-    result = fwUpdateLoadHydraImage(filename, image);
-    break;
-  default:
-    printf("Error: fw image type %d unsupported\n", imageType);
-    break;
-  }
-  return result;
+    assert(filename);
+    assert(image);
+    switch (imageType) {
+    case FW_IMG_TYPE_HYDRA:
+        result = fwUpdateLoadHydraImage(filename, image);
+        break;
+    default:
+        printf("Error: fw image type %d unsupported\n", imageType);
+        break;
+    }
+    return result;
 }
 
 void fwUpdateUnloadImageFile(tFwImageInfo *image)
 {
-  assert(image);
-  if (image->imageBuffer) {
-    free(image->imageBuffer);
-    image->imageBuffer = NULL;
-  }
+    assert(image);
+    if (image->imageBuffer) {
+        free(image->imageBuffer);
+        image->imageBuffer = NULL;
+    }
 }

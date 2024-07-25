@@ -1,6 +1,21 @@
-README for Kvaser firmware upgrade utility
-With this tool it is currently possible to upgrade the firmware of Kvaser PCIe
-devices.
+README for Kvaser firmware upgrade utility kv_flash_prog
+========================================================
+With this tool it is possible to upgrade the firmware of Kvaser PCIe devices
+based on the pciefd driver, i.e.
+
+Kvaser PCIEcan HS v2
+Kvaser PCIEcan 2xHS v2
+Kvaser PCIEcan 4xHS
+Kvaser Mini PCI Express HS v2
+Kvaser Mini PCI Express 2xHS v2
+Kvaser PCIEcan 1xCAN v3
+Kvaser PCIEcan 2xCAN v3
+Kvaser PCIEcan 4xCAN v2
+Kvaser Mini PCI Express 1xCAN v3
+Kvaser Mini PCI Express 2xCAN v3
+Kvaser M.2 PCIe 4xCAN
+
+The program will detect and list compatible devices.
 
 There are two different variants of the Kvaser firmware upgrade utility:
   * kv_flash_prog, which relies on Kvaser linuxcan drivers and CANlib
@@ -10,10 +25,8 @@ There are two different variants of the Kvaser firmware upgrade utility:
 The standard variant, kv_flash_prog, is preferred for anyone using Kvaser
 CANlib. The standalone variant, kv_flash_prog_mmap, is preferred when you do
 not want to build and install Kvaser linuxcan drivers nor CANlib. Typically when
-you use SocketCAN.
-This README will only cover the standard kv_flash_prog.
-See linuxcan/kvflash/mmap/README for more details about kv_flash_prog_mmap.
-
+you use SocketCAN. This README will only cover the standard kv_flash_prog.
+See linuxcan/kvflash-mmap/README for more details about kv_flash_prog_mmap.
 
 By default kv_flash_prog will execute in interactive mode, where available and
 supported Kvaser devices are listed, the user needs to select one of the listed
@@ -26,16 +39,12 @@ together with --list.
 When the --dryrun option is used, the device firmware is compared with the image
 provided by the user, and the firmware is not upgraded.
 
-kv_flash_prog will exit with a status of zero if firmware upgrade was
-successful. Status zero is also returned when a dry run is successfully executed,
-regardless of whether the image matched or not.
-A status of one will be returned if kv_flash_prog encountered any errors before
-the image was flashed (e.g file does not exists, permission denied, invalid
-device selection).
-A status of two will be returned if any fatal error occurred during firmware
-upgrade.
-
-
+kv_flash_prog will exit with a status of zero if firmware upgrade was success-
+ful. Status zero is also returned when a dry run is successfully executed,
+regardless of whether the image matched or not. A status of one will be returned
+ if kv_flash_prog encountered any errors before the image was flashed (e.g file
+does not exists, permission denied, invalid device selection). A status of two
+ will be returned if any fatal error occurred during firmware upgrade.
 
 To build kv_flash_prog
 $ cd linuxcan
@@ -47,8 +56,6 @@ https://www.kvaser.com. It contains the different firmware image files (*.img).
 unzip the downloaded FwUpdateTool_xx_yy.zip
 The images are sorted after platform. Locate the image matching your device
 (for instance for Kvaser PCIEcan 4xHS use pcie/pciecan_00683_fpgasys.img).
-
-
 
 Interactive usage example
 $ ./kv_flash_prog FwUpdateTool_4_24/pcie/pciecan_00683_fpgasys.img
@@ -174,3 +181,4 @@ The firmware was updated successfully, please power cycle the device
 Note: When updating PCIEcan, a complete shutdown of the computer is required in order to power cycle the device
 
 Finishing...
+

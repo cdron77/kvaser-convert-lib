@@ -1,5 +1,5 @@
 /*
-**             Copyright 2020 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -70,73 +70,72 @@
 
 static int verifyHydraImage(uint8_t *imageBuffer, size_t imageSize)
 {
-  uint32_t checkSum = 0;
-  HydraImgHeader *header;
+    uint32_t checkSum = 0;
+    HydraImgHeader *header;
 
-  assert(imageBuffer);
-  header = (HydraImgHeader *)imageBuffer;
+    assert(imageBuffer);
+    header = (HydraImgHeader *)imageBuffer;
 
-  if (imageSize != (sizeof(HydraImgHeader) + header->imgLength + 4)) {
-    printf("Error: Image file was truncated, got %zu expected %zu\n", imageSize,
-           sizeof(HydraImgHeader) + header->imgLength + 4);
-    return -1;
-  }
+    if (imageSize != (sizeof(HydraImgHeader) + header->imgLength + 4)) {
+        printf("Error: Image file was truncated, got %zu expected %zu\n", imageSize,
+               sizeof(HydraImgHeader) + header->imgLength + 4);
+        return -1;
+    }
 
-  /* verify entire image header */
-  checkSum = crc32Calc((uint8_t *)imageBuffer, sizeof(HydraImgHeader) - 4);
+    /* verify entire image header */
+    checkSum = crc32Calc((uint8_t *)imageBuffer, sizeof(HydraImgHeader) - 4);
 
-  if (checkSum != header->hdCrc) {
-    printf("Error: Image is corrupt, wrong CRC for image header\n");
-    return -1;
-  }
+    if (checkSum != header->hdCrc) {
+        printf("Error: Image is corrupt, wrong CRC for image header\n");
+        return -1;
+    }
 
-  if ((header->imgType != IMG_TYPE_SYSTEM_CONTAINER)) {
-    printf("Error: Image file is of wrong type, expected %u, got %u\n",
-           IMG_TYPE_SYSTEM_CONTAINER, header->imgType);
-    return -1;
-  }
+    if ((header->imgType != IMG_TYPE_SYSTEM_CONTAINER)) {
+        printf("Error: Image file is of wrong type, expected %u, got %u\n",
+               IMG_TYPE_SYSTEM_CONTAINER, header->imgType);
+        return -1;
+    }
 
-  /* verify entire image content */
-  checkSum = crc32Calc((uint8_t *)(imageBuffer + sizeof(HydraImgHeader)),
-                       header->imgLength);
+    /* verify entire image content */
+    checkSum = crc32Calc((uint8_t *)(imageBuffer + sizeof(HydraImgHeader)), header->imgLength);
 
-  if (checkSum != header->imgCrc) {
-    printf("Error: Image is corrupt, wrong CRC for image\n");
-    return -1;
-  }
+    if (checkSum != header->imgCrc) {
+        printf("Error: Image is corrupt, wrong CRC for image\n");
+        return -1;
+    }
 
-  return 0;
+    return 0;
 }
 
 int fwUpdateLoadHydraImage(char *filename, tFwImageInfo *image)
 {
-  HydraImgHeader *header;
-  uint8_t *imageBuffer;
-  size_t imageSize;
+    HydraImgHeader *header;
+    uint8_t *imageBuffer;
+    size_t imageSize;
 
-  assert(filename);
-  assert(image);
-  if (loadImageFromFile(filename, &imageBuffer, &imageSize) != 0) {
-    return -1;
-  }
+    assert(filename);
+    assert(image);
+    if (loadImageFromFile(filename, &imageBuffer, &imageSize) != 0) {
+        return -1;
+    }
 
-  if (verifyHydraImage(imageBuffer, imageSize) != 0) {
-    return -1;
-  }
+    if (verifyHydraImage(imageBuffer, imageSize) != 0) {
+        return -1;
+    }
 
-  header = (HydraImgHeader *)imageBuffer;
+    header = (HydraImgHeader *)imageBuffer;
 
-  image->imageBuffer = imageBuffer;
-  image->imageSize = imageSize;
-  image->eanLo = header->eanLo;
-  image->eanHi = header->eanHi;
+    image->imageBuffer = imageBuffer;
+    image->imageSize = imageSize;
+    image->eanLo = header->eanLo;
+    image->eanHi = header->eanHi;
 
-  printf("Successfully loaded hydra image\n\t%s\n", filename);
-  printf("\tEAN " KV_FLASH_EAN_FRMT_STR "\n", header->eanHi >> 12,
-         ((header->eanHi & 0xfff) << 8) | (header->eanLo >> 24),
-         (header->eanLo >> 4) & 0xfffff, header->eanLo & 0xf);
-  printf("\t    v%x.%x.%x\n\n", header->version >> 24,
-         header->version >> 16 & 0xff, header->version & 0xffff);
+    printf("Successfully loaded hydra image\n\t%s\n", filename);
+    printf("\tEAN " KV_FLASH_EAN_FRMT_STR "\n", header->eanHi >> 12,
+           ((header->eanHi & 0xfff) << 8) | (header->eanLo >> 24), (header->eanLo >> 4) & 0xfffff,
+           header->eanLo & 0xf);
+    printf("\t    v%x.%x.%x\n\n", header->version >> 24, header->version >> 16 & 0xff,
+           header->version & 0xffff);
 
-  return 0;
+    return 0;
 }

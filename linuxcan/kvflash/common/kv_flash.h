@@ -1,5 +1,5 @@
 /*
- *             Copyright 2021 by Kvaser AB, Molndal, Sweden
+ *             Copyright 2023 by Kvaser AB, Molndal, Sweden
  *                         http://www.kvaser.com
  *
  * This software is dual licensed under the following two licenses:
@@ -70,21 +70,22 @@
 #define KV_FLASH_EAN_FRMT_STR "%2x-%05x-%05x-%1x"
 
 struct kvaser_device {
-  uint8_t index;
-  uint32_t ean[2];
-  uint32_t fw[2];
-  uint32_t serial;
-  char device_name[64];
-  char driver_name[64];
-  char info_str[256]; /* Additional info from "driver" */
-  void *lib_data;
+    uint8_t index;
+    uint32_t ean[2];
+    uint32_t fw[2];
+    uint32_t serial;
+    char device_name[64];
+    char driver_name[64];
+    char info_str[256]; /* Additional info from "driver" */
+    char post_commit_str[256]; /* Message printed after FIRMWARE_DOWNLOAD_COMMIT command */
+    int (*post_finish)(struct kvaser_device *device);
+    void *lib_data;
 };
 
 #define MAX_KV_PCI_DEVICES 32
-struct kvaser_devices
-{
-  uint8_t count;
-  struct kvaser_device devices[MAX_KV_PCI_DEVICES];
+struct kvaser_devices {
+    uint8_t count;
+    struct kvaser_device devices[MAX_KV_PCI_DEVICES];
 };
 
 int kvaser_fwu_flash_prog(struct kvaser_device *device, KCAN_FLASH_PROG *fp);

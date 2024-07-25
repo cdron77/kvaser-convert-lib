@@ -1,5 +1,5 @@
 #
-#             Copyright 2021 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -65,6 +65,7 @@ UTIL_NAME = kv_flash_prog
 
 CC ?= gcc
 CFLAGS = -Wall -Wextra -Werror -O2 -I../common -I../../include
+CFLAGS += -DLINUX
 
 LDFLAGS = -L../../canlib
 LDLIBS = -lcanlib

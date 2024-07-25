@@ -1,5 +1,5 @@
 #
-#             Copyright 2021 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -61,17 +61,14 @@
 #  -----------------------------------------------------------------------------
 #
 
-.PHONY: kv_flash_prog kv_flash_prog_mmap
+.PHONY: kv_flash_prog
 
 KV_FLASH_VARIANTS ?= kv_flash_prog
-
-# Uncomment the line bellow to build the mmap version of this tool
-# KV_FLASH_VARIANTS += kv_flash_prog_mmap
 
 all: $(KV_FLASH_VARIANTS)
 
 kv_flash_prog:
 	$(MAKE) -C canlib
 
-kv_flash_prog_mmap:
-	$(MAKE) -C mmap
+clean:
+	$(MAKE) clean -C canlib

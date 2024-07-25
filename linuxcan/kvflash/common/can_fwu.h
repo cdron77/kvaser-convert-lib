@@ -1,5 +1,5 @@
 /*
- *             Copyright 2020 by Kvaser AB, Molndal, Sweden
+ *             Copyright 2023 by Kvaser AB, Molndal, Sweden
  *                         http://www.kvaser.com
  *
  * This software is dual licensed under the following two licenses:
@@ -71,29 +71,28 @@
 
 /* supported image types */
 typedef enum {
-  FW_IMG_TYPE_HYDRA,
+    FW_IMG_TYPE_HYDRA,
 } tFwImageType;
 
 typedef struct {
-  unsigned char *imageBuffer;
-  unsigned int imageSize;
-  unsigned int eanLo;
-  unsigned int eanHi;
-  unsigned int chunkSize;
+    unsigned char *imageBuffer;
+    unsigned int imageSize;
+    unsigned int eanLo;
+    unsigned int eanHi;
+    unsigned int chunkSize;
 } tFwImageInfo;
 
 typedef struct {
-  uint32_t eanHi;
-  uint32_t eanLo;
-  unsigned char dryRun;
+    uint32_t eanHi;
+    uint32_t eanLo;
+    unsigned char dryRun;
 } tFwUpdateCfg;
 
 //******************************************************
 // Utils
 //******************************************************
 
-int loadImageFromFile(const char *filename, uint8_t **imageBuffer,
-                      size_t *imageSize);
+int loadImageFromFile(const char *filename, uint8_t **imageBuffer, size_t *imageSize);
 
 //******************************************************
 // FW Update Commands
@@ -101,14 +100,11 @@ int loadImageFromFile(const char *filename, uint8_t **imageBuffer,
 
 int fwUpdateCommandNoParam(struct kvaser_device *device, int cmd);
 
-int fwUpdateStart(struct kvaser_device *device, tFwUpdateCfg *fwuCfg,
-                  unsigned int *buffer_size);
+int fwUpdateStart(struct kvaser_device *device, tFwUpdateCfg *fwuCfg, unsigned int *buffer_size);
 
-int fwUpdateDownload(struct kvaser_device *device, uint32_t address, int len,
-                     uint8_t *data);
+int fwUpdateDownload(struct kvaser_device *device, uint32_t address, int len, uint8_t *data);
 
-int fwUpdateLoadImageFile(char *filename, tFwImageType imageType,
-                          tFwImageInfo *image);
+int fwUpdateLoadImageFile(char *filename, tFwImageType imageType, tFwImageInfo *image);
 
 void fwUpdateUnloadImageFile(tFwImageInfo *image);
 #endif

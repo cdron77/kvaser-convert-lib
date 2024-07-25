@@ -1,5 +1,5 @@
 /*
- *             Copyright 2021 by Kvaser AB, Molndal, Sweden
+ *             Copyright 2023 by Kvaser AB, Molndal, Sweden
  *                         http://www.kvaser.com
  *
  * This software is dual licensed under the following two licenses:
@@ -69,135 +69,157 @@
 #include <assert.h>
 #include <errno.h> /* EIO, ENODEV, ENOMEM */
 #include <stdio.h>
+#include <stdlib.h> /* calloc, free */
 #include <string.h>
 #include <sys/ioctl.h>
 
 struct canlib_device {
-  canHandle hnd;
-  int channel;
+    canHandle hnd;
+    int channel;
 };
 
-static const char *supportedDrivers[] = {"pciefd", "\0"};
+static const char *supportedDrivers[] = { "pciefd", "\0" };
 
 static void checkCanStatus(const char *id, canStatus stat)
 {
-  assert(id);
-  if (stat != canOK) {
-    char buf[64];
-    buf[0] = '\0';
-    canGetErrorText(stat, buf, sizeof(buf));
-    printf("Error: %s: failed, stat=%d (%s)\n", id, (int)stat, buf);
-  }
+    assert(id);
+    if (stat != canOK) {
+        char buf[64];
+        buf[0] = '\0';
+        canGetErrorText(stat, buf, sizeof(buf));
+        printf("Error: %s: failed, stat=%d (%s)\n", id, (int)stat, buf);
+    }
 }
 
 static int isDriverSupported(const char *driverName)
 {
-  int i;
+    int i;
 
-  assert(driverName);
-  /* Check if driver is supported */
-  for (i = 0; strnlen(supportedDrivers[i], 16); i++) {
-    if (strcmp(driverName, supportedDrivers[i]) == 0) {
-      return 1;
+    assert(driverName);
+    /* Check if driver is supported */
+    for (i = 0; strnlen(supportedDrivers[i], 16); i++) {
+        if (strcmp(driverName, supportedDrivers[i]) == 0) {
+            return 1;
+        }
     }
-  }
 
-  return 0;
+    return 0;
+}
+
+static void setPostCommitStr(struct kvaser_device *device)
+{
+    switch (device->ean[0]) {
+    /* SmartFusion2 devices */
+    case 0x30014329: /* Kvaser PCIEcan 2xCAN v3 */
+    case 0x30014336: /* Kvaser PCIEcan 1xCAN v3 */
+    case 0x30014145: /* Kvaser PCIEcan 4xCAN v2 */
+    case 0x30014176: /* Kvaser Mini PCI Express 2xCAN v3 */
+    case 0x30014206: /* Kvaser Mini PCI Express 1xCAN v3 */
+        strncpy(
+            device->post_commit_str,
+            "\tNote: In order to be able to use this PCIEcan device either restart the PC or manually remove the device and rescan the PCI bus:\n"
+            "\t      echo 1 > /sys/bus/pci/devices/<PCI device BDF>/remove\n"
+            "\t      echo 1 > /sys/bus/pci/rescan",
+            sizeof(device->post_commit_str));
+        break;
+    default:
+        strncpy(
+            device->post_commit_str,
+            "\tNote: In order to complete the firmware upgrade of the PCIEcan device, a complete shutdown is required",
+            sizeof(device->post_commit_str));
+        break;
+    }
 }
 
 static canStatus canlibFlashFindDevices(struct kvaser_devices *devices)
 {
-  canStatus stat;
-  int chanCount = 0;
-  int i;
+    canStatus stat;
+    int chanCount = 0;
+    int i;
 
-  assert(devices);
-  stat = canGetNumberOfChannels(&chanCount);
-  if (stat != canOK) {
-    checkCanStatus("canGetNumberOfChannels", stat);
-    return 1;
-  }
-
-  for (i = 0; i < chanCount; i++) {
-    uint32_t noOnCard = -1;
-    char driverName[64] = {0};
-    char deviceName[64] = {0};
-    uint32_t ean[2] = {0};
-    uint32_t fw[2] = {0};
-    uint32_t serial[2] = {0};
-    struct canlib_device *canlib_dev;
-    struct kvaser_device *device;
-
-    stat = canGetChannelData(i, canCHANNELDATA_DRIVER_NAME, &driverName,
-                             sizeof(driverName));
+    assert(devices);
+    stat = canGetNumberOfChannels(&chanCount);
     if (stat != canOK) {
-      checkCanStatus("canGetChannelData: DRIVER_NAME", stat);
-      return 1;
+        checkCanStatus("canGetNumberOfChannels", stat);
+        return 1;
     }
 
-    if (!isDriverSupported(driverName)) {
-      continue;
+    for (i = 0; i < chanCount; i++) {
+        uint32_t noOnCard = -1;
+        char driverName[64] = { 0 };
+        char deviceName[64] = { 0 };
+        uint32_t ean[2] = { 0 };
+        uint32_t fw[2] = { 0 };
+        uint32_t serial[2] = { 0 };
+        struct canlib_device *canlib_dev;
+        struct kvaser_device *device;
+
+        stat = canGetChannelData(i, canCHANNELDATA_DRIVER_NAME, &driverName, sizeof(driverName));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: DRIVER_NAME", stat);
+            return 1;
+        }
+
+        if (!isDriverSupported(driverName)) {
+            continue;
+        }
+
+        /* We are only looking for first channel on card */
+        stat = canGetChannelData(i, canCHANNELDATA_CHAN_NO_ON_CARD, &noOnCard, sizeof(noOnCard));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: CHAN_NO_ON_CARD", stat);
+            return 1;
+        }
+        if (noOnCard != 0) {
+            continue;
+        }
+
+        stat = canGetChannelData(i, canCHANNELDATA_CARD_UPC_NO, &ean, sizeof(ean));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: CARD_UPC_NO", stat);
+            return 1;
+        }
+
+        stat = canGetChannelData(i, canCHANNELDATA_CARD_SERIAL_NO, &serial, sizeof(serial));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: CARD_SERIAL_NO", stat);
+            return 1;
+        }
+
+        stat = canGetChannelData(i, canCHANNELDATA_DEVDESCR_ASCII, &deviceName, sizeof(deviceName));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: DEVDESCR_ASCII", stat);
+            return 1;
+        }
+        stat = canGetChannelData(i, canCHANNELDATA_CARD_FIRMWARE_REV, &fw, sizeof(fw));
+        if (stat != canOK) {
+            checkCanStatus("canGetChannelData: CARD_FIRMWARE_REV", stat);
+            return 1;
+        }
+
+        device = &devices->devices[devices->count++];
+        canlib_dev = calloc(sizeof(struct canlib_device), 1);
+        if (canlib_dev == NULL) {
+            printf("Error: calloc canlib_dev failed\n");
+            return -ENOMEM;
+        }
+        device->index = devices->count - 1;
+
+        device->ean[0] = ean[0];
+        device->ean[1] = ean[1];
+        device->fw[0] = fw[0];
+        device->fw[1] = fw[1];
+        device->serial = serial[0];
+        strncpy(device->driver_name, driverName, sizeof(device->driver_name));
+        strncpy(device->device_name, deviceName, sizeof(device->device_name));
+        snprintf(device->info_str, sizeof(device->info_str), "\tChannel %d\n", i);
+        setPostCommitStr(device);
+        canlib_dev->channel = i;
+        canlib_dev->hnd = -1;
+        device->lib_data = canlib_dev;
     }
 
-    /* We are only looking for first channel on card */
-    stat = canGetChannelData(i, canCHANNELDATA_CHAN_NO_ON_CARD, &noOnCard,
-                             sizeof(noOnCard));
-    if (stat != canOK) {
-      checkCanStatus("canGetChannelData: CHAN_NO_ON_CARD", stat);
-      return 1;
-    }
-    if (noOnCard != 0) {
-      continue;
-    }
-
-    stat = canGetChannelData(i, canCHANNELDATA_CARD_UPC_NO, &ean, sizeof(ean));
-    if (stat != canOK) {
-      checkCanStatus("canGetChannelData: CARD_UPC_NO", stat);
-      return 1;
-    }
-
-    stat = canGetChannelData(i, canCHANNELDATA_CARD_SERIAL_NO, &serial,
-                             sizeof(serial));
-    if (stat != canOK) {
-      checkCanStatus("canGetChannelData: CARD_SERIAL_NO", stat);
-      return 1;
-    }
-
-    stat = canGetChannelData(i, canCHANNELDATA_DEVDESCR_ASCII, &deviceName,
-                             sizeof(deviceName));
-    if (stat != canOK) {
-      checkCanStatus("canGetChannelData: DEVDESCR_ASCII", stat);
-      return 1;
-    }
-    stat = canGetChannelData(i, canCHANNELDATA_CARD_FIRMWARE_REV, &fw,
-                             sizeof(fw));
-    if (stat != canOK) {
-      checkCanStatus("canGetChannelData: CARD_FIRMWARE_REV", stat);
-      return 1;
-    }
-
-    device = &devices->devices[devices->count++];
-    canlib_dev = malloc(sizeof(struct canlib_device));
-    if (canlib_dev == NULL) {
-      printf("Error: malloc canlib_dev failed\n");
-      return -ENOMEM;
-    }
-    device->index = devices->count - 1;
-
-    device->ean[0] = ean[0];
-    device->ean[1] = ean[1];
-    device->fw[0] = fw[0];
-    device->fw[1] = fw[1];
-    device->serial = serial[0];
-    strncpy(device->driver_name, driverName, sizeof(device->driver_name));
-    strncpy(device->device_name, deviceName, sizeof(device->device_name));
-    snprintf(device->info_str, sizeof(device->info_str), "\tChannel %d\n", i);
-    canlib_dev->channel = i;
-    canlib_dev->hnd = -1;
-    device->lib_data = canlib_dev;
-  }
-
-  return 0;
+    return 0;
 }
 
 /*  kv_flash.h API
@@ -205,104 +227,104 @@ static canStatus canlibFlashFindDevices(struct kvaser_devices *devices)
  */
 int kvaser_fwu_flash_prog(struct kvaser_device *device, KCAN_FLASH_PROG *fp)
 {
-  struct canlib_device *dev;
-  int fd = -1;
-  canHandle hnd;
+    struct canlib_device *dev;
+    int fd = -1;
+    canHandle hnd;
 
-  assert(device);
-  assert(fp);
-  dev = device->lib_data;
-  assert(dev);
-  hnd = dev->hnd;
+    assert(device);
+    assert(fp);
+    dev = device->lib_data;
+    assert(dev);
+    hnd = dev->hnd;
 
-  if (canGetRawHandle(hnd, &fd) != canOK) {
-    printf("Error: canGetRawHandle failed: %m\n");
-    return -1;
-  }
+    if (canGetRawHandle(hnd, &fd) != canOK) {
+        printf("Error: canGetRawHandle failed: %m\n");
+        return -1;
+    }
 
-  return ioctl(fd, KCAN_IOCTL_FLASH_PROG, fp);
+    return ioctl(fd, KCAN_IOCTL_FLASH_PROG, fp);
 }
 
 int kvaser_fwu_deinit_lib(struct kvaser_devices *devices)
 {
-  canStatus stat;
+    canStatus stat;
 
-  if (devices) {
-    int i;
+    if (devices) {
+        int i;
 
-    for (i = 0; i < devices->count; i++) {
-      struct kvaser_device *device = &devices->devices[i];
+        for (i = 0; i < devices->count; i++) {
+            struct kvaser_device *device = &devices->devices[i];
 
-      if (device->lib_data) {
-        free(device->lib_data);
-        device->lib_data = NULL;
-      }
+            if (device->lib_data) {
+                free(device->lib_data);
+                device->lib_data = NULL;
+            }
+        }
+        devices->count = 0;
     }
-    devices->count = 0;
-  }
-  stat = canUnloadLibrary();
-  checkCanStatus("canUnloadLibrary", stat);
+    stat = canUnloadLibrary();
+    checkCanStatus("canUnloadLibrary", stat);
 
-  return stat;
+    return stat;
 }
 
 int kvaser_fwu_init_lib(struct kvaser_devices *devices)
 {
-  int ret;
+    int ret;
 
-  if (devices == NULL) {
-    printf("kvaser_fwu_init_lib(): devices is NULL\n");
-    return 1;
-  }
-  canInitializeLibrary();
+    if (devices == NULL) {
+        printf("kvaser_fwu_init_lib(): devices is NULL\n");
+        return 1;
+    }
+    canInitializeLibrary();
 
-  ret = canlibFlashFindDevices(devices);
-  if (ret) {
-    kvaser_fwu_deinit_lib(devices);
-    printf("canlibFlashFindDevices() failed: %d\n", ret);
+    ret = canlibFlashFindDevices(devices);
+    if (ret) {
+        kvaser_fwu_deinit_lib(devices);
+        printf("canlibFlashFindDevices() failed: %d\n", ret);
+        return ret;
+    }
+
     return ret;
-  }
-
-  return ret;
 }
 
 int kvaser_fwu_open(struct kvaser_device *device)
 {
-  int ret = -1;
+    int ret = -1;
 
-  if (device) {
-    struct canlib_device *dev;
-    int channel;
-    canHandle hnd;
+    if (device) {
+        struct canlib_device *dev;
+        int channel;
+        canHandle hnd;
 
-    dev = device->lib_data;
-    assert(dev);
-    channel = dev->channel;
-    hnd = canOpenChannel(channel, canOPEN_EXCLUSIVE);
+        dev = device->lib_data;
+        assert(dev);
+        channel = dev->channel;
+        hnd = canOpenChannel(channel, canOPEN_EXCLUSIVE);
 
-    if (hnd >= 0) {
-      dev->hnd = hnd;
-    } else {
-      ret = hnd;
+        if (hnd >= 0) {
+            dev->hnd = hnd;
+        } else {
+            ret = hnd;
+        }
     }
-  }
 
-  return ret;
+    return ret;
 }
 
 int kvaser_fwu_close(struct kvaser_device *device)
 {
-  int ret = -1;
+    int ret = -1;
 
-  if (device) {
-    struct canlib_device *dev;
-    canHandle hnd;
+    if (device) {
+        struct canlib_device *dev;
+        canHandle hnd;
 
-    dev = device->lib_data;
-    assert(dev);
-    hnd = dev->hnd;
-    ret = canClose(hnd);
-  }
+        dev = device->lib_data;
+        assert(dev);
+        hnd = dev->hnd;
+        ret = canClose(hnd);
+    }
 
-  return ret;
+    return ret;
 }
