@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -65,9 +65,10 @@
 
 MODNAME=leaf
 DEPMOD=`which depmod`
-UDEVCTRL=`which udevcontrol 2>/dev/null`
-UDEVADM=`which udevadm`
-UDEVD=`which udevd`
+SOCKETCAN_DRIVER=kvaser_usb
+MODPROBE_DIR=/etc/modprobe.d
+BLACKLIST_FILE=$MODPROBE_DIR/blacklist-$SOCKETCAN_DRIVER.conf
+DIR="${0%/*}"
 DEVEL=
 PURGE=
 
@@ -88,8 +89,7 @@ while getopts 'dph' flag ; do
   esac
 done
 
-/usr/sbin/$MODNAME.sh stop 2>/dev/null
-rmmod $MODNAME 2>/dev/null
+modprobe -r $MODNAME 2>/dev/null
 
 # Check if module is still loaded
 MODLOADED=$(lsmod | grep $MODNAME)
@@ -114,38 +114,11 @@ else
   rm -f /lib/modules/`uname -r`/kernel/drivers/usb/misc/$MODNAME.ko
 fi
 
-rm -f /usr/sbin/$MODNAME.sh
 
-if [ -z $UDEVD ] ; then
-  $UDEVADM control --reload-rules ;
-else
-  if [ `udevd --version` -lt 128 ] ; then
-    $UDEVCTRL reload_rules ;
-  else
-    $UDEVADM control --reload-rules ;
-  fi
+if [ -f $BLACKLIST_FILE ] ; then
+  echo "Remove blacklisting of SocketCAN driver $SOCKETCAN_DRIVER"
+  rm -f $BLACKLIST_FILE
 fi
-
-
-echo Remove SocketCAN Kvaser USB driver from blacklist.
-
-if [ -f /etc/modprobe.conf ] ; then
-  # CentOS/Redhat/RHEL/Fedora Linux...
-  CONF=/etc/modprobe.conf
-  BLACKLIST="alias     kvaser_usb   /dev/null"
-else
-  # Debian/Ubuntu Linux
-  CONF=/etc/modprobe.d/kvaser.conf
-  BLACKLIST="blacklist kvaser_usb"
-  if [ ! -f $CONF ] ; then
-    touch $CONF
-  fi
-fi
-
-grep -v "^${BLACKLIST}" < $CONF                          > newconf
-
-cat newconf > $CONF
-rm newconf
 
 if [ "$DEVEL" = true ] ; then
   echo "Ignoring $DEPMOD -a for now.."
