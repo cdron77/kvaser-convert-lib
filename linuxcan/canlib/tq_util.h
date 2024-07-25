@@ -1,5 +1,5 @@
 /*
-**             Copyright 2018 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -71,22 +71,24 @@
 #include "canlib.h"
 
 /*returns -1 if bad arb-parameters, otherwize 0*/
-int tqu_check_nominal (const kvBusParamsTq self);
+int tqu_check_nominal(const kvBusParamsTq self);
 
 /*returns -1 if bad brs-parameters, otherwize 0*/
-int tqu_check_data  (const kvBusParamsTq self);
+int tqu_check_data(const kvBusParamsTq self);
 
 /* translates bitrate constants to busparameters valid for a device with an 80 MHz oscillator*/
-canStatus tqu_translate_bitrate_constant (int freq, kvBusParamsTq *nominal);
-canStatus tqu_translate_bitrate_constant_fd (int freqA, int freqD, kvBusParamsTq *arbitration, kvBusParamsTq *data);
+canStatus tqu_translate_bitrate_constant(int freq, kvBusParamsTq *nominal);
+canStatus tqu_translate_bitrate_constant_fd(int freqA, int freqD, kvBusParamsTq *arbitration,
+                                            kvBusParamsTq *data);
 
 /*returns 0 if successful*/
-int tqu_set_busparam_values (kvBusParamsTq *busparam, int tq, int phase1, int phase2, int sjw, int prop, int prescaler);
+int tqu_set_busparam_values(kvBusParamsTq *busparam, int tq, int phase1, int phase2, int sjw,
+                            int prop, int prescaler);
 
 /* Validate and rescale busparameters to the frequency of the device clock*/
-canStatus tqu_validate_busparameters (const CanHandle hnd, kvBusParamsTq *busparam);
-canStatus tqu_validate_busparameters_fd (const CanHandle hnd);
+canStatus tqu_validate_busparameters(const CanHandle hnd, kvBusParamsTq *busparam);
+canStatus tqu_validate_busparameters_fd(const CanHandle hnd);
 
 /* Temporary function with hardcoded limits for devices with support for the tq API*/
-canStatus get_tq_limits (int hw_type, kvBusParamLimits *bus_param_limits, int has_FD);
+canStatus get_tq_limits(int hw_type, kvBusParamLimits *bus_param_limits, int has_FD);
 #endif

@@ -69,18 +69,18 @@ typedef uint32_t md5_word_t; /* 32-bit word */
 
 /* Define the state of the MD5 Algorithm. */
 typedef struct md5_state_s {
-    md5_word_t count[2];	/* message length in bits, lsw first */
-    md5_word_t abcd[4];		/* digest buffer */
-    md5_byte_t buf[64];		/* accumulate block */
+    md5_word_t count[2]; /* message length in bits, lsw first */
+    md5_word_t abcd[4]; /* digest buffer */
+    md5_byte_t buf[64]; /* accumulate block */
 } md5_state_t;
 
-typedef md5_state_t MD5_CTX; 
+typedef md5_state_t MD5_CTX;
 
 void md5(const uint8_t *data, int32_t dataLen, uint8_t *digest);
-void md5DualInput(const uint8_t *data1, int32_t data1Len,
-                  const uint8_t *data2, int32_t data2Len, uint8_t *digest);
-void md5Vector(const uint8_t *dataInput[], const int32_t *dataLength,
-               int32_t numberOfElements, uint8_t *digest);
+void md5DualInput(const uint8_t *data1, int32_t data1Len, const uint8_t *data2, int32_t data2Len,
+                  uint8_t *digest);
+void md5Vector(const uint8_t *dataInput[], const int32_t *dataLength, int32_t numberOfElements,
+               uint8_t *digest);
 
 /* Initialize the algorithm. */
 void md5_init(md5_state_t *pms);
@@ -88,7 +88,7 @@ void md5_init(md5_state_t *pms);
 /* Append a string to the message. */
 void md5_append(md5_state_t *pms, const md5_byte_t *data, uint32_t nbytes);
 
-  /* Finish the message and return the digest. */
+/* Finish the message and return the digest. */
 void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
 
 #endif /* CB_MD5_H */

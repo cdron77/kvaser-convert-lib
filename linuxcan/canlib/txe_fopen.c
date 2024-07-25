@@ -1,6 +1,6 @@
 /*
-**               Copyright 2018 by Kvaser AB, Molndal, Sweden
-**                         http://www.kvaser.com
+**               Copyright 2023 by Kvaser AB, Molndal, Sweden
+**                           http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
 ** BSD-new and GPLv2. You may use either one. See the included
@@ -63,12 +63,11 @@
 
 #include <stdio.h>
 
-
-FILE* txe_fopen(const char* path)
+FILE *txe_fopen(const char *path)
 {
-  FILE* file = NULL;
+    FILE *file = NULL;
 
-  file = fopen(path, "rb");
+    file = fopen(path, "rb");
 
-  return file;
+    return file;
 }

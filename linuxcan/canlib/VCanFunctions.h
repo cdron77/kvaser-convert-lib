@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -67,7 +67,7 @@
 
 extern CANOps vCanOps;
 
-HandleData * findHandle (CanHandle hnd);
-HandleData * removeHandle (CanHandle hnd);
-CanHandle insertHandle (HandleData *hData);
-void foreachHandle (int (*func)(const CanHandle));
+HandleData *findHandle(CanHandle hnd);
+HandleData *removeHandle(CanHandle hnd);
+CanHandle insertHandle(HandleData *hData);
+void foreachHandle(int (*func)(const CanHandle));

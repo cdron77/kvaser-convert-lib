@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -68,6 +68,6 @@
 
 #include "canstat.h"
 
-canStatus errnoToCanStatus (int error);
+canStatus errnoToCanStatus(int error);
 
-#endif  /* VCANFUNCUTIL_H */
+#endif /* VCANFUNCUTIL_H */

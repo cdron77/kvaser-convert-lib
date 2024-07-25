@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -69,15 +69,13 @@
 #define _LINKEDLIST_H_
 
 typedef struct ListNode {
-  void *elem;
-  struct ListNode *next;
+    void *elem;
+    struct ListNode *next;
 } LinkedList;
 
 int listInsertFirst(LinkedList **listPtrPtr, void *elem);
-void *listRemove(LinkedList **listPtrPtr, void *elem,
-                 int (*compare)(const void *, const void *));
+void *listRemove(LinkedList **listPtrPtr, void *elem, int (*compare)(const void *, const void *));
 int listSize(LinkedList **listPtrPtr);
-void *listFind(LinkedList **listPtrPtr, void *elem,
-               int (*compare)(const void *, const void *));
+void *listFind(LinkedList **listPtrPtr, void *elem, int (*compare)(const void *, const void *));
 
 #endif /*_LINKEDLIST_H_ */

@@ -1,6 +1,6 @@
 /*
-**            Copyright 2017-2018 by Kvaser AB, Molndal, Sweden
-**                         http://www.kvaser.com
+**            Copyright 2023 by Kvaser AB, Molndal, Sweden
+**                        http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
 ** BSD-new and GPLv2. You may use either one. See the included
@@ -61,7 +61,6 @@
 ** -----------------------------------------------------------------------------
 */
 
-
 #ifndef __CANLIB_CHANNEL_LIST_H
 #define __CANLIB_CHANNEL_LIST_H
 
@@ -71,19 +70,19 @@ virtual channels are always last.
 */
 
 typedef struct {
-  char     mknod_name[32];       //i.e /dev/mhydra0
-  char     official_name[32];
-  uint64_t snr;
-  uint64_t ean;
-  uint32_t number_on_card;
-  uint32_t number_on_driver;
+    char mknod_name[32]; //i.e /dev/mhydra0
+    char official_name[32];
+    uint64_t snr;
+    uint64_t ean;
+    uint32_t number_on_card;
+    uint32_t number_on_driver;
 } ccl_channel;
 
 typedef struct {
-  uint32_t    n_channel;
-  ccl_channel channel[128];
+    uint32_t n_channel;
+    ccl_channel channel[128];
 } ccl_class;
 
-canStatus ccl_get_channel_list (ccl_class *self);
+canStatus ccl_get_channel_list(ccl_class *self);
 
 #endif

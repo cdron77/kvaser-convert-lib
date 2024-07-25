@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -66,17 +66,12 @@
 
 /*  Kvaser Linux Canlib VCan layer functions used in Memorators */
 
-
 #include "canstat.h"
 #include "canlib_data.h"
 
-canStatus vCanMemo_file_copy_to_device(HandleData *hData,
-                                       char *hostFileName,
-                                       char *deviceFileName);
-canStatus vCanMemo_file_copy_from_device(HandleData *hData,
-                                         char *deviceFileName,
+canStatus vCanMemo_file_copy_to_device(HandleData *hData, char *hostFileName, char *deviceFileName);
+canStatus vCanMemo_file_copy_from_device(HandleData *hData, char *deviceFileName,
                                          char *hostFileName);
 canStatus vCanMemo_file_delete(HandleData *hData, char *deviceFileName);
 
-
-#endif  /* VCANMEMOFUNCTIONS_H */
+#endif /* VCANMEMOFUNCTIONS_H */

@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -71,74 +71,68 @@
 //======================================================================
 // listInsertFirst
 //======================================================================
-int listInsertFirst (LinkedList **listPtrPtr, void *elem)
+int listInsertFirst(LinkedList **listPtrPtr, void *elem)
 {
-  LinkedList *newNode;
+    LinkedList *newNode;
 
-  newNode = malloc(sizeof(LinkedList));
-  if (newNode == NULL) {
-    return -1;
-  }
-  newNode->elem = elem;
-  newNode->elem = elem;
-  newNode->next = *listPtrPtr;
-  *listPtrPtr = newNode;
+    newNode = malloc(sizeof(LinkedList));
+    if (newNode == NULL) {
+        return -1;
+    }
+    newNode->elem = elem;
+    newNode->elem = elem;
+    newNode->next = *listPtrPtr;
+    *listPtrPtr = newNode;
 
-  return 0;
+    return 0;
 }
-
 
 //======================================================================
 // listRemove
 //======================================================================
-void *listRemove (LinkedList **listPtrPtr, void *elem,
-                  int (*compare)(const void *, const void *))
+void *listRemove(LinkedList **listPtrPtr, void *elem, int (*compare)(const void *, const void *))
 {
-  void *removedNode;
-  void *removedElem;
+    void *removedNode;
+    void *removedElem;
 
-  while (*listPtrPtr != NULL) {
-    if (compare((*listPtrPtr)->elem, elem)) {
-      removedNode = *listPtrPtr;
-      removedElem = (*listPtrPtr)->elem;
-      *listPtrPtr = (*listPtrPtr)->next;
-      free(removedNode);
-      return removedElem;
+    while (*listPtrPtr != NULL) {
+        if (compare((*listPtrPtr)->elem, elem)) {
+            removedNode = *listPtrPtr;
+            removedElem = (*listPtrPtr)->elem;
+            *listPtrPtr = (*listPtrPtr)->next;
+            free(removedNode);
+            return removedElem;
+        }
+        listPtrPtr = &((*listPtrPtr)->next);
     }
-    listPtrPtr = &((*listPtrPtr)->next);
-  }
 
-  return NULL;
+    return NULL;
 }
-
-
 
 //======================================================================
 // listFind
 //======================================================================
-void *listFind (LinkedList **listPtrPtr, void *elem,
-                int (*compare)(const void *, const void *))
+void *listFind(LinkedList **listPtrPtr, void *elem, int (*compare)(const void *, const void *))
 {
-  while (*listPtrPtr != NULL){
-    if (compare((*listPtrPtr)->elem, elem)) {
-      return (*listPtrPtr)->elem;
+    while (*listPtrPtr != NULL) {
+        if (compare((*listPtrPtr)->elem, elem)) {
+            return (*listPtrPtr)->elem;
+        }
+        listPtrPtr = &((*listPtrPtr)->next);
     }
-    listPtrPtr = &((*listPtrPtr)->next);
-  }
 
-  return NULL;
+    return NULL;
 }
-
 
 //======================================================================
 // listSize
 //======================================================================
-inline int listSize (LinkedList **listPtrPtr)
+inline int listSize(LinkedList **listPtrPtr)
 {
-  int n;
-  for (n = 0; *listPtrPtr != NULL; listPtrPtr = &((*listPtrPtr)->next)) {
-    n++;
-  }
+    int n;
+    for (n = 0; *listPtrPtr != NULL; listPtrPtr = &((*listPtrPtr)->next)) {
+        n++;
+    }
 
-  return n;
+    return n;
 }

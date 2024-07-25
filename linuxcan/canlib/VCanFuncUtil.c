@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -67,34 +67,34 @@
 
 #include "VCanFuncUtil.h"
 
-canStatus errnoToCanStatus (int error)
+canStatus errnoToCanStatus(int error)
 {
-  switch (error) {
-  case 0:
-    return canOK;
-  case EINVAL:
-    return canERR_PARAM;
-  case ENOMEM:
-    return canERR_NOMEM;
-  case EAGAIN:
-    return canERR_NOMSG;      // Sometimes overridden
-  case EIO:
-    return canERR_NOTFOUND;   // Not so good
-  case ENODEV:
-    return canERR_NOTFOUND;
-  case EINTR:
-    return canERR_INTERRUPTED;
-  case EBADMSG:
-    return canERR_PARAM;      // Used?
-  case EACCES:
-    return canERR_NO_ACCESS;
-  case ETIMEDOUT:
-    return canERR_TIMEOUT;
-  case ENOSYS:                // Function not implemented
-    return canERR_NOT_IMPLEMENTED;
-  case ESHUTDOWN:
-    return canERR_HARDWARE;
-  default:
-    return canERR_INTERNAL;   // Not so good
-  }
+    switch (error) {
+    case 0:
+        return canOK;
+    case EINVAL:
+        return canERR_PARAM;
+    case ENOMEM:
+        return canERR_NOMEM;
+    case EAGAIN:
+        return canERR_NOMSG; // Sometimes overridden
+    case EIO:
+        return canERR_NOTFOUND; // Not so good
+    case ENODEV:
+        return canERR_NOTFOUND;
+    case EINTR:
+        return canERR_INTERRUPTED;
+    case EBADMSG:
+        return canERR_PARAM; // Used?
+    case EACCES:
+        return canERR_NO_ACCESS;
+    case ETIMEDOUT:
+        return canERR_TIMEOUT;
+    case ENOSYS: // Function not implemented
+        return canERR_NOT_IMPLEMENTED;
+    case ESHUTDOWN:
+        return canERR_HARDWARE;
+    default:
+        return canERR_INTERNAL; // Not so good
+    }
 }
