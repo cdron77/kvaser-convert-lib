@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -86,8 +86,7 @@ while getopts 'dph' flag ; do
   esac
 done
 
-/sbin/rmmod $MODNAME 2>/dev/null
-rmmod $MODNAME 2>/dev/null
+modprobe -r $MODNAME 2>/dev/null
 
 # Check if module is still loaded
 MODLOADED=$(lsmod | grep $MODNAME)

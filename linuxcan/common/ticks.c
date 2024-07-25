@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -61,10 +61,7 @@
 ** -----------------------------------------------------------------------------
 */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wtype-limits"
 #include <linux/bitops.h>
-#pragma GCC diagnostic pop
 #include <linux/seq_file.h>
 #include <linux/math64.h>
 #include <linux/version.h>
@@ -75,65 +72,67 @@
 #endif /* LINUX_VERSION_CODE */
 #include "ticks.h"
 
-#define TIMESTAMP_WRAP_STATE_LO       0
-#define TIMESTAMP_WRAP_STATE_NORMAL   1
-#define TIMESTAMP_WRAP_STATE_HIGH     2
+#define TIMESTAMP_WRAP_STATE_LO     0
+#define TIMESTAMP_WRAP_STATE_NORMAL 1
+#define TIMESTAMP_WRAP_STATE_HIGH   2
 
-#define WRAP_BIT              (uint64_t)0x0001000000000000ULL
-#define WRAP_MAX              (uint64_t)0x0000ffffffffffffULL
-#define WRAP_LO_LIMIT         (uint64_t)0x0000400000000000ULL
-#define WRAP_HIGH_LIMIT       (uint64_t)0x0000800000000000ULL
+#define WRAP_BIT        (uint64_t)0x0001000000000000ULL
+#define WRAP_MAX        (uint64_t)0x0000ffffffffffffULL
+#define WRAP_LO_LIMIT   (uint64_t)0x0000400000000000ULL
+#define WRAP_HIGH_LIMIT (uint64_t)0x0000800000000000ULL
 
-void ticks_init  (ticks_class* self)
+void ticks_init(ticks_class *self)
 {
-  self->high16 = 0;
-  self->state  = TIMESTAMP_WRAP_STATE_NORMAL;
+    self->high16 = 0;
+    self->state = TIMESTAMP_WRAP_STATE_NORMAL;
 }
 EXPORT_SYMBOL(ticks_init);
 
-uint64_t ticks_to_64bit_ns (ticks_class* self, uint64_t n_ticks, uint32_t freq_mhz)
+uint64_t ticks_to_64bit_ns(ticks_class *self, uint64_t n_ticks, uint32_t freq_mhz)
 {
-  uint64_t retval;
+    uint64_t retval;
 
-  n_ticks &= (WRAP_MAX);
+    n_ticks &= (WRAP_MAX);
 
-  switch (self->state)
-  {
+    switch (self->state) {
     case TIMESTAMP_WRAP_STATE_LO:
-      if (n_ticks > WRAP_HIGH_LIMIT) {
-        retval = (self->high16-WRAP_BIT) + n_ticks;
-      } else {
-        if(n_ticks > WRAP_LO_LIMIT) {
-          self->state = TIMESTAMP_WRAP_STATE_NORMAL;
-          printk (KERN_INFO "ticks_to_64bit_ns N n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks, self->high16 + n_ticks);
+        if (n_ticks > WRAP_HIGH_LIMIT) {
+            retval = (self->high16 - WRAP_BIT) + n_ticks;
+        } else {
+            if (n_ticks > WRAP_LO_LIMIT) {
+                self->state = TIMESTAMP_WRAP_STATE_NORMAL;
+                printk(KERN_INFO "ticks_to_64bit_ns N n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks,
+                       self->high16 + n_ticks);
+            }
+            retval = self->high16 + n_ticks;
         }
-        retval = self->high16 + n_ticks;
-      }
-      break;
+        break;
 
     case TIMESTAMP_WRAP_STATE_NORMAL:
-      if (n_ticks > WRAP_HIGH_LIMIT) {
-        self->state = TIMESTAMP_WRAP_STATE_HIGH;
-        printk (KERN_INFO "ticks_to_64bit_ns H n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks, self->high16 + n_ticks);
-      }
-      retval = self->high16 + n_ticks;
-      break;
+        if (n_ticks > WRAP_HIGH_LIMIT) {
+            self->state = TIMESTAMP_WRAP_STATE_HIGH;
+            printk(KERN_INFO "ticks_to_64bit_ns H n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks,
+                   self->high16 + n_ticks);
+        }
+        retval = self->high16 + n_ticks;
+        break;
 
     case TIMESTAMP_WRAP_STATE_HIGH:
-      if (n_ticks < WRAP_LO_LIMIT) {
-        self->state = TIMESTAMP_WRAP_STATE_LO;
-        self->high16 += WRAP_BIT;
-        printk (KERN_INFO "ticks_to_64bit_ns L n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks, self->high16 + n_ticks);
-      }
-      retval = self->high16 + n_ticks;
-      break;
+        if (n_ticks < WRAP_LO_LIMIT) {
+            self->state = TIMESTAMP_WRAP_STATE_LO;
+            self->high16 += WRAP_BIT;
+            printk(KERN_INFO "ticks_to_64bit_ns L n_ticks=%16llx, w_n_ticks=%16llx\n", n_ticks,
+                   self->high16 + n_ticks);
+        }
+        retval = self->high16 + n_ticks;
+        break;
 
     default:
-      printk (KERN_INFO "Error: ticks_to_64bit_ns Unknown state %d\n", self->state);
-      retval = 0;
-      break;
-  }
+        printk(KERN_INFO "Error: ticks_to_64bit_ns Unknown state %d\n", self->state);
+        retval = 0;
+        break;
+    }
 
-  return div_u64 (retval * 1000, freq_mhz); //convert to nano seconds
+    return div_u64(retval * 1000, freq_mhz); //convert to nano seconds
 }
 EXPORT_SYMBOL(ticks_to_64bit_ns);

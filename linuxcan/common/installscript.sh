@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -65,19 +65,19 @@
 
 MODNAME=kvcommon
 DEPMOD=`which depmod`
-UDEVCTRL=`which udevcontrol`
-UDEVADM=`which udevadm`
 DIR="${0%/*}"
 KERNEL_VER=`uname -r` # Kernel version at install time
 
 # append to file in case installer is run several times on different kernels
 echo $KERNEL_VER >> $DIR/kernel_ver
 
-# Determine wether or not this is called by DKMS
+# Determine whether or not this is called by DKMS
 DKMS_HOOK=0
 if [ "$1" = "dkms-install" -o "$1" = "dkms-load" ]; then
   DKMS_HOOK=1
 fi
+
+modprobe -r $MODNAME 2> /dev/null
 
 if [ $DKMS_HOOK -eq 0 ]; then
   # Check if module is loaded
@@ -91,7 +91,7 @@ if [ $DKMS_HOOK -eq 0 ]; then
   fi
 
   install -d -m 755 /lib/modules/$KERNEL_VER/kernel/drivers/usb/misc
-  install -D -m 644 $MODNAME.ko /lib/modules/$KERNEL_VER/kernel/drivers/usb/misc
+  install -m 644 $MODNAME.ko /lib/modules/$KERNEL_VER/kernel/drivers/usb/misc
   if [ "$?" -ne 0 ] ; then
     exit 1
   fi

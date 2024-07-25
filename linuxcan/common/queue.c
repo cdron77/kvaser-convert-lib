@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -83,329 +83,304 @@
 #include "VCanOsIf.h"
 #include "queue.h"
 
-
 // Without this defined, all length queries will use locking
 #define ATOMIC_LENGTH
 
 // Lock type to use for queue
 #define LOCK_TYPE Softirq_lock
 
-
 // Some lock debug macros
 
 #define PRINT(t)
 //#define PRINT(t) DEBUGOUT(1,t)
 //#define PRINTX(t)
-#define PRINTX(t) DEBUGOUT(1,t)
+#define PRINTX(t) DEBUGOUT(1, t)
 
 #ifdef QUEUE_DEBUG
- #include "debug.h"
- #define QUEUE_DEBUG_RET(ret)                          \
-   if (!queue->size) {                                 \
-     PRINT((TXT("Using unitialized queue\n")));        \
-     return ret;                                       \
-   }
+#include "debug.h"
+#define QUEUE_DEBUG_RET(ret)                       \
+    if (!queue->size) {                            \
+        PRINT((TXT("Using unitialized queue\n"))); \
+        return ret;                                \
+    }
 
- #define QUEUE_DEBUG_LOCK                              \
-   if (queue->locked) {                                \
-     PRINTX((TXT("Queue already locked (%d/%d)\n"),    \
-             __LINE__, queue->line));                  \
-     return;                                           \
-   } else {                                            \
-     queue->line = __LINE__;                           \
-   }
- #define QUEUE_DEBUG_LOCK_RET(ret)                     \
-   if (queue->locked) {                                \
-     PRINTX((TXT("Queue already locked (%d/%d)\n"),    \
-             __LINE__, queue->line));                  \
-     return ret;                                       \
-   } else {                                            \
-     queue->line = __LINE__;                           \
-   }
+#define QUEUE_DEBUG_LOCK                                                        \
+    if (queue->locked) {                                                        \
+        PRINTX((TXT("Queue already locked (%d/%d)\n"), __LINE__, queue->line)); \
+        return;                                                                 \
+    } else {                                                                    \
+        queue->line = __LINE__;                                                 \
+    }
+#define QUEUE_DEBUG_LOCK_RET(ret)                                               \
+    if (queue->locked) {                                                        \
+        PRINTX((TXT("Queue already locked (%d/%d)\n"), __LINE__, queue->line)); \
+        return ret;                                                             \
+    } else {                                                                    \
+        queue->line = __LINE__;                                                 \
+    }
 
- #define QUEUE_DEBUG_UNLOCK                            \
-   if (!queue->locked) {                               \
-     PRINTX((TXT("Queue already unlocked (%d)\n"),     \
-             __LINE__));                               \
-     return;                                           \
-   }
- #define QUEUE_DEBUG_UNLOCK_RET(ret)                   \
-   if (!queue->locked) {                               \
-     PRINTX((TXT("Queue already unlocked (%d)\n"),     \
-             __LINE__));                               \
-     return ret;                                       \
-   }
+#define QUEUE_DEBUG_UNLOCK                                        \
+    if (!queue->locked) {                                         \
+        PRINTX((TXT("Queue already unlocked (%d)\n"), __LINE__)); \
+        return;                                                   \
+    }
+#define QUEUE_DEBUG_UNLOCK_RET(ret)                               \
+    if (!queue->locked) {                                         \
+        PRINTX((TXT("Queue already unlocked (%d)\n"), __LINE__)); \
+        return ret;                                               \
+    }
 #else
- #define QUEUE_DEBUG
- #define QUEUE_DEBUG_RET(ret)
- #define QUEUE_DEBUG_LOCK
- #define QUEUE_DEBUG_LOCK_RET(ret)
- #define QUEUE_DEBUG_UNLOCK
- #define QUEUE_DEBUG_UNLOCK_RET(ret)
+#define QUEUE_DEBUG
+#define QUEUE_DEBUG_RET(ret)
+#define QUEUE_DEBUG_LOCK
+#define QUEUE_DEBUG_LOCK_RET(ret)
+#define QUEUE_DEBUG_UNLOCK
+#define QUEUE_DEBUG_UNLOCK_RET(ret)
 #endif
 
+#define LOCKQ(queue, flags_ptr)                                       \
+    PRINT((TXT("Locking (%d) at %d\n"), queue->lock_type, __LINE__)); \
+    switch (queue->lock_type) {                                       \
+    case Irq_lock:                                                    \
+        spin_lock_irqsave(&queue->lock, flags_ptr);                   \
+        break;                                                        \
+    case Softirq_lock:                                                \
+        spin_lock_bh(&queue->lock);                                   \
+        break;                                                        \
+    default:                                                          \
+        spin_lock(&queue->lock);                                      \
+        break;                                                        \
+    }                                                                 \
+    queue->locked = 1; /* After acquiring */
 
-#define LOCKQ(queue, flags_ptr)                         \
-  PRINT((TXT("Locking (%d) at %d\n"),                   \
-         queue->lock_type, __LINE__));                  \
-  switch (queue->lock_type) {                           \
-  case Irq_lock:                                        \
-    spin_lock_irqsave(&queue->lock, flags_ptr);   \
-    break;                                              \
-  case Softirq_lock:                                    \
-    spin_lock_bh(&queue->lock);              \
-    break;                                              \
-  default:                                              \
-    spin_lock(&queue->lock);                      \
-    break;                                              \
-  }                                                     \
-  queue->locked = 1;   /* After acquiring */
+#define UNLOCKQ(queue, flags)                                           \
+    PRINT((TXT("Unlocking (%d) at %d\n"), queue->lock_type, __LINE__)); \
+    queue->locked = 0; /* Before releasing */                           \
+    switch (queue->lock_type) {                                         \
+    case Irq_lock:                                                      \
+        spin_unlock_irqrestore(&queue->lock, flags);                    \
+        break;                                                          \
+    case Softirq_lock:                                                  \
+        spin_unlock_bh(&queue->lock);                                   \
+        break;                                                          \
+    default:                                                            \
+        spin_lock(&queue->lock);                                        \
+        break;                                                          \
+    }
 
-#define UNLOCKQ(queue, flags)                           \
-  PRINT((TXT("Unlocking (%d) at %d\n"),                 \
-         queue->lock_type, __LINE__));                  \
-  queue->locked = 0;   /* Before releasing */           \
-  switch (queue->lock_type) {                           \
-  case Irq_lock:                                        \
-    spin_unlock_irqrestore(&queue->lock, flags);  \
-    break;                                              \
-  case Softirq_lock:                                    \
-    spin_unlock_bh(&queue->lock);            \
-    break;                                              \
-  default:                                              \
-    spin_lock(&queue->lock);                      \
-    break;                                              \
-  }
-
-
-void queue_reinit (Queue *queue)
+void queue_reinit(Queue *queue)
 {
-  unsigned long flags = 0;
+    unsigned long flags = 0;
 
-  QUEUE_DEBUG;
-  QUEUE_DEBUG_LOCK;
-  LOCKQ(queue, flags);
+    QUEUE_DEBUG;
+    QUEUE_DEBUG_LOCK;
+    LOCKQ(queue, flags);
 
-  queue->head = 0;
-  queue->tail = 0;
+    queue->head = 0;
+    queue->tail = 0;
 
-  atomic_set(&queue->length, 0);
+    atomic_set(&queue->length, 0);
 
-  QUEUE_DEBUG_UNLOCK;
-  UNLOCKQ(queue, flags);
+    QUEUE_DEBUG_UNLOCK;
+    UNLOCKQ(queue, flags);
 }
 EXPORT_SYMBOL(queue_reinit);
 
-
-void queue_init (Queue *queue, int size)
+void queue_init(Queue *queue, int size)
 {
-  queue->lock_type = LOCK_TYPE;
-  spin_lock_init(&queue->lock);
-  queue->size = size;
-  init_waitqueue_head(&queue->space_event);
-  queue->locked = 0;
-  queue_reinit(queue);
+    queue->lock_type = LOCK_TYPE;
+    spin_lock_init(&queue->lock);
+    queue->size = size;
+    init_waitqueue_head(&queue->space_event);
+    queue->locked = 0;
+    queue_reinit(queue);
 }
 EXPORT_SYMBOL(queue_init);
 
-
-void queue_irq_lock (Queue *queue)
+void queue_irq_lock(Queue *queue)
 {
-  queue->lock_type = Irq_lock;
+    queue->lock_type = Irq_lock;
 }
 EXPORT_SYMBOL(queue_irq_lock);
 
-
-int queue_length (Queue *queue)
+int queue_length(Queue *queue)
 {
-  int length;
+    int length;
 #ifndef ATOMIC_LENGTH
-  unsigned long flags;
+    unsigned long flags;
 
-  QUEUE_DEBUG_RET(0);
-  QUEUE_DEBUG_LOCK_RET(0);
-  LOCKQ(queue, flags);
+    QUEUE_DEBUG_RET(0);
+    QUEUE_DEBUG_LOCK_RET(0);
+    LOCKQ(queue, flags);
 
-  length = queue->head - queue->tail;
-  if (length < 0)
-    length += queue->size;
+    length = queue->head - queue->tail;
+    if (length < 0)
+        length += queue->size;
 
-  QUEUE_DEBUG_UNLOCK_RET(0);
-  UNLOCKQ(queue, flags);
+    QUEUE_DEBUG_UNLOCK_RET(0);
+    UNLOCKQ(queue, flags);
 #else
-  length = atomic_read(&queue->length);
+    length = atomic_read(&queue->length);
 #endif
 
-  return length;
+    return length;
 }
 EXPORT_SYMBOL(queue_length);
 
-
-int queue_full (Queue *queue)
+int queue_full(Queue *queue)
 {
-  QUEUE_DEBUG_RET(0);
+    QUEUE_DEBUG_RET(0);
 
-  return queue_length(queue) >= queue->size - 1;
+    return queue_length(queue) >= queue->size - 1;
 }
 
-
-int queue_empty (Queue *queue)
+int queue_empty(Queue *queue)
 {
-  QUEUE_DEBUG_RET(1);
+    QUEUE_DEBUG_RET(1);
 
-  return queue_length(queue) == 0;
+    return queue_length(queue) == 0;
 }
 EXPORT_SYMBOL(queue_empty);
-
 
 // Lock will be held when this returns.
 // Must be released with a call to queue_push/release()
 // as soon as possible. Make _sure_ not to sleep inbetween!
 // (Storing irq flags like this is supposedly incompatible
 //  with Sparc CPU:s. But that only applies for Irq_lock queues.)
-int queue_back (Queue *queue)
+int queue_back(Queue *queue)
 {
-  int back;
-  unsigned long flags = 0;
+    int back;
+    unsigned long flags = 0;
 
-  QUEUE_DEBUG_RET(0);
-  QUEUE_DEBUG_LOCK_RET(0);
-  LOCKQ(queue, flags);
+    QUEUE_DEBUG_RET(0);
+    QUEUE_DEBUG_LOCK_RET(0);
+    LOCKQ(queue, flags);
 
-  back = queue->head;
-  // Is there actually any space in the queue?
+    back = queue->head;
+    // Is there actually any space in the queue?
 #ifndef ATOMIC_LENGTH
-  // (Holding lock, so can't use queue_full.)
-  {
-    int length = back - queue->tail;
-    if (length < 0)
-      length += queue->size;
-    if (length >= queue->size - 1) {
-      back = -1;
+    // (Holding lock, so can't use queue_full.)
+    {
+        int length = back - queue->tail;
+        if (length < 0)
+            length += queue->size;
+        if (length >= queue->size - 1) {
+            back = -1;
+        }
     }
-  }
 #else
-  if (queue_full(queue)) {
-    back = -1;
-  }
+    if (queue_full(queue)) {
+        back = -1;
+    }
 #endif
 
-  queue->flags = flags;
+    queue->flags = flags;
 
-  return back;
+    return back;
 }
 EXPORT_SYMBOL(queue_back);
 
-
 // Lock must be held from a previous queue_back().
-void queue_push (Queue *queue)
+void queue_push(Queue *queue)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  queue->head++;
-  if (queue->head >= queue->size)
-    queue->head = 0;
+    queue->head++;
+    if (queue->head >= queue->size)
+        queue->head = 0;
 
-  atomic_inc(&queue->length);
+    atomic_inc(&queue->length);
 
-  QUEUE_DEBUG_UNLOCK;
-  UNLOCKQ(queue, queue->flags);
+    QUEUE_DEBUG_UNLOCK;
+    UNLOCKQ(queue, queue->flags);
 }
 EXPORT_SYMBOL(queue_push);
-
 
 // Lock will be held when this returns.
 // Must be released with a call to queue_pop/release()
 // as soon as possible. Make _sure_ not to sleep inbetween!
-int queue_front (Queue *queue)
+int queue_front(Queue *queue)
 {
-  int front;
-  unsigned long flags = 0;
+    int front;
+    unsigned long flags = 0;
 
-  QUEUE_DEBUG_RET(0);
-  QUEUE_DEBUG_LOCK_RET(0);
-  LOCKQ(queue, flags);
+    QUEUE_DEBUG_RET(0);
+    QUEUE_DEBUG_LOCK_RET(0);
+    LOCKQ(queue, flags);
 
-  front = queue->tail;
-  // Is there actually anything in the queue?
+    front = queue->tail;
+    // Is there actually anything in the queue?
 #ifndef ATOMIC_LENGTH
-  // (Holding lock, so can't use queue_empty.)
-  if (queue->head == front) {
-    front = -1;
-  }
+    // (Holding lock, so can't use queue_empty.)
+    if (queue->head == front) {
+        front = -1;
+    }
 #else
-  if (queue_empty(queue)) {
-    front = -1;
-  }
+    if (queue_empty(queue)) {
+        front = -1;
+    }
 #endif
 
-  queue->flags = flags;
+    queue->flags = flags;
 
-  return front;
+    return front;
 }
 EXPORT_SYMBOL(queue_front);
 
-
 // Lock must be held from a previous queue_front().
-void queue_pop (Queue *queue)
+void queue_pop(Queue *queue)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  queue->tail++;
-  if (queue->tail >= queue->size)
-    queue->tail = 0;
+    queue->tail++;
+    if (queue->tail >= queue->size)
+        queue->tail = 0;
 
-  atomic_dec(&queue->length);
+    atomic_dec(&queue->length);
 
-  QUEUE_DEBUG_UNLOCK;
-  UNLOCKQ(queue, queue->flags);
+    QUEUE_DEBUG_UNLOCK;
+    UNLOCKQ(queue, queue->flags);
 }
 EXPORT_SYMBOL(queue_pop);
 
-
 // Lock must be held from a previous queue_front/back().
-void queue_release (Queue *queue)
+void queue_release(Queue *queue)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  QUEUE_DEBUG_UNLOCK;
-  UNLOCKQ(queue, queue->flags);
+    QUEUE_DEBUG_UNLOCK;
+    UNLOCKQ(queue, queue->flags);
 }
 EXPORT_SYMBOL(queue_release);
 
-
-void queue_add_wait_for_space (Queue *queue, wait_queue_entry_t *waiter)
+void queue_add_wait_for_space(Queue *queue, wait_queue_entry_t *waiter)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  add_wait_queue(&queue->space_event, waiter);
+    add_wait_queue(&queue->space_event, waiter);
 }
 EXPORT_SYMBOL(queue_add_wait_for_space);
 
-
-void queue_remove_wait_for_space (Queue *queue, wait_queue_entry_t *waiter)
+void queue_remove_wait_for_space(Queue *queue, wait_queue_entry_t *waiter)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  remove_wait_queue(&queue->space_event, waiter);
+    remove_wait_queue(&queue->space_event, waiter);
 }
 EXPORT_SYMBOL(queue_remove_wait_for_space);
 
 
-
-
-void queue_wakeup_on_space (Queue *queue)
+void queue_wakeup_on_space(Queue *queue)
 {
-  QUEUE_DEBUG;
+    QUEUE_DEBUG;
 
-  wake_up_interruptible(&queue->space_event);
+    wake_up_interruptible(&queue->space_event);
 }
 EXPORT_SYMBOL(queue_wakeup_on_space);
 
-
-wait_queue_head_t *queue_space_event (Queue *queue)
+wait_queue_head_t *queue_space_event(Queue *queue)
 {
-  QUEUE_DEBUG_RET(0);
+    QUEUE_DEBUG_RET(0);
 
-  return &queue->space_event;
+    return &queue->space_event;
 }
