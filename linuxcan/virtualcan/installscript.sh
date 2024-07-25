@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -63,15 +63,18 @@
 #  -----------------------------------------------------------------------------
 #
 
-MODNAME=kvvirtualcan
+DEV=virtualcan
+MODNAME=kv$DEV
 DEPMOD=`which depmod`
 DIR="${0%/*}"
 KERNEL_VER=`uname -r` # Kernel version at install time
+MODPROBE_DIR=/etc/modprobe.d
+MODULES_LOAD_DIR=/etc/modules-load.d
 
 # append to file in case installer is run several times on different kernels
-echo $KERNEL_VER >> $DIR/kernel_ver 
+echo $KERNEL_VER >> $DIR/kernel_ver
 
-# Determine wether or not this is called by DKMS
+# Determine whether or not this is called by DKMS
 DKMS_HOOK=0
 if [ "$1" = "dkms-install" -o "$1" = "dkms-load" ]; then
   DKMS_HOOK=1
@@ -84,30 +87,13 @@ if [ $DKMS_HOOK -eq 0 ]; then
     exit 1
   fi
 fi
-install -m 755 virtualcan.sh /usr/sbin/
-if [ "$?" -ne 0 ] ; then
-  exit 1
-fi
-/usr/sbin/virtualcan.sh stop 2>/dev/null
 
-if [ -f /etc/modprobe.conf ] ; then
-  # CentOS/Redhat/RHEL/Fedora Linux...
-  CONF=/etc/modprobe.conf
-else
-  # Debian/Ubuntu Linux
-  CONF=/etc/modprobe.d/kvaser.conf
-  if [ ! -f $CONF ] ; then
-    touch $CONF
-  fi
-fi
+# Remove previously installed obsolete driver script, modprobe config and
+# modules-load config
+rm -f /usr/sbin/$DEV.sh $MODPROBE_DIR/kvaser.conf $MODULES_LOAD_DIR/kvaser.conf
 
-grep -v virtualcan $CONF                                 > newconf
-echo "alias     virtualcan   $MODNAME"                  >> newconf
-echo "install   $MODNAME /usr/sbin/virtualcan.sh start" >> newconf
-echo "remove    $MODNAME /usr/sbin/virtualcan.sh stop"  >> newconf
-
-cat newconf > $CONF
-rm newconf
+modprobe -r $MODNAME 2> /dev/null
+rm -f /dev/$MODNAME[0-9]*
 
 if [ "$#" -gt 0 ] && [ $1 = "develinstall" ] ; then
   echo "Ignoring $DEPMOD -a for now.."
@@ -118,15 +104,8 @@ else
   fi
 fi
 
-MODCONF=/etc/modules-load.d/kvaser.conf
-
 if [ "$#" -gt 0 ] && [ $1 = "load" -o "$1" = "dkms-load" ] ; then
-  /usr/sbin/virtualcan.sh start
-  touch $MODCONF
-  if [ -f $MODCONF ] ; then
-    grep -v "$MODNAME" < $MODCONF    > newmodules
-    echo "$MODNAME"                 >> newmodules
-    cat newmodules > $MODCONF
-    rm newmodules
-  fi
+  modprobe $MODNAME
+  install -m 755 -d $MODULES_LOAD_DIR
+  echo "$MODNAME"  > $MODULES_LOAD_DIR/kvaser-$MODNAME.conf
 fi

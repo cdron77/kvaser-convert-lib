@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -73,7 +73,7 @@ ifeq ($(KV_VIRT_CHANNELS),)
   KV_VIRT_CHANNELS = 2
 endif
 
-ccflags-y += -DKV_VIRT_CHANNELS=$(KV_VIRT_CHANNELS)
+ccflags-y += -DKV_VIRT_CHANNELS=$(KV_VIRT_CHANNELS) -DLINUX
 
 # Includes
 INCLUDES := $(src)/../include/

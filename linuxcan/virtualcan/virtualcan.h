@@ -1,5 +1,5 @@
 /*
-**             Copyright 2017 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -72,28 +72,24 @@
 /* defines */
 /*****************************************************************************/
 
-#define DEVICE_NAME_STRING   "kvvirtualcan"
+#define DEVICE_NAME_STRING "kvvirtualcan"
 
 #ifndef KV_VIRT_CHANNELS
-#define KV_VIRT_CHANNELS     2
+#define KV_VIRT_CHANNELS 2
 #endif
-#define MAX_CHANNELS         KV_VIRT_CHANNELS
+#define MAX_CHANNELS KV_VIRT_CHANNELS
 
-#define NR_VIRTUAL_DEV       1
-#define VIRTUAL_MAX_DEV      NR_VIRTUAL_DEV
+#define NR_VIRTUAL_DEV  1
+#define VIRTUAL_MAX_DEV NR_VIRTUAL_DEV
 
-#define MAX_ERROR_COUNT        128
-#define ERROR_RATE           30000
+#define MAX_ERROR_COUNT           128
+#define ERROR_RATE                30000
 #define VIRTUAL_BYTES_PER_CIRCUIT 0x20
 
 #define VIRTUAL_MAX_OUTSTANDING 300
 
-
-
-
 /* Channel specific data */
-typedef struct virtualChanData
-{
+typedef struct virtualChanData {
     VCanBusParams busparams;
     struct work_struct txTaskQ;
     int silentmode;
@@ -103,7 +99,7 @@ typedef struct virtualChanData
 /*  Cards specific data */
 typedef struct virtualCardData {
     /* Ports and addresses */
-    unsigned           pciIf;
+    unsigned pciIf;
 } virtualCardData;
 
-#endif  /* _VIRTUAL_HW_IF_H_ */
+#endif /* _VIRTUAL_HW_IF_H_ */
