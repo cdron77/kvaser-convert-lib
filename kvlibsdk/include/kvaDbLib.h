@@ -81,6 +81,41 @@
  * \ingroup grp_kvadb
  * \defgroup kvadb_signals     Signals
  * \brief Add, delete and modify signals in messages.
+ *
+ * Signal bit positions are numbered in a "sawtooth" manner, i.e.
+ * indices in a byte decrease from left to right:
+ *
+ * \code{.unparsed}
+ * +-------------------------+-------------------------+
+ * |  7  6  5  4  3  2  1  0 | 15 14 13 12 11 10  9  8 | ...
+ * +-------------------------+-------------------------+
+ * \endcode
+ *
+ * Byte order formats determine the signal start bit notation and the
+ * direction it expands in. There are three of relevance to this API:
+ * Intel Standard and Motorola forward MSB/-LSB. The following example
+ * shows two signals:
+ *
+ * \code{.unparsed}
+ *   |  7  6  5  4  3  2  1  0
+ * --+-------------------------
+ * 0 |<......lsb       v Intel Standard
+ * 1 |             msb.........
+ * 2 |  | Motorola forward MSB/LSB
+ * 3 |  v       msb............
+ * 4 |<...............lsb
+ * \endcode
+ *
+ * - The upper signal uses the "Intel" format and is 7 bits long.
+ *
+ *   The start bit position is that of the least-significant bit (=5).
+ * - The lower signal uses the "Motorola" format and is 11 bits long.
+ *
+ *   The DBC file format uses Motorola forward MSB where the start bit
+ *   is the position of the most-significant bit (8*3 + 4 = 28), in
+ *   contrast to the getters and setters of this API, which use
+ *   Motorola forward LSB with the start bit being the position of the
+ *   least-significant bit (8*4 + 2 = 34).
  * \ingroup grp_kvadb
  * \defgroup kvadb_nodes       Nodes
  * \brief Add, delete and modify nodes.
@@ -146,7 +181,7 @@ typedef enum {
 
 /**
  * \name Kvaser CAN Message Flags
- *
+ * 
  * @{
  */
 #define canMSG_STD              0x0002    ///< Message has a standard (11-bit) identifier
@@ -418,7 +453,7 @@ KvaDbStatus WINAPI kvaDbGetErrorText(KvaDbStatus error, char *buf, size_t buflen
  * Currently only applies to {kvaDbAddFile, kvaDbCreate, kvaDbReadFile}
  *
  * \param[out] buf            Buffer to receive error message.
- * \param[out] buflen         Buffer size in bytes.
+ * \param[in,out] buflen      Buffer size in bytes.
  *
  * \return \ref kvaDbOK (zero) if success
  * \return \ref kvaDbErr_Param (negative) if failure
@@ -764,7 +799,7 @@ KvaDbStatus WINAPI kvaDbGetMsgFlags(KvaDbMessageHnd mh, unsigned int *flags);
  * was set in the .dbc file.
  *
  * \param[in]   mh     A message handle
- * \param[out]  flags  The message flags, \ref KVADB_MESSAGE_xxx
+ * \param[out]  flags  The message flags, \ref canMSG_xxx
  *
  * \return \ref kvaDbOK (zero) if success
  * \return \ref kvaDbErr_xxx (negative) if failure
@@ -1214,6 +1249,9 @@ KvaDbStatus WINAPI kvaDbGetSignalValueScaling(KvaDbSignalHnd sh, double *factor,
  * \return \ref kvaDbOK (zero) if success
  * \return \ref kvaDbErr_xxx (negative) if failure
  *
+ * \note In case of Motorola encoding, \p startbit is in Motorola
+ *       forward LSB, in contrast to the DBC file format.
+ *
  * \sa \ref kvaDbSetSignalValueSize()
  */
 KvaDbStatus WINAPI kvaDbGetSignalValueSize(KvaDbSignalHnd sh, int *startbit, int *length);
@@ -1405,6 +1443,9 @@ KvaDbStatus WINAPI kvaDbSetSignalValueScaling(KvaDbSignalHnd sh,
  *
  * \return \ref kvaDbOK (zero) if success
  * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \note In case of Motorola encoding, \p startbit is in Motorola
+ *       forward LSB, in contrast to the DBC file format.
  *
  * \sa \ref kvaDbGetSignalValueSize()
  */
@@ -2627,6 +2668,7 @@ KvaDbStatus WINAPI kvaDbBytesToMsgDlc(KvaDbProtocolType prot, unsigned int numBy
  *
  * - \subpage page_kvadblib_user_guide_intro
  * - \subpage page_kvadblib_example_load_database
+ * - \subpage page_kvadblib_using_threads
  * - \subpage page_user_guide_kvadblib_samples
  *
  * For more details, see the module \ref grp_kvadb.

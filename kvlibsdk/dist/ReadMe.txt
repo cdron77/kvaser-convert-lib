@@ -39,6 +39,8 @@ only in accordance with the terms of such license. See file COPYING.
 2 Requirements
 ==============
 
+  The package pkg-config is needed by all Kvaser libraries.
+
   The package libxml2 is needed by libkvamemolibxml.
 
   The package zlib1g is needed by kvlclib.
