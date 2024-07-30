@@ -194,7 +194,7 @@ public:
   virtual int write_data() = 0;
 
   virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT8 dlc = 8) = 0;
-  virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string()) = 0;
+  virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string(), int channel = 1) = 0;
   virtual MdfStatus new_sig(MDF_UINT32 canId,
               char *longname,
               char *shortname,
@@ -293,7 +293,7 @@ public:
 
     // Not used for CAN frames
   MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT8 dlc = 8);
-  MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string());
+  MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string(), int channel = 1);
   MdfStatus new_sig(MDF_UINT32 canId,
               char *longname,
               char *shortname,
