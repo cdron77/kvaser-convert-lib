@@ -1659,6 +1659,7 @@ typedef struct {
 #define CAP_SUB_CMD_HAS_KDI                  13
 #define CAP_SUB_CMD_HAS_IO_API               14
 #define CAP_SUB_CMD_HAS_BUSPARAMS_TQ         15
+#define CAP_SUB_CMD_HAS_ALWAYS_SILENT        16
 
 // the following are not capabilities/bits
 #define CAP_SUB_CMD_DATA_START               1024
@@ -1749,6 +1750,7 @@ typedef struct {
     hchannelCap32_t kdiCap;        // CAP_SUB_CMD_HAS_KDI
     hchannelCap32_t ioApiCap;      // CAP_SUB_CMD_HAS_IO_API
     hchannelCap32_t busparamsTqCap;// CAP_SUB_CMD_HAS_BUSPARAMS_TQ
+    hchannelCap32_t alwaysSilentMode; // CAP_SUB_CMD_HAS_ALWAYS_SILENT
     hInfo_t loggerType;            // CAP_SUB_CMD_GET_LOGGER_TYPE
     hRemoteInfo_t remoteInfo;      // CAP_SUB_CMD_REMOTE_TYPE
     hhwStatus_t   hwStatus;        // CAP_SUB_CMD_HW_STATUS
