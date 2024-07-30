@@ -106,9 +106,11 @@ class XmlrefList {
     void print();
     virtual int createBinary(unsigned char *buffer, unsigned char version);
     virtual int createXml(xmlTextWriterPtr writer) const;
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
     virtual void parseXml(xmlNode * /* root_node */) {};
+#pragma GCC diagnostic pop
     XmlrefList(){mLastIdx = 0;};
-    ~XmlrefList();
+    virtual ~XmlrefList();
 };
 
 #endif

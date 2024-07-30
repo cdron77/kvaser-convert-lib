@@ -72,15 +72,23 @@ int getClockFreqMhz (unsigned ean_hi, unsigned ean_lo)
   }
 
   switch (ean_lo) {
+  case 0x30001756: return 8;
+  case 0x30003576: return 24;
   case 0x30005679: return 20;
+  case 0x30006850: return 24;
   case 0x30007789: return 80;
   case 0x30008199: return 80;
   case 0x30008212: return 80;
   case 0x30008328: return 80;
   case 0x30008694: return 80;
+  case 0x30009325: return 24;
+  case 0x30009493: return 24;
+  case 0x30009509: return 24;
+  case 0x30009592: return 24;
   case 0x30009714: return 80;
   case 0x30010581: return 80;
   case 0x30012448: return 80;
+  case 0x30981430: return 24;
   default:
     return 0;
   }

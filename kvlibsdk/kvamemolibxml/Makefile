@@ -82,6 +82,7 @@ CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer $(XTRA
 CFLAGS  += $(ccflags-y)
 CFLAGS  += $(shell $(PKG_CONFIG) --cflags libxml-2.0)
 CFLAGS  += -I. -I$(SDK_COMMON)/inc -I../include -I./generated -I../common/inc -I./include
+CFLAGS  += -DLINUX
 
 ifeq ($(KV_DEBUG_ON),1)
   CFLAGS += -O0 -g

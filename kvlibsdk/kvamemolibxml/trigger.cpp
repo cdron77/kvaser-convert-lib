@@ -671,6 +671,7 @@ int ExtTrigger::createBinary(unsigned char *buffer, unsigned char version)
     tv->channel = mCh;
 
     tv->t.extSign.level    = mLevel;
+    //Set to 3 in firmware if value is 0
     tv->t.extSign.debounce = 0; // Not available in XML 2.0
   }
   else if (version == KVASER_BINARY_VERSION_ELEMENT_MAJOR) {
@@ -681,6 +682,7 @@ int ExtTrigger::createBinary(unsigned char *buffer, unsigned char version)
     tv->channel = mCh;
 
     tv->t.extSign.level    = mLevel;
+    //Set to 3 in firmware if value is 0
     tv->t.extSign.debounce = 0; // Not available in XML 2.0
   }
 

@@ -133,7 +133,18 @@ int Statement::parseBinary(const char *buffer, const unsigned char /* version */
 
   mPreTrigger  = ts->preTrigger;
   mPostTrigger = ts->postTrigger;
+#ifdef __GNUC__
+// Suppress faulty warnings caused by GCC 13 bug
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+# if __GNUC__ >= 13
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+# endif
+#endif
   memcpy(mPostFixExpr, ts->postFixExpr, MAX_EXPR_LEN);
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
   mInFixExpr   = getInfixExpr(ts->postFixExpr);
 
   for (uint8_t actionNo = 0; actionNo < ts->noOfActions; ++actionNo) {
