@@ -65,13 +65,12 @@
 #define KVALOGREADER_MEMOLOGEVENT_H_
 
 #include "common_defs.h"
+#include "KvaLogReader.h"
 
 typedef uint8_t        uint8;
 typedef uint32_t       uint32;
 typedef int32_t        int32;
 typedef int64_t        int64;
-
-#include <pshpack1.h>
 
 // Several small spieces of small furry structs gathered together from
 // kvaMemoLib.h and grooved with a pict; could be kvaMemolib.h
@@ -83,6 +82,7 @@ typedef int64_t        int64;
 #define MEMOLOG_TYPE_TRIGGER    3
 #define MEMOLOG_TYPE_VERSION    4
 
+#include <pshpack1.h>
 
 typedef struct {
   int32   type;
@@ -129,25 +129,24 @@ typedef struct {
   } x;
 } memoLogEventEx;
 
-
 #include <poppack.h>
 
 class KvaLogReader_memoLogEvent : public KvaLogReader {
   private:
-    time_int64      time_of_last_clock_event; // nanoseconds since 1970-01-01 00:00
     uint64          current_eventno;
     unsigned long   current_frameno;
-    memoLogEventEx  current_memoLogEvent;
+    time_uint64 calendar_time_offset, // caltim - timeStamp for last clock event
+      time64_offset; // caltim - start_of_measurement64 for current file
+    bool time_gap;
+
     KvlcStatus interpret_event(memoLogEventEx *me,
                                    imLogData *le);
-  bool time_gap;
 
 public:
   KvaLogReader_memoLogEvent();
   ~KvaLogReader_memoLogEvent();
 
-  KvlcStatus interpret_event(void *event,
-                                 imLogData *logEvent)
+  KvlcStatus interpret_event(void *event, imLogData *logEvent)
   {
     return interpret_event((memoLogEventEx *)event, logEvent);
   }

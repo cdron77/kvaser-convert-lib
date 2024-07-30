@@ -109,6 +109,7 @@ private:
   char separator;
   int64_t timestamp;
   uint64_t abstime; // Nanoseconds since 1970-01-01 00:00:00
+  uint32_t channel;
   bool printTimeStamp;
   bool printRTC;
   void expandIfNecessary(int column);
@@ -156,6 +157,9 @@ public:
   void setAbsTime(uint64_t abs);
   int64_t getTimeStamp();
   uint64_t getAbsTime();
+
+  void setChannel(uint32_t channel);
+  uint32_t getChannel();
 
   void setPrintProperties(bool ts, bool rtc);
 

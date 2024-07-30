@@ -282,6 +282,8 @@ KvlcStatus KvaLogWriter_Signal::write_row(imLogData *logEvent)
         sr->setTimeStamp(msgTime); // High resolution timer
         sr->setAbsTime(logEvent->common.nanos_since_1970); // ABS time
 
+        sr->setChannel(logEvent->msg.channel);
+
         id = logEvent->msg.id;
 
 
@@ -377,9 +379,6 @@ KvlcStatus KvaLogWriter_Signal::write_row(imLogData *logEvent)
               } // end sig/column check
 
               dbstat = kvaDbGetNextSignal(mh, &sh);
-              if (dbstat != kvaDbOK) {
-                break;
-              }
             } // end for each signal
 
             if (get_property_show_counter()) {
@@ -387,69 +386,66 @@ KvlcStatus KvaLogWriter_Signal::write_row(imLogData *logEvent)
               sr->setNumDecimals(curColumn, 0);
             }
 
-            if (match) {
-              bool write = true;
-              // int col;
-
-
-              if (get_property_merge_lines()) {
-                write = sr->isUpdated();
-              }
-
-
-              if (write) {
-                if (samplingTimeStep) {
-                  // Sample & Hold: Get start time from first matched signal
-                  // and write it to file.
-                  if (samplingAbsTime == 0) {
-                    samplingHighResTime = msgTime;
-                    samplingAbsTime     = logEvent->common.nanos_since_1970;
-                    kvstatus = write_signals();
-                    if (kvstatus != kvlcOK) return kvstatus;
-                  } else {
-                    // Sample & Hold: Write the previous signal values up to current
-                    // msgTime. Switch SignalRow pointers to write the previous value.
-                    SignalRow *original = sr;
-                    sr = samplingSr;
-                    while (samplingHighResTime + samplingTimeStep < msgTime) {
-                      samplingHighResTime += samplingTimeStep;
-                      samplingAbsTime     += samplingTimeStep;
-                      samplingSr->setTimeStamp(samplingHighResTime); // High resolution timer
-                      samplingSr->setAbsTime(samplingAbsTime);       // ABS time
-                      kvstatus = write_signals();
-                      if (kvstatus != kvlcOK) {
-                        // Restore signal row pointer
-                        sr = original;
-                        return kvstatus;
-                      }
-                    }
-                    // Restore signal row pointer
-                    sr = original;
-                  }
-                  // Save previous values
-                  samplingSr->copySignalValues(sr);
-                }
-                else {
-                  kvstatus = write_signals();
-                  if (kvstatus != kvlcOK) return kvstatus;
-                }
-                if ( split_on_time(msgTime) ) {
-                  kvstatus = split_file();
-                }
-                // Since we have printed the row, we reset its updated-status
-                sr->resetUpdated();
-              }
-              counter++;
-            }
-            if (dbstat != kvaDbOK) {
-              break; // databases loop
-            }
           } // end kvaDbGetMsgByIdEx() / kvaDbGetMsgByPGN() success
           else if (dbstat != kvaDbErr_NoMsg){
             PRINTF(("kvaDbGetMsgByIdEx() / kvaDbGetMsgByPGN() failed %d\n", dbstat));
             return kvlcERR_INTERNAL_ERROR;
           }
         } // databases
+
+        if (match) {
+          bool write = true;
+          // int col;
+
+
+          if (get_property_merge_lines()) {
+            write = sr->isUpdated();
+          }
+
+          if (write) {
+            if (samplingTimeStep) {
+              // Sample & Hold: Get start time from first matched signal
+              // and write it to file.
+              if (samplingAbsTime == 0) {
+                samplingHighResTime = msgTime;
+                samplingAbsTime     = logEvent->common.nanos_since_1970;
+                kvstatus = write_signals();
+                if (kvstatus != kvlcOK) return kvstatus;
+              } else {
+                // Sample & Hold: Write the previous signal values up to current
+                // msgTime. Switch SignalRow pointers to write the previous value.
+                SignalRow *original = sr;
+                sr = samplingSr;
+                while (samplingHighResTime + samplingTimeStep < msgTime) {
+                  samplingHighResTime += samplingTimeStep;
+                  samplingAbsTime     += samplingTimeStep;
+                  samplingSr->setTimeStamp(samplingHighResTime); // High resolution timer
+                  samplingSr->setAbsTime(samplingAbsTime);       // ABS time
+                  kvstatus = write_signals();
+                  if (kvstatus != kvlcOK) {
+                    // Restore signal row pointer
+                    sr = original;
+                    return kvstatus;
+                  }
+                }
+                // Restore signal row pointer
+                sr = original;
+              }
+              // Save previous values
+              samplingSr->copySignalValues(sr);
+            }
+            else {
+              kvstatus = write_signals();
+              if (kvstatus != kvlcOK) return kvstatus;
+            }
+            if ( split_on_time(msgTime) ) {
+              kvstatus = split_file();
+            }
+            // Since we have printed the row, we reset its updated-status
+            sr->resetUpdated();
+          }
+          counter++;
+        }
       }
       break;
     }

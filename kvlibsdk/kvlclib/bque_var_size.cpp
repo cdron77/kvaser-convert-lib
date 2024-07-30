@@ -65,7 +65,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <malloc.h>
-#include <string.h>
+#include <string>
 #include "bque_var_size.h"
 #include "kvdebug.h"
 #include "os_util.h"

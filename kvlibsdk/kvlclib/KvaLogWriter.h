@@ -103,7 +103,6 @@ class KvaLogWriter {
     int64_t file_position;
     time_uint64 start_of_logging; // nanos since 1970, time of first event with rtc-info
     time_uint64 last_clock_event;
-    time_uint64 first_timestamp;
     KvlcStatus write_file(void *buf, size_t length);
     bool overrun_occurred;
     bool data_truncation_occurred;

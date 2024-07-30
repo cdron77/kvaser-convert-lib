@@ -511,6 +511,13 @@ uint64_t SignalRow::getAbsTime()
   return abstime;
 }
 
+void SignalRow::setChannel(uint32_t ch){
+  channel = ch;
+}
+uint32_t SignalRow::getChannel(){
+  return channel;
+}
+
 void SignalRow::setPrintProperties(bool ts, bool rtc)
 {
   printTimeStamp = ts;

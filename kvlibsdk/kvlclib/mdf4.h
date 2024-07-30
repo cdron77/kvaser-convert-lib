@@ -798,7 +798,7 @@ namespace Mdf4Nodes {
     uint64_t size();
     void attach(const char *fname);
     // For signals
-    MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string());
+    MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string(), int channel = 1);
     MdfStatus new_sig(MDF_UINT32 canId,
                       char *longname,
                       char *shortname,

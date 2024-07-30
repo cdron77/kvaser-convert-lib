@@ -166,6 +166,8 @@ KvlcStatus KvaLogWriter_CsvSignal::write_signal_header()
     p += sprintf(p, "%cAbsTime", get_property_separator_char());
   }
 
+  p += sprintf(p, "%cChannel ID", get_property_separator_char());
+
   // add end of line to line of signal names
   p += sprintf(p, "\n");
 
@@ -196,6 +198,9 @@ KvlcStatus KvaLogWriter_CsvSignal::write_signal_header()
         p += sprintf(p, "%cYYYY-MM-DD HH:MM:SS", get_property_separator_char());
       }
     }
+    // Add None as unit for channel ID
+    p += sprintf(p, "%cNone", get_property_separator_char());
+
     // add end of line to line of units
     p += sprintf(p, "\n");
 
@@ -241,6 +246,8 @@ KvlcStatus KvaLogWriter_CsvSignal::write_signals() {
     p += sprintf(p, "%c", get_property_separator_char());
     p += printCalendarDate(p, sr->getAbsTime());
   }
+
+  p += sprintf(p, "%c%d", get_property_separator_char(), sr->getChannel());
 
   p += sprintf(p, "\n");
 

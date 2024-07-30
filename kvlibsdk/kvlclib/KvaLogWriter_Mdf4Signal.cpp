@@ -210,6 +210,7 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_header()
       int          dbdlc;
       unsigned int dbflags;
       unsigned int msgmask = CAN_ID_MASK_ALL_BITS;
+      unsigned int chanmask = databases_chanmask[i];
 
       KvaDbStatus dbstat = kvaDbGetFirstMsg(dh, &mh);
       if (dbstat != kvlcOK) {
@@ -246,164 +247,168 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_header()
           }
         }
 
-        dbstat = kvaDbGetFirstSignal(mh, &sh);
 
-        while (dbstat == kvlcOK) {
-          int mux_value = 0;
-          dbstat = kvaDbGetSignalMode(sh, &mux_value);
-          if (dbstat != kvlcOK) {
-            PRINTF(("kvaDbGetSignalMode error %d\n", dbstat));
+        for (int channel = 0; channel < 32; channel++){
+          if (!(chanmask & (1<<channel))){
+            continue;
           }
-          MuxChecker mux_checker(mux_signal, mux_value, reinterpret_cast<MuxCallback> (&MuxCallbackValueChecker));
-          stat = mdf->new_dg(dbid, msgmask, mux_checker, dbdlc, std::string(msgname));
-          //whole data group is characterized by multiplex value, stored in MuxChecker, which will be later checked against every event
-          //to determine what events data are to be included in this data block
-          switch (stat) {
-            case MDF_ERROR_DATATYPE:
-              PRINTF(("error datatype when doing new_dg"));
-              return kvlcERR_MIXED_ENDIANNESS;
-            case MDF_ERROR_MEMORY:
-              PRINTF(("error memory when doing new_dg"));
-              return kvlcERR_INTERNAL_ERROR;
-            case MDF_OK:
-              break;
-            default:
-              PRINTF(("this shouldn't happen\n"));
-              return kvlcERR_INTERNAL_ERROR;
-          }
-          dbstat = kvaDbGetSignalName(sh, signame, sizeof(signame));
-          if (dbstat != kvlcOK) {
-            break;
-          }
-          PRINTF(("Another signal. This signal's (%s) mode value is %d\n",signame,mux_value));
-          if (mProperties.mShowFullyQualifiedNames == ON) {
-            dbstat = kvaDbGetSignalQualifiedName(sh, fullname, sizeof(fullname));
+          dbstat = kvaDbGetFirstSignal(mh, &sh);
+
+          while (dbstat == kvlcOK) {
+            int mux_value = 0;
+            dbstat = kvaDbGetSignalMode(sh, &mux_value);
+            if (dbstat != kvlcOK) {
+              PRINTF(("kvaDbGetSignalMode error %d\n", dbstat));
+            }
+            MuxChecker mux_checker(mux_signal, mux_value, reinterpret_cast<MuxCallback> (&MuxCallbackValueChecker));
+            stat = mdf->new_dg(dbid, msgmask, mux_checker, dbdlc, std::string(msgname), channel + 1);
+            //whole data group is characterized by multiplex value, stored in MuxChecker, which will be later checked against every event
+            //to determine what events data are to be included in this data block
+            switch (stat) {
+              case MDF_ERROR_DATATYPE:
+                PRINTF(("error datatype when doing new_dg"));
+                return kvlcERR_MIXED_ENDIANNESS;
+              case MDF_ERROR_MEMORY:
+                PRINTF(("error memory when doing new_dg"));
+                return kvlcERR_INTERNAL_ERROR;
+              case MDF_OK:
+                break;
+              default:
+                PRINTF(("this shouldn't happen\n"));
+                return kvlcERR_INTERNAL_ERROR;
+            }
+            dbstat = kvaDbGetSignalName(sh, signame, sizeof(signame));
             if (dbstat != kvlcOK) {
               break;
             }
-          } else {
-            strcpy(fullname, signame);
-          }
-
-          dbstat = kvaDbGetSignalUnit(sh, unit, sizeof(unit));
-          if (dbstat != kvlcOK) {
-            break;
-          }
-
-          double factor, offset;
-          dbstat = kvaDbGetSignalValueScaling(sh, &factor, &offset);
-          if (dbstat != kvlcOK) {
-            break;
-          }
-          int startbit;
-          int length_in_bits;
-          dbstat = kvaDbGetSignalValueSize(sh, &startbit, &length_in_bits);
-          if (dbstat != kvlcOK) {
-            break;
-          }
-
-          KvaDbSignalType       signal_type;
-          KvaDbSignalEncoding   signal_encoding;
-          MDF_UINT16            mdf_signal_type;
-
-          dbstat = kvaDbGetSignalRepresentationType(sh, &signal_type);
-          if (dbstat != kvlcOK) {
-            break;
-          }
-
-          dbstat = kvaDbGetSignalEncoding(sh, &signal_encoding);
-          if (dbstat != kvlcOK) {
-            break;
-          }
-
-          // default mdf_signal_type = MDF_SIGNAL_DATA_TYPE_BYTE_ARRAY;
-          mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT;
-          if (signal_encoding == kvaDb_Intel) {
-            switch (signal_type) {
-              case kvaDb_Signed: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_SIGNED_INT_LE;
-              } break;
-              case kvaDb_Unsigned: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT_LE;
-              } break;
-              case kvaDb_Float: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_FLOAT_LE;
-              } break;
-              case kvaDb_Double: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_DOUBLE_LE;
-              } break;
-            default:
-              return kvlcERR_INTERNAL_ERROR;
+            PRINTF(("Another signal. This signal's (%s) mode value is %d\n",signame,mux_value));
+            if (mProperties.mShowFullyQualifiedNames == ON) {
+              dbstat = kvaDbGetSignalQualifiedName(sh, fullname, sizeof(fullname));
+              if (dbstat != kvlcOK) {
+                break;
+              }
+            } else {
+              strcpy(fullname, signame);
             }
-            PRINTF(("INTEL:%d,",startbit));
-          }
-          else if (signal_encoding == kvaDb_Motorola) {
-            int startbyte, endbyte, bitoffset;
-            // From the Motorola example in MDF specification v3.3
 
-            startbit = get_motorola_start_bit_for_display(startbit, dbdlc);
-            startbit = dbdlc*8 - startbit - length_in_bits;
-            startbyte = startbit / 8;
-            endbyte = (startbit + length_in_bits) / 8;
-            bitoffset = startbit + length_in_bits  - endbyte * 8;
-            if (bitoffset) {
-              bitoffset = 8 - bitoffset;
-            }
-            startbit = startbyte * 8 + bitoffset;
-
-            switch (signal_type) {
-              case kvaDb_Signed: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_SIGNED_INT_BE;
-              } break;
-              case kvaDb_Unsigned: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT_BE;
-              } break;
-              case kvaDb_Float: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_FLOAT_BE;
-              } break;
-              case kvaDb_Double: {
-                mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_DOUBLE_BE;
-              } break;
-            default:
-              return kvlcERR_INTERNAL_ERROR;
-            }
-            PRINTF(("Motorola: %d", startbit));
-          }
-          //there might be many dg nodes, but due to mechanics of new_dg,
-          //at that moment current dg pointer of the hdNode shall be addressing the right dg node for our signal
-          stat = mdf->new_sig(
-                      dbid,
-                      fullname,
-                      signame,
-                      unit,
-                      startbit,
-                      length_in_bits,
-                      mdf_signal_type,
-                      MDF_CONVERSION_TYPE_PARAMETRIC_LINEAR,
-                      factor,
-                      offset
-                      );
-
-          switch (stat) {
-            case MDF_ERROR_DATATYPE:
-              PRINTF(("error datatype when doing new_sig"));
-              return kvlcERR_MIXED_ENDIANNESS;
-            case MDF_ERROR_MEMORY:
-              PRINTF(("error memory when doing new_sig"));
-              return kvlcERR_INTERNAL_ERROR;
-            case MDF_OK:
+            dbstat = kvaDbGetSignalUnit(sh, unit, sizeof(unit));
+            if (dbstat != kvlcOK) {
               break;
-            default:
-              PRINTF(("this shouldn't happen\n"));
-              return kvlcERR_INTERNAL_ERROR;
+            }
+
+            double factor, offset;
+            dbstat = kvaDbGetSignalValueScaling(sh, &factor, &offset);
+            if (dbstat != kvlcOK) {
+              break;
+            }
+            int startbit;
+            int length_in_bits;
+            dbstat = kvaDbGetSignalValueSize(sh, &startbit, &length_in_bits);
+            if (dbstat != kvlcOK) {
+              break;
+            }
+
+            KvaDbSignalType       signal_type;
+            KvaDbSignalEncoding   signal_encoding;
+            MDF_UINT16            mdf_signal_type;
+
+            dbstat = kvaDbGetSignalRepresentationType(sh, &signal_type);
+            if (dbstat != kvlcOK) {
+              break;
+            }
+
+            dbstat = kvaDbGetSignalEncoding(sh, &signal_encoding);
+            if (dbstat != kvlcOK) {
+              break;
+            }
+
+            // default mdf_signal_type = MDF_SIGNAL_DATA_TYPE_BYTE_ARRAY;
+            mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT;
+            if (signal_encoding == kvaDb_Intel) {
+              switch (signal_type) {
+                case kvaDb_Signed: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_SIGNED_INT_LE;
+                } break;
+                case kvaDb_Unsigned: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT_LE;
+                } break;
+                case kvaDb_Float: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_FLOAT_LE;
+                } break;
+                case kvaDb_Double: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_DOUBLE_LE;
+                } break;
+              default:
+                return kvlcERR_INTERNAL_ERROR;
+              }
+              PRINTF(("INTEL:%d,",startbit));
+            }
+            else if (signal_encoding == kvaDb_Motorola) {
+              int startbyte, endbyte, bitoffset;
+              // From the Motorola example in MDF specification v3.3
+
+              startbit = get_motorola_start_bit_for_display(startbit, dbdlc);
+              startbit = dbdlc*8 - startbit - length_in_bits;
+              startbyte = startbit / 8;
+              endbyte = (startbit + length_in_bits) / 8;
+              bitoffset = startbit + length_in_bits  - endbyte * 8;
+              if (bitoffset) {
+                bitoffset = 8 - bitoffset;
+              }
+              startbit = startbyte * 8 + bitoffset;
+
+              switch (signal_type) {
+                case kvaDb_Signed: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_SIGNED_INT_BE;
+                } break;
+                case kvaDb_Unsigned: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_UNSIGNED_INT_BE;
+                } break;
+                case kvaDb_Float: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_FLOAT_BE;
+                } break;
+                case kvaDb_Double: {
+                  mdf_signal_type = MDF_SIGNAL_DATA_TYPE_IEEE_DOUBLE_BE;
+                } break;
+              default:
+                return kvlcERR_INTERNAL_ERROR;
+              }
+              PRINTF(("Motorola: %d", startbit));
+            }
+            //there might be many dg nodes, but due to mechanics of new_dg,
+            //at that moment current dg pointer of the hdNode shall be addressing the right dg node for our signal
+            stat = mdf->new_sig(
+                        dbid,
+                        fullname,
+                        signame,
+                        unit,
+                        startbit,
+                        length_in_bits,
+                        mdf_signal_type,
+                        MDF_CONVERSION_TYPE_PARAMETRIC_LINEAR,
+                        factor,
+                        offset
+                        );
+
+            switch (stat) {
+              case MDF_ERROR_DATATYPE:
+                PRINTF(("error datatype when doing new_sig"));
+                return kvlcERR_MIXED_ENDIANNESS;
+              case MDF_ERROR_MEMORY:
+                PRINTF(("error memory when doing new_sig"));
+                return kvlcERR_INTERNAL_ERROR;
+              case MDF_OK:
+                break;
+              default:
+                PRINTF(("this shouldn't happen\n"));
+                return kvlcERR_INTERNAL_ERROR;
+            }
+
+            dbstat = kvaDbGetNextSignal(mh, &sh);
+            if (dbstat != kvlcOK) {
+              break;
+            }
           }
-
-          dbstat = kvaDbGetNextSignal(mh, &sh);
-          if (dbstat != kvlcOK) {
-            break;
-          }
-
-
         }
 
         dbstat = kvaDbGetNextMsg(dh, &mh);
@@ -482,8 +487,7 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_row(imLogData *logEvent)
       memcpy(frame.data, logEvent->msg.data, dataLen);
       frame.datalength = dataLen;
 
-      // We don't have databases per channel, so merge all active channels
-      mdf->addFrame(1, MDF_CAN_FRAME_TYPE,
+      mdf->addFrame(logEvent->msg.channel + 1, MDF_CAN_FRAME_TYPE,
         logEvent->common.time64, &frame);
 
       break;

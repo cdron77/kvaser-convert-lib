@@ -70,6 +70,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include "common_defs.h"
 #include "kvaConverter.h"
 #include "KvaLogReader_memoLogEvent.h"
@@ -81,9 +82,7 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
       memoLogEventEx *me,
       imLogData *le)
 {
-  int i;
-
-  memset(le->common.transceiver_type, TRANSCEIVER_TYPE_HS, MAX_CHANNELS*sizeof(char));
+  memset(le->common.transceiver_type, TRANSCEIVER_TYPE_HS, MAX_CHANNELS);
   le->common.event_counter = ++current_eventno;
 
   switch (me->type) {
@@ -96,48 +95,29 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
 
     case MEMOLOG_TYPE_CLOCK:
     {
-      unsigned int year, month, day, hour, minute, second;
-      time_uint64 caltim;
+      time_uint64 caltim = ONE_BILLION * me->x.rtc.calendarTime,
+        timestamp = me->x.rtc.timeStamp;
 
-      caltim = (time_uint64) me->x.rtc.calendarTime;
-      last_clock_event = caltim * ONE_BILLION;
-      unix_time(caltim, &year, &month, &day, &hour, &minute, &second);
+      if (!start_of_measurement64) {
+        start_of_measurement64 = caltim;
+        PRINTF(("Start of measurement read (memoLogEvent) = %" PRIu64 "\n", caltim));
+        time_gap = false;
+      }
+      else if (time_gap) {
+        PRINTF(("RTC read (memoLogEvent) = %" PRIu64 "\n", caltim));
+        time_gap = false;
+        if (caltim < start_of_measurement64) {
+          PRINTF(("Decreasing time between files!!!"));
+          return kvlcERR_TIME_DECREASING;
+        }
+        time64_offset = caltim - start_of_measurement64;
+      }
+      calendar_time_offset = caltim - timestamp;
 
       le->common.new_data          = true;
       le->common.type              = ILOG_TYPE_RTC;
-
-      le->common.nanos_since_1970 = ONE_BILLION * me->x.rtc.calendarTime;
-
-      if (start_of_measurement64 == 0) {
-        if (first_timestamp) {
-          PRINTF(("Start of measurement read (memoLogEvent) = %d - %lu\n",
-                  (int)caltim, first_timestamp));
-          start_of_measurement64 = caltim * ONE_BILLION - first_timestamp;
-          time_gap = false;
-          PRINTF(("Deals with next file by updating start_of_measurement64"));
-        }
-      }
-      else if (time_gap) {
-        if (first_timestamp) {
-          PRINTF(("RTC read (memoLogEvent) = %lu\n", caltim * ONE_BILLION));
-          // (start - calendar)
-          time_gap = false;
-
-          time_of_last_clock_event = caltim * ONE_BILLION - start_of_measurement64;
-          time_of_last_clock_event -= first_timestamp;
-          PRINTF(("time_of_last_clock_event %lu", time_of_last_clock_event));
-
-          if (time_of_last_clock_event >= -4 * ONE_BILLION) {
-            if (time_of_last_clock_event <=  4 * ONE_BILLION) {
-              time_of_last_clock_event = 0;
-            }
-          } else {
-            PRINTF(("Decreasing time between files!!!"));
-            return kvlcERR_TIME_DECREASING;
-          }
-        }
-      }
-      le->common.time64 = time_of_last_clock_event + (time_uint64)me->x.rtc.timeStamp;
+      le->common.nanos_since_1970 = caltim;
+      le->common.time64 = time64_offset + timestamp;
 
       return kvlcOK;
     }
@@ -147,72 +127,28 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
       le->msg.frame_counter = ++current_frameno;
       le->common.new_data          = true;
       le->common.type              = ILOG_TYPE_MESSAGE;
+      le->common.nanos_since_1970 = calendar_time_offset + me->x.msg.timeStamp;
+      le->common.time64 = time64_offset + me->x.msg.timeStamp;
       le->msg.flags   = me->x.msg.flags;
       le->msg.id      = me->x.msg.id;
       le->msg.channel = (unsigned char)me->x.msg.channel;
       le->msg.dlc     = numBytesToDLC(me->x.msg.dlc);
-      for (i = 0; i < 64; i++) {
+      for (int i = 0; i < 64; i++) {
         le->msg.data[i] = (char)me->x.msg.data[i];
       }
-
-      if (!first_timestamp) {
-        first_timestamp = me->x.msg.timeStamp;
-        if (start_of_measurement64 && time_gap && last_clock_event) {
-          PRINTF(("RTC read (memoLogEvent) = %lu\n", last_clock_event));
-          // (start - calendar)
-          time_gap = false;
-
-          time_of_last_clock_event = last_clock_event - start_of_measurement64;
-          time_of_last_clock_event -= first_timestamp;
-          PRINTF(("time_of_last_clock_event %lu", time_of_last_clock_event));
-
-          if (time_of_last_clock_event >= -4 * ONE_BILLION) {
-            if (time_of_last_clock_event <=  4 * ONE_BILLION) {
-              time_of_last_clock_event = 0;
-            }
-          } else {
-            PRINTF(("Decreasing time between files!!!"));
-            return kvlcERR_TIME_DECREASING;
-          }
-        }
-      }
-      le->common.time64 = time_of_last_clock_event +
-                             ((time_uint64)(me->x.msg.timeStamp));
       return kvlcOK;
     }
 
     case MEMOLOG_TYPE_TRIGGER:
     {
-      if (!first_timestamp) {
-        first_timestamp = me->x.trig.timeStamp;
-        if (start_of_measurement64 && time_gap && last_clock_event) {
-             PRINTF(("RTC read (memoLogTrigger) = %lu\n", last_clock_event));
-          // (start - calendar)
-          time_gap = false;
-
-          time_of_last_clock_event = last_clock_event - start_of_measurement64;
-          time_of_last_clock_event -= first_timestamp;
-          PRINTF(("time_of_last_clock_event %lu", time_of_last_clock_event));
-
-          if (time_of_last_clock_event >= -4 * ONE_BILLION) {
-            if (time_of_last_clock_event <=  4 * ONE_BILLION) {
-              time_of_last_clock_event = 0;
-            }
-          } else {
-            PRINTF(("Decreasing time between files!!!"));
-            return kvlcERR_TIME_DECREASING;
-          }
-        }
-      }
-
       le->common.new_data            = true;
       le->common.type                = ILOG_TYPE_TRIGGER;
+      le->common.nanos_since_1970 = calendar_time_offset + me->x.trig.timeStamp;
+      le->common.time64 = time64_offset + me->x.trig.timeStamp;
       le->trig.active   = true;
       le->trig.trigNo   = (unsigned char)me->x.trig.trigNo;
       le->trig.postTrigger  = me->x.trig.postTrigger;
       le->trig.preTrigger   = me->x.trig.preTrigger;
-      le->common.time64       = time_of_last_clock_event +
-                                    (time_uint64)me->x.trig.timeStamp;
       le->trig.type     = (unsigned char)me->x.trig.type;
       return kvlcOK;
     }
@@ -229,6 +165,7 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
       le->ver.serialNumber = me->x.ver.serialNumber;
       le->ver.eanHi = me->x.ver.eanHi;
       le->ver.eanLo = me->x.ver.eanLo;
+      le->common.nanos_since_1970 = 0;
       le->common.time64 = 0;
       return kvlcOK;
     }
@@ -237,10 +174,8 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
     {
       PRINTF(("Unknown type of memo log event (%d)\n",me->type));
       return kvlcERR_INVALID_LOG_EVENT;
-      break;
     }
   }
-  return kvlcOK;
 }
 
 
@@ -252,9 +187,9 @@ KvlcStatus KvaLogReader_memoLogEvent::read_row(imLogData *logEvent)
     return kvlcERR_FILE_ERROR;
   }
 
-  read_file((char *)&current_memoLogEvent, sizeof(memoLogEventEx));
-
-  return interpret_event(&current_memoLogEvent, logEvent);
+  memoLogEventEx me;
+  read_file((char *)&me, sizeof me);
+  return interpret_event(&me, logEvent);
 }
 
 
@@ -269,9 +204,10 @@ uint64 KvaLogReader_memoLogEvent::event_count()
 KvaLogReader_memoLogEvent::KvaLogReader_memoLogEvent()
 {
   PRINTF(("KvaLogReader_memoLogEvent::KvaLogReader_memoLogEvent()\n"));
-  time_of_last_clock_event = 0;
   current_eventno = 0;
   current_frameno = 0;
+  calendar_time_offset = 0;
+  time64_offset = 0;
   time_gap = true;
 }
 
@@ -287,8 +223,6 @@ KvlcStatus KvaLogReader_memoLogEvent::next_file()
 {
   PRINTF(("KvaLogReader_memoLogEvent::next_file()"));
   time_gap = true;
-  last_clock_event = 0;
-  first_timestamp = 0;
   return kvlcOK;
 }
 

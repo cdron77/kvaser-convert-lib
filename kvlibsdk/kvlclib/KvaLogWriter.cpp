@@ -101,7 +101,6 @@ KvaLogWriter::KvaLogWriter()
   PRINTF(("KvaLogWriter::KvaLogWriter()\n"));
   start_of_logging = 0;
   last_clock_event = 0;
-  first_timestamp = 0;
   overrun_occurred = false;
   data_truncation_occurred = false;
   dlc_mismatch_occurred = false;
@@ -512,8 +511,8 @@ unsigned long KvaLogWriter::get_J1939_id(unsigned int id)
 */
 unsigned int KvaLogWriter::get_J1939_mask(unsigned int id)
 {
-  const unsigned int pf_mask = 0x1ff0000;
-  const unsigned int ps_mask = 0x000ff00;
+  const unsigned int pf_mask = 0x1ff00ff;
+  const unsigned int ps_mask = 0x000ffff;
   unsigned int pf = 0;
   unsigned int mask = 0;
 

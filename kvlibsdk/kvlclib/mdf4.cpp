@@ -370,10 +370,10 @@ MdfStatus Mdf4::new_dg(MDF_UINT32 canId, MDF_UINT8 dlc)
   return Mdf4::new_dg(canId, CAN_ID_MASK_ALL_BITS, MuxChecker(0,-1), dlc);
 }
 
-MdfStatus Mdf4::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc, const std::string& msgname)
+MdfStatus Mdf4::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc, const std::string& msgname, int channel)
 {
   if (hd) {
-    return hd->new_dg(canId, canMask, mux, dlc, msgname);
+    return hd->new_dg(canId, canMask, mux, dlc, msgname, channel);
   }
   return MDF_ERROR_MEMORY;
 }
@@ -665,11 +665,7 @@ fhNode::fhNode(int version)
   struct tm newtime;
   localtime_r(&aclock, &newtime);
   fh.fh_time_ns = mktime(&newtime) * 1000000000LL;
-#ifdef _BSD_SOURCE
   fh.fh_tz_offset_min = (MDF_INT16) (newtime.tm_gmtoff / 60);
-#else
-	fh.fh_tz_offset_min = 0;
-#endif
   if (newtime.tm_isdst > 0) {
     // Turn off day light saving to get fh_tz_offset_min
     newtime.tm_isdst = 0;
@@ -2452,13 +2448,13 @@ MdfStatus hdNode::new_vector_dg(int channel, int type)
   return MDF_OK;
 }
 
-MdfStatus hdNode::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 /* dlc */, const std::string& msgname)
+MdfStatus hdNode::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 /* dlc */, const std::string& msgname, int channel)
 {
   dgNode *local_dg;
 
   local_dg = dg;
   while (dg) {
-    if ((dg->canId == canId)&&(dg->mux_checker.getValue() == mux.getValue())) {
+    if (((canMask & dg->canId) == (canMask & canId))&&(dg->mux_checker.getValue() == mux.getValue()) && dg->can_channel==channel) {
       cur_dg = dg;
       dg = local_dg;
       return MDF_OK; //dgblock for these kind of signals is already created
@@ -2466,8 +2462,8 @@ MdfStatus hdNode::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker&
     dg = dg->next;
   }
 
-  // All channels merged into one in signal mode. Will set cur_dg.
-  createMdf4Channel(1, MDF_CAN_FRAME_TYPE, canId, msgname);
+  // Will set cur_dg.
+  createMdf4Channel(channel, MDF_CAN_FRAME_TYPE, canId, msgname);
 
   // Reinsert previously first dg at second place
   cur_dg->next = local_dg;
