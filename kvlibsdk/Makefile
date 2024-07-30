@@ -1,5 +1,5 @@
 #
-#             Copyright 2017 by Kvaser AB, Molndal, Sweden
+#             Copyright 2023 by Kvaser AB, Molndal, Sweden
 #                         http://www.kvaser.com
 #
 #  This software is dual licensed under the following two licenses:
@@ -114,3 +114,4 @@ dist:
 	cp -p moduleinfo.txt kvlibsdk_so/.
 	tar cvzf kvlibsdk_so.1.1.0.tar.gz kvlibsdk_so
 	rm -r kvlibsdk_so
+

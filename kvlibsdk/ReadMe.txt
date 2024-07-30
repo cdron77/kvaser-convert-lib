@@ -53,6 +53,8 @@ only in accordance with the terms of such license. See file COPYING.
 2 Requirements
 ==============
 
+  The package pkg-config is needed by all Kvaser libraries.
+
   The packages libxml2-dev pkg-config are needed in order to build kvamemolibxml.
 
   The package zlib1g-dev is needed to build kvlclib.
