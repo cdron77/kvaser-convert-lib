@@ -77,6 +77,7 @@ CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer $(XTRA
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
 CFLAGS  += -I. -I$(SDK_COMMON)/inc -I../include -I./common/include -I$(KVMLIB_COMMON_SRC)
+CFLAGS  += -DLINUX
 
 ifeq ($(KV_DEBUG_ON),1)
   CFLAGS += -O0 -g

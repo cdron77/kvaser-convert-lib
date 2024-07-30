@@ -4465,6 +4465,8 @@ static KvaMemoStatus writeCleanTrack(MemoHandle h, TriggerList *list, int track,
   LioVolumeDataBlock*    lvdb = NULL;
   LioVolumeControlBlock* lvcb = NULL;
 
+
+
   PRINTF(("writeCleanTrack: %u.%u", lioMajor, lioMinor));
   // LioVolumeDataBlock
   lvdb = (LioVolumeDataBlock*) lio_data_buffer;
@@ -4662,7 +4664,7 @@ KvaMemoStatus WINAPI memoGetFileTrackUsage(MemoHandle h, int track, fileSysUsage
   }
 
   lvdb = (LioVolumeDataBlock*) lio_data_buffer;
-  fus->maxFileCount = 100;
+  fus->maxFileCount = 10000;
   fus->fileCount    = lvdb->numOfKMFFiles;
   fus->diskSize     = triggerList.trackEnd[track] - triggerList.trackStart[track] - LIO_FIRST_AVAILABLE_SECTOR;
   gDiskSize         = lvdb->fileSize;
@@ -4700,6 +4702,7 @@ KvaMemoStatus WINAPI memoClearDataTrack(MemoHandle h, int track)
   uint8_t major, minor;
   uint8_t lioMajor = LIO_VERSION_FD;
   uint8_t lioMinor = 0;
+  memoConf *mc = (memoConf *)h;
 
   PRINTF(("memoClearDataTrack %d\n", track));
   if (!h) return MemoStatusERR_PARAM;
@@ -4720,7 +4723,29 @@ KvaMemoStatus WINAPI memoClearDataTrack(MemoHandle h, int track)
 
   if (LIO_MULTITRACK_VERSION == major) lioMajor = LIO_MULTITRACK_VERSION;
 
-  return writeCleanTrack(h, &triggerList, track, lioMajor, lioMinor);
+  // Change to read/write if we are using a file/disk
+  if (mc->mDevice == memo_DISK5) {
+    status = reopenDiskReadWrite();
+    if (status != MemoStatusOK) {
+      (void) reopenDiskReadOnly();
+      PRINTF(("memoFormatDiskEx: File is write-protected.\n"));
+      return MemoStatusERR_WRITE_PROT;
+    }
+  }
+
+  // Write clean tracks to the disk
+  status = writeCleanTrack(h, &triggerList, track, lioMajor, lioMinor);
+  if (status != MemoStatusOK ) {
+    if (mc->mDevice == memo_DISK5) reopenDiskReadOnly();
+    return status;
+  }
+
+  if (mc->mDevice == memo_DISK5) {
+    status = reopenDiskReadOnly();
+    if (status != MemoStatusOK) return status;
+  }
+
+  return MemoStatusOK;
 }
 
 /*

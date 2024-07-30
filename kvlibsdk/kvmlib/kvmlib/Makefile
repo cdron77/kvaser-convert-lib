@@ -83,6 +83,7 @@ CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer $(XTRA
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
 CFLAGS  += -I. -I$(SDK_COMMON)/inc -I$(KVLCLIB) -I../include -I$(KVMLIB_COMMON_SRC) -I../../include
+CFLAGS  += -DLINUX
 
 ifeq ($(KV_DEBUG_ON),1)
   CFLAGS += -O0 -g
@@ -191,7 +192,7 @@ install:
 	$(LDCONFIG)
 
 	#change name on pshpack1 and poppack to kvpshpack and kvpoppack
-	cp -p ../../include/kvmlib.h            tmp_kvmlib.h	
+	cp -p ../../include/kvmlib.h            tmp_kvmlib.h
 	sed -r -i 's,pshpack1\.h,kvpshpack\.h,' tmp_kvmlib.h
 	sed -r -i 's,poppack\.h,kvpoppack\.h,'  tmp_kvmlib.h
 

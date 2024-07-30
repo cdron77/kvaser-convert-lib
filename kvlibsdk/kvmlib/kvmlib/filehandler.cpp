@@ -565,7 +565,7 @@ void fileHandler::toMemoEventEx(imLogData *le, void *e)
       me->x.msg.flags   = le->msg.flags;
       me->x.msg.id      = le->msg.id;
       me->x.msg.channel = le->msg.channel;
-      me->x.msg.dlc     = le->msg.dlc;
+      me->x.msg.dlc     = dlcToNumBytesFD(le->msg.dlc);
       memcpy(me->x.msg.data, le->msg.data, 64);
       me->x.msg.timeStamp = le->common.time64;
       lastTimeStamp = le->common.time64;

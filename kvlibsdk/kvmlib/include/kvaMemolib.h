@@ -329,7 +329,7 @@ typedef struct {
   uint32 id;            // The identifier
   int64  timeStamp;     // timestamp in units of 1 nanoseconds
   uint32 channel;       // The channel on which the message arrived, 0,1,...
-  uint32 dlc;           // The length of the message
+  uint32 dlc;           // The data length of the message in bytes
   uint32 flags;         // Message flags
   uint8  data[64];      // Message data (64 bytes)
 } memoLogMsgEx;

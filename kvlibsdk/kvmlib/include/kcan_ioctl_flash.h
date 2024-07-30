@@ -1,5 +1,5 @@
 /*
-**             Copyright 2021 by Kvaser AB, Molndal, Sweden
+**             Copyright 2023 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
 **
 ** This software is dual licensed under the following two licenses:
@@ -71,43 +71,45 @@
 
 #define KCAN_FLASH_DOWNLOAD_CHUNK 24
 
-#define FIRMWARE_DOWNLOAD_COMMIT            1
-#define FIRMWARE_DOWNLOAD_WRITE             2
-#define FIRMWARE_DOWNLOAD_FINISH            3
-#define FIRMWARE_DOWNLOAD_STARTUP           4
-#define FIRMWARE_DOWNLOAD_ERASE             5
+#define FIRMWARE_DOWNLOAD_COMMIT  1
+#define FIRMWARE_DOWNLOAD_WRITE   2
+#define FIRMWARE_DOWNLOAD_FINISH  3
+#define FIRMWARE_DOWNLOAD_STARTUP 4
+#define FIRMWARE_DOWNLOAD_ERASE   5
 
-#define FIRMWARE_STATUS_OK                  0     // OK
-#define FIRMWARE_ERROR_NOPRIV               1     // No privilegie
-#define FIRMWARE_ERROR_ADDR                 2     // Wrong address
-#define FIRMWARE_ERROR_FLASH_FAILED         3     // Flash device failed
-#define FIRMWARE_ERROR_COMMAND              4     // Unknown command
-#define FIRMWARE_ERROR_PARAM_FULL           5     // Parameter memory full
-#define FIRMWARE_ERROR_PWD_WRONG            6
-#define FIRMWARE_ERROR_VERSION_WRONG        7     // New fw version not accepted
-#define FIRMWARE_ERROR_BAD_CRC              8
+#define FIRMWARE_STATUS_OK           0 // OK
+#define FIRMWARE_ERROR_NOPRIV        1 // No privilegie
+#define FIRMWARE_ERROR_ADDR          2 // Wrong address
+#define FIRMWARE_ERROR_FLASH_FAILED  3 // Flash device failed
+#define FIRMWARE_ERROR_COMMAND       4 // Unknown command
+#define FIRMWARE_ERROR_PARAM_FULL    5 // Parameter memory full
+#define FIRMWARE_ERROR_PWD_WRONG     6
+#define FIRMWARE_ERROR_VERSION_WRONG 7 // New fw version not accepted
+#define FIRMWARE_ERROR_BAD_CRC       8
+#define FIRMWARE_ERROR_INVALID_ARG   9 // Invalid argument
+#define FIRMWARE_ERROR_VERIFY_DIFF   10 // Comparison differs
 
 typedef struct {
-  int           status;
-  int           tag;        // FIRMWARE_DOWNLOAD_xxx
-  union {
-    struct {
-      uint8_t   ver_major;
-      uint8_t   ver_minor;
-      uint16_t  ver_build;
-      uint32_t  ean[2];
-      uint8_t   dryrun;
-      uint8_t   flash_procedure_version;
-      uint16_t  buffer_size;
-    } setup;
-    struct {
-      uint32_t  address;
-      uint32_t  len;
-      uint8_t   data[KCAN_FLASH_DOWNLOAD_CHUNK];
-    } data;
-    struct {
-      uint32_t  area;
-    } erase;
-  } x;
+    int status;
+    int tag; // FIRMWARE_DOWNLOAD_xxx
+    union {
+        struct {
+            uint8_t ver_major;
+            uint8_t ver_minor;
+            uint16_t ver_build;
+            uint32_t ean[2];
+            uint8_t dryrun;
+            uint8_t flash_procedure_version;
+            uint16_t buffer_size;
+        } setup;
+        struct {
+            uint32_t address;
+            uint32_t len;
+            uint8_t data[KCAN_FLASH_DOWNLOAD_CHUNK];
+        } data;
+        struct {
+            uint32_t area;
+        } erase;
+    } x;
 } KCAN_FLASH_PROG;
 #endif /* KCAN_IOCTL_FLASH_H */
