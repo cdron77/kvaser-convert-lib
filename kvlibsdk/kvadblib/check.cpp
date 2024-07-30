@@ -409,7 +409,7 @@ int create_database ()
     printf("Error on line=%d. status=%d\n",__LINE__, (int)status);
     return -1;
   }
-  status = kvaDbSetSignalValueSize(sh12, 8, 32);
+  status = kvaDbSetSignalValueSize(sh12, 41, 32);
   if (status != kvaDbOK) {
     printf("Error on line=%d. status=%d\n",__LINE__, (int)status);
     return -1;

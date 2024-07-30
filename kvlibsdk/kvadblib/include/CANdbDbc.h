@@ -73,11 +73,12 @@
 // ****************************************************************************
 
 union Token {
-        int     int_const;
-        double  double_const;
-        char    *string_const;
-        char    *ident;
-        int     token;
+        int          int_const;
+        double       double_const;
+        char         *string_const;
+        char         *ident;
+        int          token;
+        unsigned int uint_const;
       };
 
 

@@ -1616,7 +1616,9 @@ int CANdbSignal::store_value (unsigned char *can_data, int dlc, double value)
     return store_value_uint_internal (can_data, dlc, iValue);
   }
   else {
-    return store_value (can_data, dlc, (uint64_t)value); // Just cast it to an integer.
+    // Straight cast from negative double to unsigned is implementation defined.
+    // It returns 0 on gcc arm, passing it via signed int is portable.
+    return store_value (can_data, dlc, (uint64_t)(int64_t)value); // Just cast it to an integer.
   }
 } // CANdbSignal::store_value
 
@@ -3618,7 +3620,7 @@ const char *CANdbFileIo::get_db_name () const
     strncpy (name, start, len);
     name [len] = '\0';
   }
-  else strcpy (name, "unkown");
+  else strcpy (name, "unknown");
 
   return name;
 } // CANdbFileIo::get_db_name

@@ -78,6 +78,7 @@
 #include <clocale>
 #include <float.h>
 #include <climits>
+#include <cerrno>
 
 #include "CANdb.h"
 #include "CANdbDbc.h"
@@ -127,9 +128,10 @@
 #define T_ENVVAR_DATA   1012
 #define T_VAL           1020
 #define T_IDENT         1021
-#define T_INT_CONST     1022
-#define T_DOUBLE_CONST  1023
-#define T_STRING_CONST  1024
+#define T_UINT_CONST    1022
+#define T_INT_CONST     1023
+#define T_DOUBLE_CONST  1024
+#define T_STRING_CONST  1025
 
 
 // ****************************************************************************
@@ -201,7 +203,6 @@ static struct s_keyword keywords[] = {
 
 // ****************************************************************************
 
-
 static unsigned long hash_value (const char *s)
 {
   unsigned long h = 0;
@@ -217,8 +218,6 @@ static unsigned long hash_value (const char *s)
 
 static void build_keyword_hash_table (void)
 {
-  unsigned int i = 0;
-
   if (!keyword_hash_table) {
     unsigned int keyword_count = 0;
     while (keywords [keyword_count].name) ++keyword_count;
@@ -228,6 +227,8 @@ static void build_keyword_hash_table (void)
   }
 
   if (keyword_hash_table) {
+    unsigned int i;
+
     for (i = 0; i < keyword_hash_table_size; ++i) {
       keyword_hash_table [i].keyword = NULL;
       keyword_hash_table [i].hash_val = 0;
@@ -279,6 +280,53 @@ static int find_token (char *str)
   return -1;
 } /* find_token */
 
+/** Tries to convert the parsed token into a double constant.
+ *
+ * \return Whether the token was coerced to a double.
+ */
+static bool token_to_double (int t, Token token, double &out) {
+  switch (t) {
+  case T_UINT_CONST: out = token.uint_const; return true;
+  case T_INT_CONST: out = token.int_const; return true;
+  case T_DOUBLE_CONST: out = token.double_const; return true;
+  default: return false;
+  }
+}
+
+/** Tries to convert the parsed token into an int constant.
+ *
+ * \return Whether the token was coerced to an int.
+ */
+static bool token_to_int (int t, Token token, int &out) {
+  switch (t) {
+  case T_UINT_CONST:
+    if (token.uint_const > INT_MAX) return false;
+    out = token.uint_const;
+    return true;
+  case T_INT_CONST: out = token.int_const; return true;
+  default: return false;
+  }
+}
+
+// ****************************************************************************
+
+/** Converts between sawtooth and sequential bit positions. */
+static unsigned reflect (unsigned i)
+{
+  return (i & ~(8 - 1)) | (7 - i % 8);
+}
+
+/** Converts from Motorola forward MSB to -LSB. */
+static unsigned motorola_forward_msb_to_lsb (unsigned i, unsigned len)
+{
+  return reflect (reflect (i) + len - 1);
+}
+
+/** Converts from Motorola forward LSB to -MSB. */
+static unsigned motorola_forward_lsb_to_msb (unsigned i, unsigned len)
+{
+  return reflect (reflect (i) + 1 - len);
+}
 
 // ****************************************************************************
 
@@ -356,29 +404,23 @@ int CANdbDBC::read_string (char c, Token& token)
 
 int CANdbDBC::read_value (char c, Token& token)
 {
-  int i = 0;
+  int i = 0, sign = 1;
 
-  if ((c == '.') || (c == '-') || (c == '+')) {
+  switch (c) {
+  case '-': sign = -1; // fallthrough
+  case '+':
     string_buf[i++] = c;
     c = fgetc (file);
+    break;
   }
 
   if (! isdigit (c)) return -1;
 
   string_buf[i++] = c;
-  for (; isdigit (c = fgetc (file)); i ++) string_buf[i] = c;
-
-  /* Long- bzw. Integer-Zahl in Dezimalform */
-  if ((c != '.') && (c != 'E') && (c != 'e') && (c != 'x') && (c != 'X')) {
-    ungetc (c, file);
-    string_buf[i] = '\0';
-    token.int_const = (int)_atoi64 (string_buf);
-    return T_INT_CONST;
-  }
+  while (isdigit (c = fgetc (file))) string_buf[i++] = c;
 
   /* Hex-Zahl */
-  else if ((c == 'x') || (c == 'X')) {
-    long hex;
+  if ((c == 'x') || (c == 'X')) {
     if (string_buf [0] == '0') {
       if (i != 1) return -1;
     }
@@ -386,44 +428,61 @@ int CANdbDBC::read_value (char c, Token& token)
       if ((string_buf [1] != '0') || (i != 2)) return -1;
     }
     else return -1;
-    i --;
+    --i;
     for (; isxdigit (c = fgetc (file)); i++) string_buf [i] = c;
     ungetc (c, file);
     string_buf [i] = '\0';
-    sscanf ((const char *) string_buf, "%lx", &hex);
-    token.int_const = hex;
+    sscanf (string_buf, "%x", &token.int_const);
     return T_INT_CONST;
   }
 
-  /* Double- bzw. Float-Zahl */
-  else {
-    if (c == '.') {
-      string_buf[i] = c;
-      for (i++; isdigit (c = fgetc (file)); i++) string_buf[i] = c;
-    }
-    if ((c == 'E') || (c == 'e')) {
-      string_buf[i++] = c;
-      c = fgetc (file);
-      if ((c == '-') || (c == '+')) {
-        string_buf [i++] = c;
-        c = fgetc (file);
-      }
-      if (isdigit (c)) {
-        string_buf [i++] = c;
-        for (; isdigit (c = fgetc (file)); i++) string_buf [i] = c;
-      }
-      else return -1;
-    }
-    ungetc (c, file);
-    string_buf [i] = '\0';
+  /* Long- bzw. Integer-Zahl in Dezimalform */
+  else if ((c != '.') && (c != 'E') && (c != 'e')) {
+    string_buf[i] = '\0';
 
-    sscanf (string_buf, "%lf", &token.double_const);
-
-    return T_DOUBLE_CONST;
+    errno = 0;
+    if (sign > 0) {
+      unsigned long u = strtoul (string_buf, NULL, 10);
+      if (!(u == ULONG_MAX && errno == ERANGE) && u <= UINT_MAX) {
+        ungetc (c, file);
+        token.uint_const = u;
+        return T_UINT_CONST;
+      }
+    } else {
+      long l = strtol (string_buf, NULL, 10);
+      if (!((l == LONG_MIN || l == LONG_MAX) && errno == ERANGE)
+        && INT_MIN <= l && l <= INT_MAX) {
+        ungetc (c, file);
+        token.int_const = l;
+        return T_INT_CONST;
+      }
+    }
   }
 
-} // CANdbDBC::read_value
+  /* Double- bzw. Float-Zahl */
+  if (c == '.') {
+    string_buf[i++] = c;
+    while (isdigit (c = fgetc (file))) string_buf[i++] = c;
+  }
+  if ((c == 'E') || (c == 'e')) {
+    string_buf[i++] = c;
+    c = fgetc (file);
+    if ((c == '-') || (c == '+')) {
+      string_buf [i++] = c;
+      c = fgetc (file);
+    }
+    if (isdigit (c)) {
+      string_buf [i++] = c;
+      while (isdigit (c = fgetc (file))) string_buf[i++] = c;
+    }
+    else return -1;
+  }
+  ungetc (c, file);
+  string_buf [i] = '\0';
 
+  sscanf (string_buf, "%lf", &token.double_const);
+  return T_DOUBLE_CONST;
+} // CANdbDBC::read_value
 
 /* Reads a token from the infile. Blank space is skipped first. If during this, there is a new line,
 * the token T_NEWLINE is returned.
@@ -625,11 +684,11 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("Signal bit position expected");
     return -1;
   }
-  signal->set_start_bit (token.int_const);
+  signal->set_start_bit (token.uint_const);
 
   t = lex (token);
   if (t != '|') {
@@ -638,11 +697,11 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("Signal length expected");
     return -1;
   }
-  signal->set_length (token.int_const);
+  signal->set_length (token.uint_const);
 
   t = lex (token);
   if (t != '@') {
@@ -651,20 +710,16 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token); // 1: Intel, 0: Motorola
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("Signal number expected");
     return -1;
   }
-  if (token.int_const == 0) {
+  if (token.uint_const == 0) {
     signal->set_motorola (true);
     // If we have a motorola message, we have to convert the start bit.
     // See the relating comment in the header file.
-    int sb = signal->get_start_bit ();
-    sb = 64*8 - candb_reflect (sb) - signal->get_length ();
-    int bit = sb % 8,
-        byte = sb / 8;
-    sb = (63 - byte) * 8 + bit;
-    signal->set_start_bit (sb);
+    unsigned sb = signal->get_start_bit (), len = signal->get_length ();
+    signal->set_start_bit (motorola_forward_msb_to_lsb (sb, len));
   }
 
   t = lex (token);
@@ -682,8 +737,8 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) signal->set_factor (token.int_const);
-  else if (t == T_DOUBLE_CONST) signal->set_factor (token.double_const);
+  double d;
+  if (token_to_double (t, token, d)) signal->set_factor (d);
   else {
     error ("Factor expected");
     return -1;
@@ -696,8 +751,7 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) signal->set_offset (token.int_const);
-  else if (t == T_DOUBLE_CONST) signal->set_offset (token.double_const);
+  if (token_to_double (t, token, d)) signal->set_offset (d);
   else {
     error ("Offset expected");
     return -1;
@@ -716,8 +770,7 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) signal->set_min_val (token.int_const);
-  else if (t == T_DOUBLE_CONST) signal->set_min_val (token.double_const);
+  if (token_to_double (t, token, d)) signal->set_min_val (d);
   else {
     error ("Min value expected");
     return -1;
@@ -730,8 +783,7 @@ int CANdbDBC::read_dbc_signal (CANdbSignal *signal, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) signal->set_max_val (token.int_const);
-  else if (t == T_DOUBLE_CONST) signal->set_max_val (token.double_const);
+  if (token_to_double (t, token, d)) signal->set_max_val (d);
   else {
     error ("Max value expected");
     return -1;
@@ -768,13 +820,13 @@ int CANdbDBC::read_dbc_message (CANdbMessage *msg, Token& token)
   int t;
 
   t = lex (token);
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("CAN id expected");
     return -1;
   }
-  msg->set_id (token.int_const & ~CANDB_EXT_FLAG);
+  msg->set_id (token.uint_const & ~CANDB_EXT_FLAG);
 
-  msg->set_extended ((token.int_const & CANDB_EXT_FLAG) != 0);
+  msg->set_extended ((token.uint_const & CANDB_EXT_FLAG) != 0);
 
   t = lex (token);
   if (t != T_IDENT) {
@@ -790,11 +842,11 @@ int CANdbDBC::read_dbc_message (CANdbMessage *msg, Token& token)
   }
 
   t = lex (token);
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("DLC expected");
     return -1;
   }
-  msg->set_dlc (token.int_const);
+  msg->set_dlc (token.uint_const);
 
   t = lex (token);
   if (t == T_IDENT) {
@@ -866,20 +918,17 @@ int CANdbDBC::read_dbc_env_variable (CANdbEnvVariable *var, Token& token)
   // "String" and "float" is further characterized by the "dummy" placeholder
   // described below
   t = lex (token);
-  if (t != T_INT_CONST) {
+  if (t != T_UINT_CONST) {
     error ("variable type expected");
     return -1;
   }
-  //var->set_type ((CANdbSignalType)token.int_const);
+  //var->set_type ((CANdbSignalType)token.uint_const);
 
   // Assign a tentative type..
-  if (token.int_const == 0) {
-    var->set_type (CANDB_EV_INTEGER);
-  }
-  else if (token.int_const == 1) {
-    var->set_type (CANDB_EV_FLOAT);
-  }
-  else {
+  switch (token.uint_const) {
+  case 0: var->set_type (CANDB_EV_INTEGER); break;
+  case 1: var->set_type (CANDB_EV_FLOAT); break;
+  default:
     error ("Unknown environment variable type");
     return -1;
   }
@@ -891,8 +940,8 @@ int CANdbDBC::read_dbc_env_variable (CANdbEnvVariable *var, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) var->set_min_val (token.int_const);
-  else if (t == T_DOUBLE_CONST) var->set_min_val (token.double_const);
+  double d;
+  if (token_to_double (t, token, d)) var->set_min_val (d);
   else {
     error ("Min value expected");
     return -1;
@@ -905,8 +954,7 @@ int CANdbDBC::read_dbc_env_variable (CANdbEnvVariable *var, Token& token)
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) var->set_max_val (token.int_const);
-  else if (t == T_DOUBLE_CONST) var->set_max_val (token.double_const);
+  if (token_to_double (t, token, d)) var->set_max_val (d);
   else {
     error ("Max value expected");
     return -1;
@@ -927,19 +975,18 @@ int CANdbDBC::read_dbc_env_variable (CANdbEnvVariable *var, Token& token)
   var->set_unit (token.string_const);
 
   t = lex (token);
-  if (t == T_INT_CONST) var->set_start_value (token.int_const);
-  else if (t == T_DOUBLE_CONST) var->set_start_value (token.double_const);
+  if (token_to_double (t, token, d)) var->set_start_value (d);
   else {
     error ("Start value expected");
     return -1;
   }
 
   t = lex (token);
-  if (t == T_INT_CONST) var->set_num_id (token.int_const);
-  else {
+  if (t != T_UINT_CONST) {
     error ("Num id expected");
     return -1;
   }
+  var->set_num_id (token.uint_const);
 
   // Oh blimey. "string" has type 0 (see above) and this token is
   // "DUMMY_NODE_VECTOR8000". For all other types it's
@@ -1070,18 +1117,23 @@ int CANdbDBC::read_dbc_attribute_default_value (Token& token)
 
   if ((ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ||
       (ad->get_type () == CANDB_ATTR_TYPE_HEX)) {
-    if (t != T_INT_CONST) {
-      error ("Integer value expected");
-      return -1;
-    }
-    if (ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ad->set_integer_default (token.int_const);
-    if (ad->get_type () == CANDB_ATTR_TYPE_HEX) ad->set_hex_default (token.int_const);
+    if (t == T_UINT_CONST) {
+      if (ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ad->set_integer_default (token.uint_const);
+      if (ad->get_type () == CANDB_ATTR_TYPE_HEX) ad->set_hex_default (token.uint_const);
+    } else {
+      if (t != T_INT_CONST) {
+        error ("Integer value expected");
+        return -1;
+      }
+      if (ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ad->set_integer_default (token.int_const);
+      if (ad->get_type () == CANDB_ATTR_TYPE_HEX) ad->set_hex_default (token.int_const);
 
+    }
   }
 
-  if (ad->get_type () == CANDB_ATTR_TYPE_FLOAT) {
-    if (t == T_DOUBLE_CONST) ad->set_float_default (token.double_const);
-    else if (t == T_INT_CONST) ad->set_float_default (token.int_const);
+  else if (ad->get_type () == CANDB_ATTR_TYPE_FLOAT) {
+    double d;
+    if (token_to_double (t, token, d)) { ad->set_float_default (d); }
     else {
       error ("Float value expected");
       return -1;
@@ -1103,7 +1155,6 @@ int CANdbDBC::read_dbc_attribute_default_value (Token& token)
 int CANdbDBC::read_dbc_attribute (Token& token)
 {
   int t;
-  CANdbAttribute *a = NULL;
 
   t = lex (token);
   if (t != T_STRING_CONST) {
@@ -1115,33 +1166,40 @@ int CANdbDBC::read_dbc_attribute (Token& token)
     printf ("Attribute '%s' not found\n", token.string_const);
     return -1;
   }
-  else a = new CANdbAttribute (ad);
+  CANdbAttribute *a = new CANdbAttribute (ad);
 
   CANdbAttributeList *al = NULL;
 
   int tsave = t = lex (token);
   if ((t == T_BO) || (t == T_SG)) {
     t = lex (token);
-    if (t != T_INT_CONST) {
+    if (t != T_UINT_CONST) {
       error ("Message Id expected");
       delete a;
       return -1;
     }
-    CANdbMessage *m = current_db->find_message_by_id (token.int_const);
-    if (!m) warning ("Message %d not found", token.int_const);
-    else al = m->get_attributes ();
+    CANdbMessage *m = current_db->find_message_by_id (token.uint_const);
+    if (!m) {
+      error ("Message %d not found", token.uint_const);
+      delete a;
+      return -1;
+    }
 
     if (tsave == T_SG) {
       t = lex (token);
       if (t != T_IDENT) {
-        error ("Message name expected");
+        error ("Signal name expected");
         delete a;
         return -1;
       }
-      if (m) {
-        CANdbSignal *s = m->find_signal_by_name (token.ident);
-        if (s) al = s->get_attributes ();
+      CANdbSignal *s = m->find_signal_by_name (token.ident);
+      if (s) {
+        al = s->get_attributes ();
+      } else {
+        warning ("Signal %s not found", token.ident);
       }
+    } else {
+      al = m->get_attributes ();
     }
 
     t = lex (token);
@@ -1178,30 +1236,15 @@ int CANdbDBC::read_dbc_attribute (Token& token)
       delete a;
       return -1;
     }
-    if (a)
-      a->set_string_value (token.string_const);
-  }
-
-  if ((ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ||
-      (ad->get_type () == CANDB_ATTR_TYPE_HEX) ||
-      (ad->get_type () == CANDB_ATTR_TYPE_ENUMERATION)) {
-    if (t != T_INT_CONST) {
-      error ("Integer value expected");
-      delete a;
-      return -1;
-    }
-    if (a) a->set_integer_value (token.int_const);
-  }
-
-  if (ad->get_type () == CANDB_ATTR_TYPE_FLOAT) {
-    if (t == T_DOUBLE_CONST) { if (a) a->set_float_value (token.double_const); }
-    else if (t == T_INT_CONST) { if (a) a->set_float_value (token.int_const); }
+    a->set_string_value (token.string_const);
+  } else {
+    double d;
+    if (token_to_double (t, token, d)) { a->set_float_value (d); }
     else {
-      error ("Float value expected");
+      error ("Numeric value expected");
       delete a;
       return -1;
     }
-
   }
 
   t = lex (token);
@@ -1212,7 +1255,7 @@ int CANdbDBC::read_dbc_attribute (Token& token)
   }
   t = lex (token);
 
-  if (al && a) al->insert (a);
+  if (al) al->insert (a);
 
   return t;
 } // CANdbDBC::read_dbc_attribute
@@ -1284,26 +1327,37 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
       }
     }
 
-    else if ((at == CANDB_ATTR_TYPE_INTEGER) || (at == CANDB_ATTR_TYPE_HEX)) {
-
-      if (t != T_INT_CONST) {
+    else if (at == CANDB_ATTR_TYPE_INTEGER) {
+      int i;
+      if (!token_to_int (t, token, i)) {
         warning ("Integer attribute min value expected");
-        // set default value.  
-        a->set_integer_min (INT_MIN);
+        i = INT_MIN; // Set default value
       }
-      else {
-        a->set_integer_min (token.int_const);
-      }
-      t = lex (token);
+      a->set_integer_min (i);
 
-      if (t != T_INT_CONST) {
+      t = lex (token);
+      if (!token_to_int (t, token, i)) {
         warning ("Integer attribute max value expected");
-        // set default value.  
-        a->set_integer_max (INT_MAX);
+        i = INT_MAX; // Set default value
       }
-      else {
-        a->set_integer_max (token.int_const);
+      a->set_integer_max (i);
+
+      t = lex (token);
+    }
+    else if (at == CANDB_ATTR_TYPE_HEX) {
+      if (t != T_UINT_CONST) {
+        warning ("Hex attribute min value expected");
+        token.uint_const = 0; // Set default value
       }
+      a->set_hex_min (token.uint_const);
+
+      t = lex (token);
+      if (t != T_UINT_CONST) {
+        warning ("Hex attribute max value expected");
+        token.uint_const = UINT_MAX; // Set default value
+      }
+      a->set_hex_max (token.uint_const);
+
       t = lex (token);
     }
 
@@ -1316,21 +1370,19 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
     }
 
     else if (at == CANDB_ATTR_TYPE_FLOAT) {
-      if (t == T_DOUBLE_CONST) a->set_float_min (token.double_const);
-      else if (t == T_INT_CONST) a->set_float_min (token.int_const);
-      else {
-        warning ("Attributes min value expected");
-        a->set_float_min (-FLT_MAX);
+      double d;
+      if (!token_to_double (t, token, d)) {
+        warning ("Attribute min value expected");
+        d = -FLT_MAX;
       }
+      a->set_float_min (d);
 
       t = lex (token);
-
-      if (t == T_DOUBLE_CONST) a->set_float_max (token.double_const);
-      else if (t == T_INT_CONST) a->set_float_max (token.int_const);
-      else {
-        warning ("Attributes max value expected");
-        a->set_float_max (FLT_MAX);
+      if (!token_to_double (t, token, d)) {
+        warning ("Attribute max value expected");
+        d = FLT_MAX;
       }
+      a->set_float_max (d);
 
       t = lex (token);
     }
@@ -1453,8 +1505,8 @@ int CANdbDBC::read_file (CANdb *db)
         if (!var)
           error ("No variable found for data line");
         else {
-          if (t == T_INT_CONST) var->set_data (token.int_const);
-          else if (t == T_DOUBLE_CONST) var->set_data (token.double_const);
+          double d;
+          if (token_to_double (t, token, d)) { var->set_data (d); }
           else {
             error ("Value expected");
           }
@@ -1492,9 +1544,9 @@ int CANdbDBC::read_file (CANdb *db)
       }
       else if (t == T_BO) { // comment for message
         t = lex (token);
-        if (t != T_INT_CONST) error ("Id expected for message comment");
+        if (t != T_UINT_CONST) error ("Id expected for message comment");
         else {
-          CANdbMessage *msg = current_db->find_message_by_id (token.int_const);
+          CANdbMessage *msg = current_db->find_message_by_id (token.uint_const);
           if (!msg) error ("No message found for comment line");
           else {
             t = lex (token);
@@ -1505,9 +1557,9 @@ int CANdbDBC::read_file (CANdb *db)
       }
       else if (t == T_SG) { // comment for signal
         t = lex (token);
-        if (t != T_INT_CONST) error ("Id expected for signal comment");
+        if (t != T_UINT_CONST) error ("Id expected for signal comment");
         else {
-          CANdbMessage *msg = current_db->find_message_by_id (token.int_const);
+          CANdbMessage *msg = current_db->find_message_by_id (token.uint_const);
           if (!msg) error ("Message (id=%d) found for comment line", token.int_const);
           else {
             t = lex (token);
@@ -1553,9 +1605,9 @@ int CANdbDBC::read_file (CANdb *db)
 
     else if (t == T_SIG_VALTYPE) { // type i.e. float for signal
       t = lex (token);
-      if (t != T_INT_CONST) error ("Id expected for signal type");
+      if (t != T_UINT_CONST) error ("Id expected for signal type");
       else {
-        CANdbMessage *msg = current_db->find_message_by_id (token.int_const);
+        CANdbMessage *msg = current_db->find_message_by_id (token.uint_const);
         if (!msg) error ("Message (id=%d) found for type info", token.int_const);
         else {
           t = lex (token);
@@ -1568,8 +1620,8 @@ int CANdbDBC::read_file (CANdb *db)
               if (t != ':') error ("Expected ':'");
               else {
                 t = lex (token);
-                if (t != T_INT_CONST) error ("Number expected for signal type");
-                else switch (token.int_const) {
+                if (t != T_UINT_CONST) error ("Number expected for signal type");
+                else switch (token.uint_const) {
                     case 1:
                         signal->set_type (CANDB_FLOAT);
                         break;
@@ -1577,7 +1629,7 @@ int CANdbDBC::read_file (CANdb *db)
                         signal->set_type (CANDB_DOUBLE);
                         break;
                     default:
-                        error ("Unknown signal type %d", token.int_const);
+                        error ("Unknown signal type %d", token.uint_const);
                 }
                 t = lex (token);
                 if (t == ';') t = lex (token);
@@ -1597,11 +1649,11 @@ int CANdbDBC::read_file (CANdb *db)
         else {
           t = lex (token);
           while (1) {
-            if (t != T_INT_CONST) {
+            int num;
+            if (!token_to_int (t, token, num)) {
               error ("Number expected for variable value");
               break;
             }
-            int num = token.int_const;
 
             t = lex (token);
             if (t != T_STRING_CONST) {
@@ -1619,9 +1671,9 @@ int CANdbDBC::read_file (CANdb *db)
           }
         }
       }
-      else if (t == T_INT_CONST) {
-        CANdbMessage *msg = current_db->find_message_by_id (token.int_const);
-        if (!msg) error ("Message (id=%d) found for type info", token.int_const);
+      else if (t == T_UINT_CONST) {
+        CANdbMessage *msg = current_db->find_message_by_id (token.uint_const);
+        if (!msg) error ("Message (id=%d) found for type info", token.uint_const);
         else {
           t = lex (token);
           if (t != T_IDENT) error ("Signal name expected for signal value");
@@ -1631,11 +1683,11 @@ int CANdbDBC::read_file (CANdb *db)
             else {
               t = lex (token);
               while (1) {
-                if (t != T_INT_CONST) {
+                int num;
+                if (!token_to_int (t, token, num)) {
                   error ("Number expected for signal value");
                   break;
                 }
-                int num = token.int_const;
 
                 t = lex (token);
                 if (t != T_STRING_CONST) {
@@ -1785,20 +1837,14 @@ int CANdbDBC::save_file (CANdb *db)
       }
 
       if (s->is_motorola ()) {
-        // We mirror what is done in read_dbc_signal():
-        int sb = s->get_start_bit ();
-        int bit = sb % 8,
-        byte = sb / 8;
-        sb = (7 - byte) * 8 + bit;
-        sb = candb_reflect (64 - sb - s->get_length ());
-        fprintf (file, " : %d|%d@0", sb, s->get_length ());
+        unsigned sb = s->get_start_bit (), len = s->get_length ();
+        fprintf (file, " : %u|%u@0", motorola_forward_lsb_to_msb (sb, len), len);
       }
       else {
         fprintf (file, " : %d|%d@1", s->get_start_bit(), s->get_length());
       }
 
-      if (s->get_type() == CANDB_UNSIGNED) fputc ('+', file);
-                                      else fputc ('-', file);
+      fputc (s->get_type () == CANDB_UNSIGNED ? '+' : '-', file);
 
       // Print (factor,offset) [min,max]
       fprintf (file, " (");
@@ -1867,7 +1913,7 @@ int CANdbDBC::save_file (CANdb *db)
     print_string (ev->get_unit ());
     fprintf (file, " ");
     print_value (ev->get_start_value ());
-    fprintf (file, " %d %s", ev->get_num_id (), ev->get_dummy_node ());
+    fprintf (file, " %u %s", ev->get_num_id (), ev->get_dummy_node ());
     CANdbNodeEntry *ne = ev->get_first_receive_node_entry ();
     bool first = true;
     while (ne) {
@@ -2009,7 +2055,7 @@ int CANdbDBC::save_file (CANdb *db)
            break;
 
       case CANDB_ATTR_TYPE_HEX:
-           fprintf (file, "HEX %d %d", ad->get_hex_min (), ad->get_hex_max ());
+           fprintf (file, "HEX %u %u", ad->get_hex_min (), ad->get_hex_max ());
            break;
 
       case CANDB_ATTR_TYPE_FLOAT:
@@ -2053,7 +2099,7 @@ int CANdbDBC::save_file (CANdb *db)
            break;
 
       case CANDB_ATTR_TYPE_HEX:
-           fprintf (file, "%d", ad->get_hex_default ());
+           fprintf (file, "%u", ad->get_hex_default ());
            break;
 
       case CANDB_ATTR_TYPE_FLOAT:
@@ -2086,17 +2132,8 @@ int CANdbDBC::save_file (CANdb *db)
 
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
-             fprintf (file, "%d", a->get_enumeration_value ());
-             break;
-
         case CANDB_ATTR_TYPE_INTEGER:
-             fprintf (file, "%d", a->get_integer_value ());
-             break;
-
         case CANDB_ATTR_TYPE_HEX:
-             fprintf (file, "%d", a->get_hex_value ());
-             break;
-
         case CANDB_ATTR_TYPE_FLOAT:
              print_value (a->get_float_value ());
              break;
@@ -2107,7 +2144,6 @@ int CANdbDBC::save_file (CANdb *db)
 
         case CANDB_ATTR_TYPE_INVALID:
              break;
-
       }
       fputs (";\n", file);
       a = a->get_next ();
@@ -2124,17 +2160,8 @@ int CANdbDBC::save_file (CANdb *db)
 
         switch (a->get_type ()) {
           case CANDB_ATTR_TYPE_ENUMERATION:
-               fprintf (file, "%d", a->get_enumeration_value ());
-               break;
-
           case CANDB_ATTR_TYPE_INTEGER:
-               fprintf (file, "%d", a->get_integer_value ());
-               break;
-
           case CANDB_ATTR_TYPE_HEX:
-               fprintf (file, "%d", a->get_hex_value ());
-               break;
-
           case CANDB_ATTR_TYPE_FLOAT:
                print_value (a->get_float_value ());
                break;
@@ -2145,7 +2172,6 @@ int CANdbDBC::save_file (CANdb *db)
 
           case CANDB_ATTR_TYPE_INVALID:
                break;
-
         }
         fputs (";\n", file);
         a = a->get_next ();
@@ -2167,17 +2193,8 @@ int CANdbDBC::save_file (CANdb *db)
       fprintf (file, " BU_ %s ", node->get_name ());
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
-             fprintf (file, "%d", a->get_enumeration_value ());
-             break;
-
         case CANDB_ATTR_TYPE_INTEGER:
-             fprintf (file, "%d", a->get_integer_value ());
-             break;
-
         case CANDB_ATTR_TYPE_HEX:
-             fprintf (file, "%d", a->get_hex_value ());
-             break;
-
         case CANDB_ATTR_TYPE_FLOAT:
              print_value (a->get_float_value ());
              break;
@@ -2188,7 +2205,6 @@ int CANdbDBC::save_file (CANdb *db)
 
         case CANDB_ATTR_TYPE_INVALID:
              break;
-
       }
       fputs (";\n", file);
       a = a->get_next ();
@@ -2208,17 +2224,8 @@ int CANdbDBC::save_file (CANdb *db)
       fprintf (file, " EV_ %s ", ev->get_name ());
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
-             fprintf (file, "%d", a->get_enumeration_value ());
-             break;
-
         case CANDB_ATTR_TYPE_INTEGER:
-             fprintf (file, "%d", a->get_integer_value ());
-             break;
-
         case CANDB_ATTR_TYPE_HEX:
-             fprintf (file, "%d", a->get_hex_value ());
-             break;
-
         case CANDB_ATTR_TYPE_FLOAT:
              print_value (a->get_float_value ());
              break;
@@ -2229,7 +2236,6 @@ int CANdbDBC::save_file (CANdb *db)
 
         case CANDB_ATTR_TYPE_INVALID:
              break;
-
       }
       fputs (";\n", file);
       a = a->get_next ();
@@ -2249,17 +2255,8 @@ int CANdbDBC::save_file (CANdb *db)
       fprintf (file, " ");
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
-             fprintf (file, "%d", a->get_enumeration_value ());
-             break;
-
         case CANDB_ATTR_TYPE_INTEGER:
-             fprintf (file, "%d", a->get_integer_value ());
-             break;
-
         case CANDB_ATTR_TYPE_HEX:
-             fprintf (file, "%d", a->get_hex_value ());
-             break;
-
         case CANDB_ATTR_TYPE_FLOAT:
              print_value (a->get_float_value ());
              break;
@@ -2270,7 +2267,6 @@ int CANdbDBC::save_file (CANdb *db)
 
         case CANDB_ATTR_TYPE_INVALID:
              break;
-
         }
         fputs (";\n", file);
         a = a->get_next ();

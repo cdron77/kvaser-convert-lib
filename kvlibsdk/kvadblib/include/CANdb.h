@@ -135,15 +135,6 @@ void candb_set_string (char **var, const char *s);
 
 // ****************************************************************************
 
-static inline
-int candb_reflect (int x)
-{
-  return 8 * (x / 8) + 7 - (x % 8);
-  // Or  (x & 0xf8) + (7 - (x & 0x07))
-} // candb_reflect
-
-// ****************************************************************************
-
 typedef void (*CANdbSignalCallback) (void *context, CANdbValue *value, unsigned int arg);
 
 
@@ -461,10 +452,7 @@ class CANdbAttribute {
 
         union {
           char          *string;
-          unsigned int  hex;
-          int           integer;
-          int           enumeration;
-          double        fp;
+          double d;
         } value;
 
       public:
@@ -479,18 +467,18 @@ class CANdbAttribute {
         CANdbAttributeType get_type (void) const { return type; }
 
         const char *get_string_value (void) const { return value.string; }
-        unsigned int get_hex_value (void) const { return value.hex; }
-        int get_integer_value (void) const { return value.integer; }
-        int get_enumeration_value (void) const  { return value.enumeration; }
-        double get_float_value (void) const  { return value.fp; }
+        unsigned int get_hex_value (void) const { return static_cast<unsigned int>(value.d); }
+        int get_integer_value (void) const { return static_cast<int>(value.d); }
+        int get_enumeration_value (void) const  { return static_cast<int>(value.d); }
+        double get_float_value (void) const  { return value.d; }
         CANdbAttributeDefinition *get_definition (void) const { return definition; }
         CANdbAttribute *get_next (void) const { return next; }
 
         void set_string_value (const char *s);
-        void set_hex_value (unsigned int v) { value.hex = v; }
-        void set_integer_value (int v) { value.integer = v; }
-        void set_enumeration_value (int v) { value.enumeration = v; }
-        void set_float_value (double v) { value.fp = v; }
+        void set_hex_value (unsigned int v) { value.d = v; }
+        void set_integer_value (int v) { value.d = v; }
+        void set_enumeration_value (int v) { value.d = v; }
+        void set_float_value (double v) { value.d = v; }
         void set_next (CANdbAttribute *n) { next = n; }
 
       private:
@@ -609,13 +597,13 @@ class CANdbSignal {
         //char            fmtPhysString[16]; // Used as a last resort (usually '\0').
 
         // That start_bit is a bit difficult. For signals in Intel
-        // format everything is easy. For Motorola signals here we count
-        // the bit position for the start in the same way like for signals
-        // in Intel format, but the message expands in the different byte
-        // direction. For Messages fitting into one byte there is no difference
-        // between Intel and Motorola. This behaviour is in opposite to the
-        // Vector format in the DBC files.
-        int             start_bit,
+        // format everything is easy. For Motorola signals we count the
+        // start bit position in the same way as for signals in Intel format,
+        // but the message expands in a different byte direction. For
+        // messages fitting into one byte there is no difference between
+        // Intel and Motorola. This behaviour is opposite to the Vector
+        // format in the DBC files.
+        int             start_bit, //!< Start position in Intel standard or Motorola forward LSB.
                         length,
                         mode;
         bool            mode_signal,
@@ -909,7 +897,7 @@ class CANdbEnvVariable {
                         start_value,
                         data;
         bool            data_flag; // Set to true if data is assigned
-        int             num_id;
+        unsigned        num_id;
         CANdbNodeEntry  *first_node,
                         *last_node;
         CANdbEnumValue  *first_value,
@@ -931,7 +919,7 @@ class CANdbEnvVariable {
         void set_start_value (double sv) { start_value = sv; }
         void set_access (CANdbEnvVarAccess a) { access = a;}
         void set_type (CANdbEnvVarType t) { type = t; }
-        void set_num_id (int n) { num_id = n; }
+        void set_num_id (unsigned n) { num_id = n; }
         void set_dummy_node (const char *s) { candb_set_string (&dummy_node, s); }
         void set_data(double v) { data = v; data_flag = true; }
         void set_candb (CANdb *_candb) { candb = _candb; }
@@ -944,7 +932,7 @@ class CANdbEnvVariable {
         double get_start_value (void) { return start_value; }
         CANdbEnvVarAccess get_access (void) const { return access; }
         CANdbEnvVarType get_type (void) const { return type; }
-        int get_num_id (void) { return num_id; }
+        unsigned get_num_id (void) { return num_id; }
         char *get_dummy_node (void) { return dummy_node; }
         double get_data_flag (void) { return data_flag; }
         double get_data (void) { return data; }

@@ -74,6 +74,7 @@ CFLAGS  += -Wall -Werror -Wextra  -DCPU=$(ARCH)  -O2 -fomit-frame-pointer -fno-s
 CFLAGS  += $(ccflags-y)
 CFLAGS  += -D_FILE_OFFSET_BITS=64
 CFLAGS  += -I. -I$(SDK_COMMON)/inc -I./include -I../include
+CFLAGS  += -DLINUX
 
 ifeq ($(KV_DEBUG_ON),1)
   CFLAGS += -O0 -g
@@ -84,8 +85,7 @@ CPPFLAGS += -std=c++11
 
 # Flags for reentrant, position independent code
 LIBCFLAGS = $(CFLAGS) -D_REENTRANT -fPIC
-# LDFLAGS   = -lc -lstdc++
-LDFLAGS   += -lstdc++
+LDFLAGS   = -lc -lstdc++
 
 OBJDIR = so.ndb
 
