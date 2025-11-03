@@ -62,7 +62,7 @@
 */
 
 ================================================================
-Release notes for linuxcan V5.45  
+Release notes for linuxcan V5.50  
 ================================================================
 
 These release notes apply to both CANLIB SDK and the Linux drivers.
@@ -76,6 +76,7 @@ Linux device drivers for
   *  KVASER PCIEcan 1xCAN v3 (01433-6)
   *  KVASER PCIEcan 2xCAN v3 (01432-9)
   *  KVASER PCIEcan 4xCAN v2 (01414-5)
+  *  KVASER PCIe 8xCAN (01512-8)
   *  KVASER PC104+
   *  KVASER PCI104
   *  KVASER PCIcan II **
@@ -126,7 +127,7 @@ Linux device drivers for
   *  KVASER USBcan Pro 4xCAN Silent (01411-4)
   *  KVASER USBcan Pro 5xCAN (01524-1)
   *  KVASER M.2 PCIe 4xCAN (01162-8)
-  *  KVASER Kraken (01244-8)
+  *  KVASER Edge (98397-7)
 
   **    Recommended firmware > 3.0
   ***   Only with USBcan II functionality.
@@ -178,6 +179,76 @@ Known problems
      hardware, the same is not true for auto tx. The latter is only
      available if there is firmware support in the device.
      (This is the same as under Windows.)
+
+
+New Features and Fixed Problems in V5.50   (22-SEP-2025)
+===========================================================================
+* SDK (kvadblib)
+  - Fixed bug where DBC object identifiers longer than 32 characters
+    would get corrupted upon saving.
+
+
+New Features and Fixed Problems in V5.49   (21-MAY-2025)
+===========================================================================
+* SDK (canlib)
+  - Improved speed of channel list enumeration.
+
+* SDK (kvadblib)
+  - Fix compiler warning on arm64.
+  - Improved compatibility by using uppercase 'E' instead of lowercase
+    in floating-point exponential notation when saving DBC files.
+
+* Drivers
+  - Updated PCI drivers to load automatically on device ID instead of using
+    modules-load.d.
+  - Support for new devices:
+    - KVASER Edge (98397-7)
+
+
+New Features and Fixed Problems in V5.48   (17-FEB-2025)
+===========================================================================
+* SDK (kvadblib)
+  - Added parsing of LIN Description Files (LDF files).
+    Nodes, Messages, Signals and Schedule Tables are parsed out from the LDF
+    file. It's NOT possible to create and save LDF files.
+
+* SDK (kvlclib)
+  - BLF FD (KVLC_FILE_FORMAT_VECTOR_BLF_FD)
+    Fixed bug where canFD frames were not converted correctly,
+    which resulted in some applications not showing all the databytes.
+
+
+New Features and Fixed Problems in V5.47   (26-NOV-2024)
+===========================================================================
+* SDK (kvadblib)
+  - Fixed preexisting signal groups being discarded upon saving.
+
+
+New Features and Fixed Problems in V5.46   (18-SEP-2024)
+===========================================================================
+* SDK (kvlclib)
+  - Channel (##CN) blocks in exported MDF 4.1 signal based files
+    (KVLC_FILE_FORMAT_MDF_4X_SIGNAL) now get a Source Information (##SI)
+    block with si_tx_path = CAN{channel_nr} to identify the channel.
+
+* SDK (kvadblib)
+  - Changed parser to generate warnings for unrecognized DBC keywords
+    it skips.
+
+* SDK (kvmlib)
+  - Made kvmKmeWriteEvent error if the message byte length does not
+    map to a DLC, instead of proceeding with a faulty value.
+  - Changed kvmKmeWriteEvent to return more specific kvmERR_xxx errors
+    than kvmFail when applicable.
+
+* Drivers
+  - Fixed build problems for kernel v6.10.
+  - Fixed firmware upgrade via kv_flash_prog, for M.2 PCIe 4xCAN (01162-8) and
+    PCIe 8xCAN (01512-8)
+  - Fixed DKMS install problem for Debian 12.
+
+* Add firmware upgrade support via kv_flash_prog_mmap, for the following PCI devices:
+  - PCIe 8xCAN (01512-8)
 
 
 New Features and Fixed Problems in V5.45   (22-MAY-2024)

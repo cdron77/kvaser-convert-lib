@@ -58,7 +58,7 @@ $(function() {
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('page_user_guide_send_recv_mailboxes.html','');});
+$(document).ready(function(){initNavTree('page_user_guide_send_recv_mailboxes.htm','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -81,10 +81,10 @@ $(document).ready(function(){initNavTree('page_user_guide_send_recv_mailboxes.ht
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p>Some other CAN driver libraries in the market feature what usually is called "mailboxes", "message objects", "user buffers" etc. CANlib, on the other hand, focuses on message queues because we feel this imposes fewer restrictions on the CAN system.</p>
-<p>For example, a higher layer protocol that uses a sequence of CAN messages with the same identifier is hard to implement using mailboxes: when the next message arrives it overwrites the previous one. You can, in a way, simulate the behavior of mailboxes by using <a class="el" href="group___c_a_n.html#gafb5e475233ef14ccf9084f610caba560">canReadSpecific()</a>. You will have to call <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead()</a> periodically in order to clear out messages not read by <a class="el" href="group___c_a_n.html#gafb5e475233ef14ccf9084f610caba560">canReadSpecific()</a>.</p>
+<p>For example, a higher layer protocol that uses a sequence of CAN messages with the same identifier is hard to implement using mailboxes: when the next message arrives it overwrites the previous one. You can, in a way, simulate the behavior of mailboxes by using <a class="el" href="group___c_a_n.htm#gafb5e475233ef14ccf9084f610caba560">canReadSpecific()</a>. You will have to call <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead()</a> periodically in order to clear out messages not read by <a class="el" href="group___c_a_n.htm#gafb5e475233ef14ccf9084f610caba560">canReadSpecific()</a>.</p>
 <p><b>Example</b>. How to simulate a mailbox-style CAN interface.</p>
 <p>Assume you take special interest in CAN messages with identifiers 530, 540 and 550. Your message-handling loop could then look something like this:</p>
-<div class="fragment"><div class="line"><span class="keywordflow">while</span> (..) {</div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.html#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 530, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 530</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.html#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 540, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 540</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.html#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 550, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 550</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">while</span> (<a class="code" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead</a>(hnd, &amp;<span class="keywordtype">id</span>, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Handle other messages</span></div><div class="line">  }</div><div class="line">}</div></div><!-- fragment --><p>You can call this message-processing routine from your <code>WM__CANLIB</code> handler or make it the main routine in your program.</p>
+<div class="fragment"><div class="line"><span class="keywordflow">while</span> (..) {</div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.htm#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 530, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 530</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.htm#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 540, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 540</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">if</span> (<a class="code" href="group___c_a_n.htm#gafb5e475233ef14ccf9084f610caba560">canReadSpecific</a>(hnd, 550, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Process msg 550</span></div><div class="line">  }</div><div class="line"></div><div class="line">  <span class="keywordflow">while</span> (<a class="code" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead</a>(hnd, &amp;<span class="keywordtype">id</span>, buf, ...) == canOK) {</div><div class="line">    <span class="comment">// Handle other messages</span></div><div class="line">  }</div><div class="line">}</div></div><!-- fragment --><p>You can call this message-processing routine from your <code>WM__CANLIB</code> handler or make it the main routine in your program.</p>
 <h1><a class="anchor" id="section_user_guide_send_recv_queue_and_buf_sizes"></a>
 Message Queue and Buffer Sizes</h1>
 <p>Incoming and outgoing CAN messages can be buffered in three different places:</p><ul>
@@ -96,15 +96,15 @@ Message Queue and Buffer Sizes</h1>
 <p>Many CAN boards from KVASER uses the SJA1000 CAN controller. This chip can buffer somewhere between 5 and 19 incoming messages. It does not buffer outgoing messages.</p>
 <p>CAN boards with an on-board microcontroller (LAPcan, LAPcan II, USBcan) typically buffer something like 500 incoming and outgoing messages.</p>
 <p>CAN boards using the M16C microcontroller (USBcan Rugged, USBcan II, PCIcan II) typically buffer some 100 incoming messages and around 50 outgoing messages.</p>
-<p>CANlib <em>drivers</em> will, by default, buffer 256 outgoing messages per channel and 1024 incoming messages per channel. You can use <a class="el" href="group__can__general.html#gaeaa24db97af22478ca51d48636c7bb12">canIoCtl()</a> to adjust the size of the receive buffer. </p>
+<p>CANlib <em>drivers</em> will, by default, buffer 256 outgoing messages per channel and 1024 incoming messages per channel. You can use <a class="el" href="group__can__general.htm#gaeaa24db97af22478ca51d48636c7bb12">canIoCtl()</a> to adjust the size of the receive buffer. </p>
 </div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- HTML footer for doxygen 1.8.13-->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="page_canlib.html">CAN bus API (CANlib)</a></li>
-    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
+    <li class="navelem"><a class="el" href="page_canlib.htm">CAN bus API (CANlib)</a></li>
+    <li class="footer"> (canlib 5.50) Mon Sep 22 2025</li>
   </ul>
 </div>
 </body>

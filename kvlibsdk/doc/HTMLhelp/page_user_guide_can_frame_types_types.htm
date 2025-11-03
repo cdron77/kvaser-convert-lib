@@ -58,7 +58,7 @@ $(function() {
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('page_user_guide_can_frame_types_types.html','');});
+$(document).ready(function(){initNavTree('page_user_guide_can_frame_types_types.htm','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -108,16 +108,16 @@ CAN Data Frames</h1>
 The Identifier in the Arbitration Field is not, despite of its name, necessarily identifying the contents of the message.</dd></dl>
 <h1><a class="anchor" id="section_user_guide_can_frame_types_fd_data_frames"></a>
 CAN FD Data Frames</h1>
-<p>A standard CAN network is limited to 1 MBit/s, with a maximum payload of 8 bytes per frame. CAN FD increases the effective data-rate by allowing longer data fields - up to 64 bytes per frame - without changing the CAN physical layer. CAN FD also retains normal CAN bus arbitration, increasing the bit-rate by switching to a shorter bit time only at the end of the arbitration process and returning to a longer bit time at the CRC Delimiter, before the receivers send their acknowledge bits. The CAN FD Data Frame settings are controlled by the <a class="el" href="canstat_8h.html#canFDMSG_xxx">canFDMSG_xxx</a> flags. A realistic bandwidth gain of 3 to 8 times what's possible in CAN will particularly benefit flashing applications.</p>
+<p>A standard CAN network is limited to 1 MBit/s, with a maximum payload of 8 bytes per frame. CAN FD increases the effective data-rate by allowing longer data fields - up to 64 bytes per frame - without changing the CAN physical layer. CAN FD also retains normal CAN bus arbitration, increasing the bit-rate by switching to a shorter bit time only at the end of the arbitration process and returning to a longer bit time at the CRC Delimiter, before the receivers send their acknowledge bits. The CAN FD Data Frame settings are controlled by the <a class="el" href="canstat_8h.htm#canFDMSG_xxx">canFDMSG_xxx</a> flags. A realistic bandwidth gain of 3 to 8 times what's possible in CAN will particularly benefit flashing applications.</p>
 <h1><a class="anchor" id="section_user_guide_can_frame_types_error_frame"></a>
 Error Frames</h1>
-<p>Nearly all hardware platforms support detection of Error Frames. If an Error Frame arrives, the flag <a class="el" href="canstat_8h.html#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> is set in the flag argument of <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead()</a>. The identifier is garbage if an Error Frame is received, but for LAPcan it happens to be 2048 plus the error code from the SJA1000.</p>
-<p>Many platforms (for example, LAPcan, Leaf, and USBcan II) support transmission of Error Frames as well. To send Error Frames, set the <a class="el" href="canstat_8h.html#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag in the flag argument to <a class="el" href="group___c_a_n.html#ga62c185329d6741c90102511e2f37983e">canWrite()</a>.</p>
+<p>Nearly all hardware platforms support detection of Error Frames. If an Error Frame arrives, the flag <a class="el" href="canstat_8h.htm#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> is set in the flag argument of <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead()</a>. The identifier is garbage if an Error Frame is received, but for LAPcan it happens to be 2048 plus the error code from the SJA1000.</p>
+<p>Many platforms (for example, LAPcan, Leaf, and USBcan II) support transmission of Error Frames as well. To send Error Frames, set the <a class="el" href="canstat_8h.htm#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag in the flag argument to <a class="el" href="group___c_a_n.htm#ga62c185329d6741c90102511e2f37983e">canWrite()</a>.</p>
 <p>Simply put, the Error Frame is a special message that violates the framing rules of a CAN message. It is transmitted when a node detects a fault and will cause all other nodes to detect a fault - so they will send Error Frames, too. The transmitter will then automatically try to retransmit the message. There is an elaborate scheme of error counters that ensures that a node can't destroy the bus traffic by repeatedly transmitting error frames.</p>
 <p>The Error Frame consists of an Error Flag, which is 6 bits of the same value (thus violating the bit-stuffing rule) and an Error Delimiter, which is 8 recessive bits. The Error Delimiter provides some space in which the other nodes on the bus can send their Error Flags when they detect the first Error Flag.</p>
 <h1><a class="anchor" id="section_user_guide_can_frame_types_remote_request"></a>
 Remote Requests</h1>
-<p>You can send remote requests by passing the <a class="el" href="canstat_8h.html#a687df04559a9995e0bec503655454eb3">canMSG_RTR</a> flag to <a class="el" href="group___c_a_n.html#ga62c185329d6741c90102511e2f37983e">canWrite()</a>. Received remote frames are reported by <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead</a> et al using the same flag.</p>
+<p>You can send remote requests by passing the <a class="el" href="canstat_8h.htm#a687df04559a9995e0bec503655454eb3">canMSG_RTR</a> flag to <a class="el" href="group___c_a_n.htm#ga62c185329d6741c90102511e2f37983e">canWrite()</a>. Received remote frames are reported by <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead</a> et al using the same flag.</p>
 <p>The Remote Frame is just like the Data Frame, with two important differences:</p>
 <ul>
 <li>is explicitly marked as a Remote Frame (the RTR bit in the Arbitration Field is recessive)</li>
@@ -133,8 +133,8 @@ Overload Frames</h1>
 <h1><a class="anchor" id="section_user_guide_can_frame_types_other"></a>
 Other frame features of interest</h1>
 <ul>
-<li>You can send wakeup frames (used for Single-Wire CAN) if your hardware supports it, for example, a LAPcan plus a DRVcan S. Just set the <a class="el" href="canstat_8h.html#a616183e2ed8ca81976463914e47b35e1">canMSG_WAKEUP</a> flag when calling <a class="el" href="group___c_a_n.html#ga62c185329d6741c90102511e2f37983e">canWrite()</a>.</li>
-<li>For "low-speed CAN" (1053/1054 type transceivers), the <a class="el" href="canstat_8h.html#a1f53f2fdeeb263cd2bf5d374e1dd59a2">canMSG_NERR</a> flag is set if a frame is received in "fault-tolerant" mode. </li>
+<li>You can send wakeup frames (used for Single-Wire CAN) if your hardware supports it, for example, a LAPcan plus a DRVcan S. Just set the <a class="el" href="canstat_8h.htm#a616183e2ed8ca81976463914e47b35e1">canMSG_WAKEUP</a> flag when calling <a class="el" href="group___c_a_n.htm#ga62c185329d6741c90102511e2f37983e">canWrite()</a>.</li>
+<li>For "low-speed CAN" (1053/1054 type transceivers), the <a class="el" href="canstat_8h.htm#a1f53f2fdeeb263cd2bf5d374e1dd59a2">canMSG_NERR</a> flag is set if a frame is received in "fault-tolerant" mode. </li>
 </ul>
 </div></div><!-- contents -->
 </div><!-- doc-content -->
@@ -142,8 +142,8 @@ Other frame features of interest</h1>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="page_canlib.html">CAN bus API (CANlib)</a></li>
-    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
+    <li class="navelem"><a class="el" href="page_canlib.htm">CAN bus API (CANlib)</a></li>
+    <li class="footer"> (canlib 5.50) Mon Sep 22 2025</li>
   </ul>
 </div>
 </body>
