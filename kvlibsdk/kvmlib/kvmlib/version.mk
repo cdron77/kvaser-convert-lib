@@ -1,4 +1,4 @@
 LIBNAME = libkvmlib.so
 MAJOR = 1
 MINOR = 6
-BUILD = 8
+BUILD = 13

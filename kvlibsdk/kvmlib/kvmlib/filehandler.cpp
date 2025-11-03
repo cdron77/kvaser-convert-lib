@@ -150,6 +150,25 @@ static bool isTooLong(const char *filename)
   return (strnlen(filename, MAX_FILENAME_LENGTH) >= MAX_FILENAME_LENGTH);
 }
 
+static FileStatus fromKvlcStatus(KvlcStatus x) {
+  switch (x) {
+  case kvlcOK:
+    return FileStatusOK;
+  default:
+  case kvlcFail:
+    return FileStatusFail;
+  case kvlcERR_PARAM:
+  case kvlcERR_TYPE_MISMATCH:
+    return FileStatusERR_PARAM;
+  case kvlcERR_FILE_ERROR:
+    return FileStatusERR_FILE_ERROR;
+  case kvlcERR_UNSUPPORTED_VERSION:
+    return FileStatusERR_NOT_IMPLEMENTED;
+  case kvlcERR_NO_FREE_HANDLES:
+    return FileStatusERR_NO_FREE_HANDLE;
+  }
+}
+
 
 // ===========================================================================
 // Class fileHandler
@@ -410,12 +429,12 @@ FileStatus fileHandler::writeEvent (void *e)
 
   status = converter->interpret_event(e, &logEvent);
   if ( kvlcOK != status ) {
-    return FileStatusFail;
+    return fromKvlcStatus(status);
   }
 
   status = writer->write_row(&logEvent);
   if ( kvlcOK != status ) {
-    return FileStatusFail;
+    return fromKvlcStatus(status);
   }
   count++;
   return FileStatusOK;
