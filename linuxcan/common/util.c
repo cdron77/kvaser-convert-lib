@@ -130,7 +130,7 @@ void packed_EAN_to_BCD_with_csum(unsigned char *ean, unsigned char *bcd)
     // "bcd" points to a buffer which will contain the EAN number as
     // a BCD string, LSB first. The buffer must be at least 8 bytes.
     //
-    // E.g. 733-0130-00122-0 would be (hex)
+    // E.g. 73-30130-00122-0 would be (hex)
     // 20 12 00 30 01 33 07 00
     //
     ean64 = 0;

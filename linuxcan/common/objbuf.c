@@ -196,7 +196,7 @@ static void objbuf_write_all(struct work_struct *work)
 void objbuf_init(VCanOpenFileNode *fileNodePtr)
 {
     INIT_WORK(&fileNodePtr->objbufWork, objbuf_write_all);
-    fileNodePtr->objbufTaskQ = create_workqueue("objbuf");
+    fileNodePtr->objbufTaskQ = alloc_workqueue("objbuf", WQ_MEM_RECLAIM, 1);
 }
 
 void objbuf_shutdown(VCanOpenFileNode *fileNodePtr)

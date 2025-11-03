@@ -311,7 +311,7 @@ EXPORT_SYMBOL(vCanFlushSendBuffer);
 //  Discard recieve queue
 //======================================================================
 
-int vCanFlushReceiveBuffer(VCanOpenFileNode *fileNodePtr)
+static int vCanFlushReceiveBuffer(VCanOpenFileNode *fileNodePtr)
 {
     fileNodePtr->rcv->bufTail = 0;
     fileNodePtr->rcv->bufHead = 0;
@@ -936,13 +936,13 @@ int vCanClose(struct inode *inode, struct file *filp)
         // canClose (in canlib). canClose should call busOff, before calling vCanClose.
         DEBUGPRINT(
             2, (TXT("vCanClose: handle is busOn. This is unexpected if you called canClose.\n")));
-        wait_for_completion(&chanData->busOnCountCompletion);
+        mutex_lock(&chanData->busOnCountLock);
         fileNodePtr->isBusOn = 0;
         chanData->busOnCount--;
         if (chanData->busOnCount == 0) {
             hwIf->busOff(chanData);
         }
-        complete(&chanData->busOnCountCompletion);
+        mutex_unlock(&chanData->busOnCountLock);
     }
 
     // Do driver specific clean up
@@ -987,7 +987,7 @@ int vCanClose(struct inode *inode, struct file *filp)
 // Returns whether the transmit queue on a specific channel is full
 //======================================================================
 
-int txQFull(VCanChanData *chd)
+static int txQFull(VCanChanData *chd)
 {
     return queue_full(&chd->txChanQueue);
 }
@@ -996,7 +996,7 @@ int txQFull(VCanChanData *chd)
 // Returns whether the transmit queue on a specific channel is empty
 //======================================================================
 
-int txQEmpty(VCanChanData *chd)
+static int txQEmpty(VCanChanData *chd)
 {
     return queue_empty(&chd->txChanQueue);
 }
@@ -1391,6 +1391,8 @@ static inline int vcan_ioctl_bus_on(VCanChanData *chd, VCanHWInterface *hwIf,
         return -EACCES;
     }
 
+    copy_from_user_ret(&my_arg, arg, sizeof(VCanSetBusOn), -EFAULT);
+
     spin_lock_irqsave(&fileNodePtr->rcv->rcvLock, rcvLock_irqFlags);
     vCanFlushReceiveBuffer(fileNodePtr);
     spin_unlock_irqrestore(&fileNodePtr->rcv->rcvLock, rcvLock_irqFlags);
@@ -1399,29 +1401,27 @@ static inline int vcan_ioctl_bus_on(VCanChanData *chd, VCanHWInterface *hwIf,
     vCanTime(chd->vCard, &ttime);
     chd->busStats.timestamp = (__u32)ttime;
 
-    // Important to set this before channel get busOn, otherwise
-    // we may miss messasges.
-    fileNodePtr->isBusOn |= 1;
-    fileNodePtr->chip_status.busStatus = CHIPSTAT_ERROR_ACTIVE;
-    fileNodePtr->chip_status.txErrorCounter = 0;
-    fileNodePtr->chip_status.rxErrorCounter = 0;
+    mutex_lock(&chd->busOnCountLock);
 
-    wait_for_completion(&chd->busOnCountCompletion);
-
-    chd->busOnCount++;
-
-    copy_from_user_ret(&my_arg, arg, sizeof(VCanSetBusOn), -EFAULT);
     if (my_arg.reset_time) {
         *vStat = hwIf->getTime(chd->vCard, &time);
         if (*vStat == VCAN_STAT_OK) {
             fileNodePtr->time_start_10usec = time;
         } else {
+            DEBUGPRINT(1, (TXT("ERROR: VCAN_IOC_BUS_ON 0 failed with %d\n"), *vStat));
             my_arg.retval = VCANSETBUSON_FAIL;
-            return 0;
+            goto out_unlock;
         }
     }
 
-    if (chd->busOnCount == 1) {
+    // Important to set this before channel get busOn, otherwise
+    // we may miss messages.
+    fileNodePtr->isBusOn = 1;
+    fileNodePtr->chip_status.busStatus = CHIPSTAT_ERROR_ACTIVE;
+    fileNodePtr->chip_status.txErrorCounter = 0;
+    fileNodePtr->chip_status.rxErrorCounter = 0;
+
+    if (++chd->busOnCount == 1) {
         *vStat = hwIf->flushSendBuffer(chd);
         if (*vStat == VCAN_STAT_OK) {
             *vStat = hwIf->busOn(chd);
@@ -1436,7 +1436,9 @@ static inline int vcan_ioctl_bus_on(VCanChanData *chd, VCanHWInterface *hwIf,
             DEBUGPRINT(1, (TXT("ERROR: VCAN_IOC_BUS_ON 2 failed with %d\n"), *vStat));
         }
     }
-    complete(&chd->busOnCountCompletion);
+
+out_unlock:
+    mutex_unlock(&chd->busOnCountLock);
 
     return 0;
 }
@@ -1455,7 +1457,7 @@ static inline int vcan_ioctl_bus_off(VCanChanData *chd, VCanHWInterface *hwIf,
 
     if (fileNodePtr->isBusOn) {
         fileNodePtr->chip_status.busStatus = CHIPSTAT_BUSOFF;
-        wait_for_completion(&chd->busOnCountCompletion);
+        mutex_lock(&chd->busOnCountLock);
         chd->busOnCount--;
         if (chd->busOnCount == 0) {
             *vStat = hwIf->busOff(chd);
@@ -1468,7 +1470,7 @@ static inline int vcan_ioctl_bus_off(VCanChanData *chd, VCanHWInterface *hwIf,
         } else {
             fileNodePtr->isBusOn = 0;
         }
-        complete(&chd->busOnCountCompletion);
+        mutex_unlock(&chd->busOnCountLock);
     }
 
     return 0;
@@ -1968,13 +1970,12 @@ static inline int vcan_ioctl_file_get_name(VCanChanData *chd, VCanHWInterface *h
         return -ENOSYS;
     }
     ArgPtrIn(sizeof(VCAN_FILE_GET_NAME_T));
-    copy_from_user_ret(&input_arg, (VCAN_FILE_GET_NAME_T *)arg, sizeof(VCAN_FILE_GET_NAME_T),
-                       -EFAULT);
+    copy_from_user_ret(&input_arg, arg, sizeof input_arg, -EFAULT);
 
     *vStat = hwIf->kvFileGetName(chd, input_arg.fileNo, name, sizeof(name));
     len = sizeof(name);
     len = len < input_arg.namelen ? len : input_arg.namelen;
-    copy_to_user_ret(arg->name, name, len, -EFAULT);
+    copy_to_user_ret(input_arg.name, name, len, -EFAULT);
 
     return 0;
 }
@@ -3637,8 +3638,7 @@ unsigned int vCanPoll(struct file *filp, poll_table *wait)
 int vCanInitData(VCanCardData *vCard)
 {
     unsigned int chNr;
-    int minorsUsed = 0;
-    int minor;
+    unsigned long long int minorsUsed = 0;
     unsigned int i;
     uint8_t found = 0;
     int inactive_index = -1;
@@ -3652,12 +3652,12 @@ int vCanInitData(VCanCardData *vCard)
         if (cardData != vCard) {
             for (chNr = 0; chNr < cardData->nrChannels; chNr++) {
                 chanData = cardData->chanData[chNr];
-                minorsUsed |= 1 << chanData->minorNr;
+                minorsUsed |= 1ull << chanData->minorNr;
             }
         }
         cardData = cardData->next;
     }
-    DEBUGPRINT(4, (TXT("vCanInitCardData: minorsUsed 0x%x \n"), minorsUsed));
+    DEBUGPRINT(4, (TXT("vCanInitCardData: minorsUsed %#llx\n"), minorsUsed));
 
     vCard->usPerTick = 10; // Currently, a tick is 10us long
 
@@ -3699,24 +3699,20 @@ int vCanInitData(VCanCardData *vCard)
         VCanChanData *vChd = vCard->chanData[chNr];
 
         vCard->driverData->noOfDevices++;
-        DEBUGPRINT(4, (TXT("vCanInitCardData: noOfDevices %d\n"), vCard->driverData->noOfDevices));
-
-        for (minor = 0; minor < vCard->driverData->noOfDevices; minor++) {
-            DEBUGPRINT(4, (TXT("vCanInitCardData: mask 0x%x, minor %d\n"), 1 << minor, minor));
-            if (!(minorsUsed & (1 << minor))) {
-                /* Found a free minor number */
-                vChd->minorNr = minor;
-                minorsUsed |= 1 << minor;
-                break;
-            }
+        if (!~minorsUsed) {
+            DEBUGPRINT(1, (TXT("vCanInitCardData: No available minors\n")));
+        } else {
+            vChd->minorNr = __builtin_ctzll(~minorsUsed);
+            minorsUsed |= 1ull << vChd->minorNr;
         }
+        DEBUGPRINT(4, (TXT("vCanInitCardData: noOfDevices %d, minor %d, used %#llx\n"),
+                       vCard->driverData->noOfDevices, vChd->minorNr, minorsUsed));
 
         // Init waitqueues
         init_waitqueue_head(&(vChd->flushQ));
         queue_init(&vChd->txChanQueue, TX_CHAN_BUF_SIZE);
 
-        init_completion(&vChd->busOnCountCompletion);
-        complete(&vChd->busOnCountCompletion);
+        mutex_init(&vChd->busOnCountLock);
 
         init_completion(&vChd->ioctl_completion);
         complete(&vChd->ioctl_completion);
