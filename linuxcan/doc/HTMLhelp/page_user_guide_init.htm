@@ -58,7 +58,7 @@ $(function() {
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('page_user_guide_init.html','');});
+$(document).ready(function(){initNavTree('page_user_guide_init.htm','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -88,19 +88,19 @@ $(document).ready(function(){initNavTree('page_user_guide_init.html','');});
 </div>
 <div class="textblock"><h1><a class="anchor" id="section_user_guide_init_lib_init"></a>
 Library Initialization</h1>
-<p>The first call to the library must be a call to <a class="el" href="group__can__general.html#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a>. This function will initialize the CANlib library and enumerate all currently available CAN channels. It is sufficient to call this routine once. Calling it more than once will have no effect.</p>
+<p>The first call to the library must be a call to <a class="el" href="group__can__general.htm#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a>. This function will initialize the CANlib library and enumerate all currently available CAN channels. It is sufficient to call this routine once. Calling it more than once will have no effect.</p>
 <p><b>Example</b> This initializes the CANlib library.</p>
-<div class="fragment"><div class="line"><a class="code" href="group__can__general.html#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary</a>();</div></div><!-- fragment --><h1><a class="anchor" id="section_user_guide_init_lib_deinit"></a>
+<div class="fragment"><div class="line"><a class="code" href="group__can__general.htm#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary</a>();</div></div><!-- fragment --><h1><a class="anchor" id="section_user_guide_init_lib_deinit"></a>
 Library Deinitialization and Cleanup</h1>
 <p>Strictly speaking it is not necessary to clean up anything before terminating the application. If the application quits unexpectedly, the device driver will ensure the CAN controller is deactivated and the driver will also ensure the firmware (if any) is left in a consistent state.</p>
-<p>To deinitialize the library in an orderly fashion you may want to call <a class="el" href="group___c_a_n.html#ga304cb3a7bc2874c1f8ad361a911bcd5f">canWriteSync()</a> with a short timeout for each open handle before closing them with <a class="el" href="group___c_a_n.html#ga49525373a4d08d93c651ec10f79dd36b">canClose()</a>, to ensure the transmit queues are empty.</p>
-<dl class="section note"><dt>Note</dt><dd>When calling <a class="el" href="group__can__general.html#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a>, all previously opened CAN handles will be closed and invalidated.</dd></dl>
-<p>If you want to reinitialize the library from scratch in an application that already has initialized the library, call <a class="el" href="group__can__general.html#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a>. You can then start afresh by calling <a class="el" href="group__can__general.html#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a> again.</p>
+<p>To deinitialize the library in an orderly fashion you may want to call <a class="el" href="group___c_a_n.htm#ga304cb3a7bc2874c1f8ad361a911bcd5f">canWriteSync()</a> with a short timeout for each open handle before closing them with <a class="el" href="group___c_a_n.htm#ga49525373a4d08d93c651ec10f79dd36b">canClose()</a>, to ensure the transmit queues are empty.</p>
+<dl class="section note"><dt>Note</dt><dd>When calling <a class="el" href="group__can__general.htm#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a>, all previously opened CAN handles will be closed and invalidated.</dd></dl>
+<p>If you want to reinitialize the library from scratch in an application that already has initialized the library, call <a class="el" href="group__can__general.htm#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a>. You can then start afresh by calling <a class="el" href="group__can__general.htm#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a> again.</p>
 <p><b>Example</b> This deinitializes the CANlib library.</p>
-<div class="fragment"><div class="line">stat = <a class="code" href="group__can__general.html#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary</a>();</div><div class="line"> <span class="keywordflow">if</span> (stat &lt; 0) {</div><div class="line">     printf(<span class="stringliteral">&quot;Unload library failed.&quot;</span>);</div><div class="line"> }</div></div><!-- fragment --><h1><a class="anchor" id="section_user_guide_enumerate_hw"></a>
+<div class="fragment"><div class="line">stat = <a class="code" href="group__can__general.htm#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary</a>();</div><div class="line"> <span class="keywordflow">if</span> (stat &lt; 0) {</div><div class="line">     printf(<span class="stringliteral">&quot;Unload library failed.&quot;</span>);</div><div class="line"> }</div></div><!-- fragment --><h1><a class="anchor" id="section_user_guide_enumerate_hw"></a>
 Manually Enumerating CAN channels</h1>
-<p>The function <a class="el" href="group__can__general.html#ga2cf37192c855ce901fc0d69bfe72fbd5">canEnumHardwareEx()</a> scans all currently connected devices and creates a completely new set of CANlib channel numbers, while still keeping all currently opened channel handles valid and usable. This can be viewed upon as a replacement for calling the function <a class="el" href="group__can__general.html#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a> followed by <a class="el" href="group__can__general.html#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a> which do invalidate all open channel handles.</p>
-<p>One thing to keep in mind when using this functionality is to never track devices based on their CANlib channel number, since this number may change anytime <a class="el" href="group__can__general.html#ga2cf37192c855ce901fc0d69bfe72fbd5">canEnumHardwareEx()</a> is called. To retrieve information about a specific channel use <a class="el" href="group___c_a_n.html#ga909e5c14b09fe76bad280475138d503e">canGetHandleData</a>(hnd, &hellip;), instead of <a class="el" href="group__can__general.html#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData</a>(channel, &hellip;).</p>
+<p>The function <a class="el" href="group__can__general.htm#ga2cf37192c855ce901fc0d69bfe72fbd5">canEnumHardwareEx()</a> scans all currently connected devices and creates a completely new set of CANlib channel numbers, while still keeping all currently opened channel handles valid and usable. This can be viewed upon as a replacement for calling the function <a class="el" href="group__can__general.htm#ga0d1c0e54ea20c3e3b328a32eb10c7b47">canUnloadLibrary()</a> followed by <a class="el" href="group__can__general.htm#gaff1ec1d3416d3bdd56336a7b9ac008b1">canInitializeLibrary()</a> which do invalidate all open channel handles.</p>
+<p>One thing to keep in mind when using this functionality is to never track devices based on their CANlib channel number, since this number may change anytime <a class="el" href="group__can__general.htm#ga2cf37192c855ce901fc0d69bfe72fbd5">canEnumHardwareEx()</a> is called. To retrieve information about a specific channel use <a class="el" href="group___c_a_n.htm#ga909e5c14b09fe76bad280475138d503e">canGetHandleData</a>(hnd, &hellip;), instead of <a class="el" href="group__can__general.htm#gab9552d1a588b0dbc144b097acba017b2">canGetChannelData</a>(channel, &hellip;).</p>
 <dl class="section note"><dt>Note</dt><dd>On Linux, no re-enumeration is needed since enumeration takes place when a device is plugged in or unplugged. </dd></dl>
 </div></div><!-- contents -->
 </div><!-- doc-content -->
@@ -108,8 +108,8 @@ Manually Enumerating CAN channels</h1>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="page_canlib.html">CAN bus API (CANlib)</a></li>
-    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
+    <li class="navelem"><a class="el" href="page_canlib.htm">CAN bus API (CANlib)</a></li>
+    <li class="footer"> (canlib 5.50) Mon Sep 22 2025</li>
   </ul>
 </div>
 </body>

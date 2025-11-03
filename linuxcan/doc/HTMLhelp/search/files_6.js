@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['obsolete_2eh',['obsolete.h',['../obsolete_8h.html',1,'']]]
+  ['obsolete_2eh',['obsolete.h',['../obsolete_8h.htm',1,'']]]
 ];

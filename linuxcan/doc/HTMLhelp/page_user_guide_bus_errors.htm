@@ -58,7 +58,7 @@ $(function() {
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('page_user_guide_bus_errors.html','');});
+$(document).ready(function(){initNavTree('page_user_guide_bus_errors.htm','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -89,23 +89,23 @@ $(document).ready(function(){initNavTree('page_user_guide_bus_errors.html','');}
 </div>
 <div class="textblock"><h1><a class="anchor" id="section_user_guide_dev_info_status"></a>
 Obtaining Bus Status Information</h1>
-<p>Use <a class="el" href="group___c_a_n.html#gadb3a712bd123317043cb73e1008075c8">canReadErrorCounters()</a> to read the error counters of the CAN controller. There are two such counters in a CAN controller (they are required by the protocol definition).</p>
+<p>Use <a class="el" href="group___c_a_n.htm#gadb3a712bd123317043cb73e1008075c8">canReadErrorCounters()</a> to read the error counters of the CAN controller. There are two such counters in a CAN controller (they are required by the protocol definition).</p>
 <dl class="section note"><dt>Note</dt><dd>Not all CAN controllers allow access to the error counters, so CANlib may provide you with an "educated guess" instead.</dd></dl>
-<p>Use <a class="el" href="group___c_a_n.html#gaca3da209fe673b3838a50a3abe831855">canReadStatus()</a> to obtain the bus status (error active, error passive, bus off; as defined by the CAN standard).</p>
+<p>Use <a class="el" href="group___c_a_n.htm#gaca3da209fe673b3838a50a3abe831855">canReadStatus()</a> to obtain the bus status (error active, error passive, bus off; as defined by the CAN standard).</p>
 <h1><a class="anchor" id="section_user_guide_send_recv_overruns"></a>
 Overruns</h1>
 <p>If the CAN interface or the driver runs out of buffer space, or if the bus load is so high that the CAN controller can't keep up with the traffic, an overload condition is flagged to the application.</p>
-<p>The driver will set the <a class="el" href="canstat_8h.html#ae441634e38d57eb789936f5ac745410b">canMSGERR_HW_OVERRUN</a> and/or <a class="el" href="canstat_8h.html#a810afd58f22df8c44c729f78d955e006">canMSGERR_SW_OVERRUN</a> flags in the flag argument of <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead</a> and its relatives. The flag(s) will be set in the first message read from the driver after the overrun or overload condition happened.</p>
-<p>Not all hardware platforms can detect the difference between hardware overruns and software overruns, so your application should test for both conditions. You can use the symbol <a class="el" href="canstat_8h.html#adf0d578c7b25ede29a9733da44f08ab3">canMSGERR_OVERRUN</a> for this purpose.</p>
+<p>The driver will set the <a class="el" href="canstat_8h.htm#ae441634e38d57eb789936f5ac745410b">canMSGERR_HW_OVERRUN</a> and/or <a class="el" href="canstat_8h.htm#a810afd58f22df8c44c729f78d955e006">canMSGERR_SW_OVERRUN</a> flags in the flag argument of <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead</a> and its relatives. The flag(s) will be set in the first message read from the driver after the overrun or overload condition happened.</p>
+<p>Not all hardware platforms can detect the difference between hardware overruns and software overruns, so your application should test for both conditions. You can use the symbol <a class="el" href="canstat_8h.htm#adf0d578c7b25ede29a9733da44f08ab3">canMSGERR_OVERRUN</a> for this purpose.</p>
 <h1><a class="anchor" id="section_user_guide_bus_errors_error_frames"></a>
 Error Frames</h1>
 <p>When a CAN controller detects an error, it transmits an error frame. This is a special CAN message that causes all other CAN controllers on the bus to notice that an error has occurred.</p>
-<p>CANlib will report error frames to the application just like it reports any other CAN message, but the <a class="el" href="canstat_8h.html#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag will be set in the flags parameter when e.g. <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead()</a> returns.</p>
+<p>CANlib will report error frames to the application just like it reports any other CAN message, but the <a class="el" href="canstat_8h.htm#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag will be set in the flags parameter when e.g. <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead()</a> returns.</p>
 <p>When an error frame is received, its identifier, DLC and data bytes will be undefined. You should test if a message is an error frame before checking its identifier, DLC or data bytes.</p>
 <p>In an healthy CAN system, error frames should rarely, if ever, occur. Error frames usually mean there is some type of serious problem in the system, such as a bad connector, a bad cable, bus termination missing or faulty, or another node transmitting at wrong bit rate, and so on.</p>
 <h1><a class="anchor" id="section_user_guide_bus_errors_sja1000_error_codes"></a>
 SJA1000 Error Codes</h1>
-<p>Many of our CAN interface boards use the SJA1000 CAN controller. When an error occurs on the bus, the device firmware and driver will pass the error code from the CAN controller to the application by using the CAN identifier field. The identifier will be set to 0x800 (2048) plus the error code from the controller. The flag field will contain the <a class="el" href="canstat_8h.html#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag. The data length will be 0.</p>
+<p>Many of our CAN interface boards use the SJA1000 CAN controller. When an error occurs on the bus, the device firmware and driver will pass the error code from the CAN controller to the application by using the CAN identifier field. The identifier will be set to 0x800 (2048) plus the error code from the controller. The flag field will contain the <a class="el" href="canstat_8h.htm#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a> flag. The data length will be 0.</p>
 <p>You can use the following tables to interpret the error code from the controller. Note that they are applicable only to those CAN interfaces that use SJA1000.</p>
 <table class="doxtable">
 <tr>
@@ -186,7 +186,7 @@ SJA1000 Error Codes</h1>
 <td>0x1C</td><td>overload flag </td></tr>
 </table>
 <p><b>Example</b><br />
- <em>A message is transmitted on the CAN bus. A stream of error frames are returned. <a class="el" href="group___c_a_n.html#ga157d49a9343dea68ac953145e02266d8">canRead()</a> reads messages with id 0x000008D9, dlc = 0 and flags = 0x20 (<a class="el" href="canstat_8h.html#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a>). What's up?</em></p>
+ <em>A message is transmitted on the CAN bus. A stream of error frames are returned. <a class="el" href="group___c_a_n.htm#ga157d49a9343dea68ac953145e02266d8">canRead()</a> reads messages with id 0x000008D9, dlc = 0 and flags = 0x20 (<a class="el" href="canstat_8h.htm#ade1b8ed815a4bc6ada6ec666e48e9cf8">canMSG_ERROR_FRAME</a>). What's up?</em></p>
 <p>Using the tables above, we see that 0xD9 means</p><ul>
 <li>Other type of error.</li>
 <li>Error during transmit.</li>
@@ -203,8 +203,8 @@ We recommend that you use this feature for troubleshooting a particular installa
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="page_canlib.html">CAN bus API (CANlib)</a></li>
-    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
+    <li class="navelem"><a class="el" href="page_canlib.htm">CAN bus API (CANlib)</a></li>
+    <li class="footer"> (canlib 5.50) Mon Sep 22 2025</li>
   </ul>
 </div>
 </body>

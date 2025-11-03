@@ -58,7 +58,7 @@ $(function() {
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('page_user_guide_build_compiling_linking_windows.html','');});
+$(document).ready(function(){initNavTree('page_user_guide_build_compiling_linking_windows.htm','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -93,7 +93,7 @@ Compiling and Linking Your Code on Windows</h1>
 <p>The APIs named <b>canXXX</b> and <b>kvXXX</b> are defined in canlib32.dll.</p>
 <p><b>C, C++ (Microsoft Visual Studio, Embarcadero RAD Studio)</b><br />
 </p><ul>
-<li>Include <a class="el" href="canlib_8h.html">canlib.h</a>.</li>
+<li>Include <a class="el" href="canlib_8h.htm">canlib.h</a>.</li>
 <li>Link with the import library canlib32.lib.</li>
 </ul>
 <p>Embarcadero and Microsoft have different formats for the import libraries - be sure to pick the correct one; CANlib SDK is shipped with both versions. For Microsoft compilers, it is worth noting that the import library shipped with CANlib SDK is compatible with <b>Visual C++ 5.0 or later</b>.</p>
@@ -113,13 +113,13 @@ Compiling and Linking Your Code on Windows</h1>
 <h2>Database API - kvaDbXXX</h2>
 <p>The APIs named <b>kvaDbXXX</b> are defined in kvaDbLib.dll.</p>
 <p>C/C++ code that uses these APIs should</p><ul>
-<li>Include <a class="el" href="kva_db_lib_8h.html">kvaDbLib.h</a></li>
+<li>Include <a class="el" href="kva_db_lib_8h.htm">kvaDbLib.h</a></li>
 <li>Link with the import library kvaDbLib.lib</li>
 </ul>
 <h2>LIN API - linXXX</h2>
 <p>The APIs named <b>linXXX</b> are defined in linlib.dll.</p>
 <p>C/C++ code that uses these APIs should</p><ul>
-<li>Include <a class="el" href="linlib_8h.html">linlib.h</a>.</li>
+<li>Include <a class="el" href="linlib_8h.htm">linlib.h</a>.</li>
 <li>Link with the import library linlib.lib</li>
 </ul>
 <h2>J1587 API - j1587XXX</h2>
@@ -227,39 +227,20 @@ bin_x64\kvmlib.dll </td></tr>
 Deploying Your Application</h1>
 <p>As an application programmer, you may want to distribute canlib32.dll together with your application. If you choose to do so, you should place it in the application's directory. In this way you will not break any other applications on the computer.</p>
 <p>If you install canlib32.dll on the target system, and the rest of the device drivers are not installed, any call you make to canlib32.dll will return an error code. You should be prepared for this situation and handle the error code in a constructive way in your application. Another situation could be that the deployed application is using a new canlib32.dll function, as this also would require an update of the drivers it’s important to implement error handling in such a way that the application will inform the user to update their drivers.</p>
-<p>A version mismatch between canlib32.dll and drivers will return the error code: <a class="el" href="canstat_8h.html#a52b5e5c71832b0bd3c6a5b1fd48583e7aee571ea29d786d483d1d3ea9f70d6753">canERR_DYNALIB</a>, please see <a class="el" href="page_user_guide_intro.html#section_user_guide_canstatus">Error checking</a> for further reading about error handling.</p>
+<p>A version mismatch between canlib32.dll and drivers will return the error code: <a class="el" href="group__can__status__codes.htm#gga52b5e5c71832b0bd3c6a5b1fd48583e7aee571ea29d786d483d1d3ea9f70d6753">canERR_DYNALIB</a>, please see <a class="el" href="page_user_guide_intro.htm#section_user_guide_canstatus">Error checking</a> for further reading about error handling.</p>
 <p>It is also possible to programmatically install the required device driver without user intervention.</p>
 <h1><a class="anchor" id="section_user_guide_intro_redistributable"></a>
 Redistributable Files in CANlib SDK</h1>
-<p>The following files included in the CANLIB SDK may be redistributed with your application, provided they are only used together with genuine Kvaser hardware.</p>
-<ul>
-<li>canlib32.dll<br />
- API for CAN applications.</li>
-<li>Kvaser.CanLib.dll<br />
- API for CAN applications in the .NET environment.</li>
-<li>sing32.dll<br />
- API for emulating Softing's CAN API.</li>
-<li>vcand32.dll<br />
- API for emulating Vector Informatik's CAN API.</li>
-<li>j1587lib.dll<br />
- J1587 API DLL (for Kvaser Linx)</li>
-<li>kv121032.dll<br />
- RP1210A/B API DLL</li>
-<li>kvj2534.dll, kvj2534c.dll, kvj2534i.dll<br />
- SAE J2534 API DLL</li>
-<li>linlib.dll<br />
- API for LIN applications.</li>
-</ul>
-<p>You may use and distribute the source code found in the SAMPLES directory in your own applications without restrictions.</p>
-<p>Please contact <a class="el" href="page_support.html">Kvaser Support</a> if you would like to redistribute any file not found in this list. </p>
+<p>For information about how and which files you may redistribute in your own application, please refer to the EULA.pdf and REDISTRIBUTABLES.txt.</p>
+<p>Please contact <a class="el" href="page_support.htm">Kvaser Support</a> if you would like to redistribute any file not found in REDISTRIBUTABLES.txt. </p>
 </div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- HTML footer for doxygen 1.8.13-->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="page_user_guide_build.html">Compiling and Compatibility</a></li>
-    <li class="footer"> (canlib 5.45) Wed May 22 2024</li>
+    <li class="navelem"><a class="el" href="page_user_guide_build.htm">Compiling and Compatibility</a></li>
+    <li class="footer"> (canlib 5.50) Mon Sep 22 2025</li>
   </ul>
 </div>
 </body>
