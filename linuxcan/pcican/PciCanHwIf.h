@@ -118,11 +118,9 @@ typedef struct PciCanChanData {
     void __iomem *xilinxAddressIn;
 
     spinlock_t lock;
-#if !defined(TRY_RT_QUEUE)
-    struct work_struct txTaskQ;
-#else
-    struct workqueue_struct *txTaskQ;
     struct work_struct txWork;
+#ifdef TRY_RT_QUEUE
+    struct workqueue_struct *txTaskQ;
 #endif
     DALLAS_CONTEXT chanEeprom;
     VCanChanData *vChan;

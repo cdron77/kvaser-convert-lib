@@ -134,11 +134,9 @@ typedef struct PciCan2ChanData {
     //unsigned int outstanding_tx;
     atomic_t outstanding_tx;
     int channel;
-#if !defined(TRY_RT_QUEUE)
-    struct work_struct txTaskQ;
-#else
-    struct workqueue_struct *txTaskQ;
     struct work_struct txWork;
+#ifdef TRY_RT_QUEUE
+    struct workqueue_struct *txTaskQ;
 #endif
 
     OBJECT_BUFFER *objbufs;

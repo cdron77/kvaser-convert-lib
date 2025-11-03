@@ -228,6 +228,8 @@ static struct pci_device_id id_table[] = {
     },
 };
 
+MODULE_DEVICE_TABLE(pci, id_table);
+
 static struct pci_driver pcican_tbl = {
     .name = "kvpcicanII",
     .id_table = id_table,
@@ -1378,7 +1380,7 @@ static void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChan)
     PciCan2ChanData *hChan = vChan->hwChanData;
     if (pciCanTxAvailable(vChan)) {
 #if !defined(TRY_RT_QUEUE)
-        schedule_work(&hChan->txTaskQ);
+        schedule_work(&hChan->txWork);
 #else
         queue_work(hChan->txTaskQ, &hChan->txWork);
 #endif
@@ -1415,11 +1417,7 @@ static void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChan)
 //======================================================================
 static void pciCanSend(struct work_struct *work)
 {
-#if !defined(TRY_RT_QUEUE)
-    PciCan2ChanData *devChan = container_of(work, PciCan2ChanData, txTaskQ);
-#else
     PciCan2ChanData *devChan = container_of(work, PciCan2ChanData, txWork);
-#endif
     VCanChanData *chd = devChan->vChan;
     int queuePos;
 
@@ -1546,14 +1544,11 @@ static void pciCanInitData(VCanCardData *vCard)
         VCanChanData *vChd = vCard->chanData[chNr];
         PciCan2ChanData *hChd = vChd->hwChanData;
 #if !defined(TRY_DIRECT_SEND)
-#if !defined(TRY_RT_QUEUE)
-        hChd->vChan = vChd;
-        INIT_WORK(&hChd->txTaskQ, pciCanSend);
-#else
-        char name[] = "pcicanII_txX";
-        name[11] = '0' + chNr; // Replace the X with channel number
         hChd->vChan = vChd;
         INIT_WORK(&hChd->txWork, pciCanSend);
+#if defined(TRY_RT_QUEUE)
+        char name[] = "pcicanII_txX";
+        name[11] = '0' + chNr; // Replace the X with channel number
         // Note that this will not create an RT task if the kernel
         // does not actually support it (only 2.6.28+ do).
         // In that case, you must (for now) do it manually using chrt.

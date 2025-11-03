@@ -202,6 +202,8 @@ static struct pci_device_id id_table[] = {
     },
 };
 
+MODULE_DEVICE_TABLE(pci, id_table);
+
 static struct pci_driver pcican_tbl = {
     .name = "kvpcican",
     .id_table = id_table,
@@ -1224,8 +1226,8 @@ static void pciCanTransmitIsr(VCanChanData *vChd)
     }
 
     // Send next message in queue
-#if !defined(TRY_RT_QUEUE)
-    schedule_work(&hChd->txTaskQ);
+#ifndef TRY_RT_QUEUE
+    schedule_work(&hChd->txWork);
 #else
     queue_work(hChd->txTaskQ, &hChd->txWork);
 #endif
@@ -1311,7 +1313,7 @@ static void pciCanErrorPassiveIsr(VCanChanData *vChd)
 //======================================================================
 //  Main ISR
 //======================================================================
-irqreturn_t pciCanInterrupt(int irq, void *dev_id)
+static irqreturn_t pciCanInterrupt(int irq, void *dev_id)
 {
     VCanCardData *vCard = (VCanCardData *)dev_id;
     PciCanCardData *hCd = vCard->hwCardData;
@@ -1643,8 +1645,8 @@ void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChd)
 
     spin_lock_irqsave(&hChd->lock, irqFlags);
     if (pciCanTxAvailable(vChd)) {
-#if !defined(TRY_RT_QUEUE)
-        schedule_work(&hChd->txTaskQ);
+#ifndef TRY_RT_QUEUE
+        schedule_work(&hChd->txWork);
 #else
         queue_work(hChd->txTaskQ, &hChan->txWork);
 #endif
@@ -1655,13 +1657,9 @@ void pciCanRequestSend(VCanCardData *vCard, VCanChanData *vChd)
 //======================================================================
 //  Process send Q - This function is called from the immediate queue
 //======================================================================
-void pciCanSend(struct work_struct *work)
+static void pciCanSend(struct work_struct *work)
 {
-#if !defined(TRY_RT_QUEUE)
-    PciCanChanData *hChd = container_of(work, PciCanChanData, txTaskQ);
-#else
     PciCanChanData *hChd = container_of(work, PciCanChanData, txWork);
-#endif
     VCanChanData *vChd = hChd->vChan;
     int queuePos;
 
@@ -1692,16 +1690,12 @@ static void pciCanInitData(VCanCardData *vCard)
     for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
         VCanChanData *vChd = vCard->chanData[chNr];
         PciCanChanData *hChd = vCard->chanData[chNr]->hwChanData;
-#if !defined(TRY_RT_QUEUE)
-        spin_lock_init(&hChd->lock);
-        hChd->vChan = vChd;
-        INIT_WORK(&hChd->txTaskQ, pciCanSend);
-#else
-        char name[] = "pcican_txX";
-        name[9] = '0' + chNr; // Replace the X with channel number
         spin_lock_init(&hChd->lock);
         hChd->vChan = vChd;
         INIT_WORK(&hChd->txWork, pciCanSend);
+#ifdef TRY_RT_QUEUE
+        char name[] = "pcican_txX";
+        name[9] = '0' + chNr; // Replace the X with channel number
         // Note that this will not create an RT task if the kernel
         // does not actually support it (only 2.6.28+ do).
         // In that case, you must (for now) do it manually using chrt.
