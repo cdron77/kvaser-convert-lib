@@ -2231,7 +2231,7 @@ static int leaf_start(VCanCardData *vCard)
     complete(&dev->write_finished);
 
     INIT_WORK(&dev->txWork, leaf_send);
-    dev->txTaskQ = create_workqueue("leaf_tx");
+    dev->txTaskQ = alloc_workqueue("leaf_tx", WQ_MEM_RECLAIM, 1);
 
     rx_thread = kthread_run(leaf_rx_thread, vCard, "Kvaser kernel thread");
 
@@ -2515,9 +2515,6 @@ static void leaf_remove(struct usb_interface *interface)
             schedule_timeout(msecs_to_jiffies(10));
         }
     }
-
-    // Terminate workqueues
-    flush_scheduled_work();
 
 
     // Terminate an ongoing write
@@ -3591,9 +3588,9 @@ static void leaf_softsync_onoff(VCanCardData *vCard, int enable)
 }
 
 /***************************************************************************/
-int leaf_read_user_parameter(const VCanChanData *const vChan, unsigned int *const status,
-                             const unsigned int userNo, const unsigned int paramNo,
-                             const unsigned int paramLen, unsigned char *const data)
+static int leaf_read_user_parameter(const VCanChanData *const vChan, unsigned int *const status,
+                                   const unsigned int userNo, const unsigned int paramNo,
+                                   const unsigned int paramLen, unsigned char *const data)
 {
     int r = 0;
     filoCmd cmd;

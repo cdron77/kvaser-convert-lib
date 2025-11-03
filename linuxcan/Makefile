@@ -115,6 +115,8 @@ KV_DKMS_TMP = kv_dkms_tmp
 KV_DKMS_TMP_SRC = $(KV_DKMS_TMP)/src_tmp
 KV_DKMS_TMP_SRC_LINUXCAN = $(KV_DKMS_TMP_SRC)/$(KV_DKMS_MODULE)-$(KV_DKMS_VERSION)
 KV_DKMS_TMP_DKMSTREE = $(KV_DKMS_TMP)/dkmstree_tmp
+DKMS_CMD := $(shell which dkms 2>/dev/null || (which /sbin/dkms 2>/dev/null || echo ""))
+DKMS ?= $(DKMS_CMD)
 
 # Select if the kernel modules should only be installed or both installed and loaded:
 KV_DKMS_INSTALL_TARGET = load
@@ -275,6 +277,10 @@ endef
 
 $(KV_DKMS_TARBALL):
 	@echo Build DKMS tarball, with install target: $(KV_DKMS_INSTALL_TARGET)
+	@if [ -z "$(DKMS)" ]; then \
+		echo "Error: dkms command not found. Make sure to install the DKMS package."; \
+		exit 1; \
+	fi
 	rm -rf $(KV_DKMS_TMP)
 	mkdir -p $(KV_DKMS_TMP)/src_tmp/$(KV_DKMS_MODULE)-$(KV_DKMS_VERSION)
 	mkdir -p $(KV_DKMS_TMP_DKMSTREE)
@@ -288,8 +294,8 @@ endif
 	cp dkms/Makefile dkms/kv_dkms_script.sh moduleinfo.txt config.mak README COPYING COPYING.BSD COPYING.GPL $(KV_DKMS_TMP_SRC_LINUXCAN)/.
 	cp -r include common $(KV_DKMS_TMP_SRC_LINUXCAN)/.
 	sed -i 's/^KV_INSTALL_TARGET=none/KV_INSTALL_TARGET=$(KV_DKMS_INSTALL_TARGET)/g' $(KV_DKMS_TMP_SRC_LINUXCAN)/dkms.conf
-	fakeroot dkms add --verbose --sourcetree "$(CURDIR)/$(KV_DKMS_TMP_SRC)" --dkmstree "$(CURDIR)/$(KV_DKMS_TMP_DKMSTREE)" $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)
-	dkms mktarball --verbose --dkmstree $(KV_DKMS_TMP_DKMSTREE) --source-only $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)
+	fakeroot $(DKMS) add --verbose --sourcetree "$(CURDIR)/$(KV_DKMS_TMP_SRC)" --dkmstree "$(CURDIR)/$(KV_DKMS_TMP_DKMSTREE)" $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)
+	$(DKMS) mktarball --verbose --dkmstree $(KV_DKMS_TMP_DKMSTREE) --source-only $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)
 	cp $(KV_DKMS_TMP_DKMSTREE)/$(KV_DKMS_MODULE)/$(KV_DKMS_VERSION)/tarball/$(KV_DKMS_TARBALL) .
 	rm -rf $(KV_DKMS_TMP)
 
@@ -301,16 +307,17 @@ dkms: print_versions_start $(USERLIBS) $(KV_DKMS_TARBALL)
 dkms_install dkms_load: $(KV_DKMS_TARBALL)
 	$(MAKE) -C canlib install
 	$(MAKE) -C linlib install
-	dkms status $(KV_DKMS_MODULE) | sed 's|,|/|g' | cut -d'/' -f 2 | cut -d':' -f 1 | xargs -I theversion dkms remove $(KV_DKMS_MODULE)/theversion --all
-	dkms add $(KV_DKMS_TARBALL)
-	dkms install $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) -k $(KV_KERNEL_VERSION)
-	dkms status
+	$(DKMS) status $(KV_DKMS_MODULE) | sed 's|,|/|g' | cut -d'/' -f 2 | cut -d':' -f 1 | xargs -I theversion $(DKMS) remove $(KV_DKMS_MODULE)/theversion --all
+	$(DKMS) add $(KV_DKMS_TARBALL)
+	$(DKMS) install $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) -k $(KV_KERNEL_VERSION)
+	$(DKMS) status
 
 dkms_uninstall:
 	$(MAKE) -C canlib uninstall
 	$(MAKE) -C linlib uninstall
-	dkms status
-	-dkms remove $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) --all
+	-modprobe --all --quiet -r kvpcicanII kvpcican kvpciefd kvvirtualcan leaf mhydra usbcanII kvcommon
+	$(DKMS) status
+	-$(DKMS) remove $(KV_DKMS_MODULE)/$(KV_DKMS_VERSION) --all
 	rm -rf /usr/src/$(KV_DKMS_MODULE)-$(KV_DKMS_VERSION)
-	dkms status
+	$(DKMS) status
 

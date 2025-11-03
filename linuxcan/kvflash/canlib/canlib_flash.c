@@ -198,7 +198,7 @@ static canStatus canlibFlashFindDevices(struct kvaser_devices *devices)
         }
 
         device = &devices->devices[devices->count++];
-        canlib_dev = calloc(sizeof(struct canlib_device), 1);
+        canlib_dev = calloc(1, sizeof(struct canlib_device));
         if (canlib_dev == NULL) {
             printf("Error: calloc canlib_dev failed\n");
             return -ENOMEM;

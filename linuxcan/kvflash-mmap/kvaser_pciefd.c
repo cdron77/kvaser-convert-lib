@@ -54,6 +54,7 @@
 
 /* Xilinx */
 #define KVASER_ID_XILINX_M2_4HS 0x0017
+#define KVASER_ID_XILINX_PCIEFD_8XCAN 0x0019
 
 /* EPCS flash controller registers */
 #define KVASER_PCIEFD_SPI_BASE       0x1fc00
@@ -180,6 +181,10 @@ static const struct kvaser_pciefd_device_id kvaser_pciefd_id_table[] = {
         .driver_data = &PCIEFD_DRIVER_DATA_XILINX,
     },
     {
+        .device_id = KVASER_ID_XILINX_PCIEFD_8XCAN,
+        .driver_data = &PCIEFD_DRIVER_DATA_XILINX,
+    },
+    {
         0,
     },
 };
@@ -201,6 +206,7 @@ static const struct kvaser_pciefd_dev_name kvaser_pciefd_dev_name_list[] = {
     { "Kvaser Mini PCI Express 2xCAN v3", { 0x30014176, 0x00073301 } },
     { "Kvaser Mini PCI Express 1xCAN v3", { 0x30014206, 0x00073301 } },
     { "Kvaser M.2 PCIe 4xCAN", { 0x30013339, 0x00073301 } },
+    { "Kvaser PCIEcan 8xCAN", { 0x30015128, 0x00073301 } },
 };
 
 static int kvaser_pciefd_setup_board(struct kvaser_pciefd *pcie)

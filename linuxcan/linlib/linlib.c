@@ -1516,7 +1516,7 @@ LinStatus LINLIBAPI linGetTransceiverDataHybrid(int channel, unsigned char eanNo
     }
 
     if (ttype) {
-        stat = canGetChannelData(channel, canCHANNELDATA_TRANS_TYPE, ttype, sizeof(ttype));
+        stat = canGetChannelData(channel, canCHANNELDATA_TRANS_TYPE, ttype, sizeof(*ttype));
         if (stat != canOK) {
             return linERR_CANERROR;
         }
