@@ -210,7 +210,7 @@ static void reportBadNode(xmlNode *reference_node, xmlNode *user_node, std::map<
 // ---------------------------------------------------------------------------
 static void createXmlReferenceTree(xmlDocPtr *doc, xmlParserCtxtPtr *ctxt)
 {
-  xmlErrorPtr xml_err = NULL;
+  const xmlError *xml_err = NULL;
   xmlTextWriterPtr xml_writer = NULL;
   xmlBufferPtr xml_writer_buf = NULL;
 
@@ -234,12 +234,8 @@ static void createXmlReferenceTree(xmlDocPtr *doc, xmlParserCtxtPtr *ctxt)
       throw_xml_writer_failure ("Failed to allocate XML parser context.");
     }
 
-    // Count the lines to create nice error messages
-    xmlLineNumbersDefault(1);
-    initGenericErrorDefaultFunc(NULL);
-
-    *doc = xmlReadMemory((const char*) xml_writer_buf->content, xml_writer_buf->use, "kvaser.xml", NULL, 0);
-    xml_err = xmlGetLastError();
+    *doc = xmlCtxtReadMemory(*ctxt, (const char*) xml_writer_buf->content, xml_writer_buf->use, "kvaser.xml", NULL, 0);
+    xml_err = xmlCtxtGetLastError(*ctxt);
     if (!*doc || xml_err) {
       PRINTF(("xmlReadMemory: Error close to XML line: %d:\n  %s\n", xml_err->line, xml_err->message));
       throw_xml_writer_failure ("xmlReadMemory: Error in reference XML.");

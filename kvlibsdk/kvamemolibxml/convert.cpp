@@ -506,29 +506,29 @@ uint8_t datatype_to_uint8(xmlNode *a_node)
   if (!a_node) throw_nullpointer(__FUNCTION__);
 
   attr_value = xmlGetProp(a_node, (const xmlChar*) XML_TRIGGERS_ATTR_DATATYPE);
-
   if (attr_value) {
-    if (!xmlStrcmp(attr_value,(const xmlChar*) DATATYPE_UNSIGNED)) {
+    if (!xmlStrcmp(attr_value, (const xmlChar*) DATATYPE_UNSIGNED)) {
       // Default; no mask
     } else if (!xmlStrcmp(attr_value, (const xmlChar*) DATATYPE_SIGNED)) {
-      type |=  DE_FORMAT_SIGN_BIT;
+      type |= DE_FORMAT_SIGN_BIT;
     } else {
       // Error handler will free attr_value
       throw_attribute_value(a_node, XML_TRIGGERS_ATTR_DATATYPE, attr_value);
     }
+    xmlFree(attr_value);
   }
 
   attr_value = xmlGetProp(a_node, (const xmlChar*) XML_TRIGGERS_ATTR_ENDIAN);
-
   if (attr_value) {
-    if (!xmlStrcmp(attr_value,(const xmlChar*) ENDIAN_LITTLE)) {
+    if (!xmlStrcmp(attr_value, (const xmlChar*) ENDIAN_LITTLE)) {
       // Default; no mask
     } else if (!xmlStrcmp(attr_value, (const xmlChar*) ENDIAN_BIG)) {
-      type |=  DE_FORMAT_BIGENDIAN_BIT;
+      type |= DE_FORMAT_BIGENDIAN_BIT;
     } else {
       // Error handler will free attr_value
       throw_attribute_value(a_node, XML_TRIGGERS_ATTR_ENDIAN, attr_value);
     }
+    xmlFree(attr_value);
   }
 
   return type;

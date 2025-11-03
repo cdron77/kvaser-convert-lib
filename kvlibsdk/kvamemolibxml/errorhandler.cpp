@@ -336,7 +336,7 @@ void throw_xml_writer_element_failure (const char* element)
 // ---------------------------------------------------------------------------
 void throw_xml_writer_attribute_failure (const char* element, const char* attribute)
 {
-  if (!element || attribute) throw_nullpointer(__FUNCTION__);
+  if (!element || !attribute) throw_nullpointer(__FUNCTION__);
   sprintf(ErrorMessage,"Error: Could not write Attribute %s in Element %s\n", attribute, element);
   ErrorCode = KvaXmlStatusFail;
   throw(ErrorCode);

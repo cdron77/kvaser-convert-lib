@@ -75,7 +75,7 @@ void set_error_status (const KvaXmlStatus status);
 
 KvaXmlStatus get_error_status (void);
 
-const char *  get_error_message (void);
+const char *get_error_message (void);
 
 void set_error_message ( const char * format, ... );
 
@@ -83,44 +83,50 @@ void set_error ( const KvaXmlStatus status, const char * format, ... );
 
 void set_error_and_throw ( const KvaXmlStatus status, const char * format, ... );
 
-void throw_nullpointer (const char* fcn_name);
+[[noreturn]] void throw_nullpointer (const char* fcn_name);
 
-void throw_general_failure (const char* err_msg);
+[[noreturn]] void throw_general_failure (const char* err_msg);
 
-void throw_attribute_not_found (xmlNode *a_node, const char* attr_name);
+[[noreturn]] void throw_attribute_not_found (xmlNode *a_node, const char* attr_name);
 
-void throw_attribute_value (xmlNode *a_node, const char* attr_name, xmlChar *attr_value);
+[[noreturn]] void throw_attribute_value (xmlNode *a_node, const char* attr_name, xmlChar *attr_value);
 
-void throw_element_value (xmlNode *a_node, xmlChar *attr_value);
+[[noreturn]] void throw_element_value (xmlNode *a_node, xmlChar *attr_value);
 
-void throw_element_not_found (xmlNode *a_node, const char* element_name);
+[[noreturn]] void throw_element_not_found (xmlNode *a_node, const char* element_name);
 
+[[noreturn]]
 void throw_wrong_element_count (xmlNode *a_node, const char* element_name,
                                 int count, int min, int max);
 
+[[noreturn]]
 void throw_wrong_element_order (xmlNode *a_node, const char* first,
                                 const char* second, const char* parent);
 
+[[noreturn]]
 void throw_value_range (xmlNode *a_node, const char* name, const int value,
                         const int lower_limit, const int upper_limit);
 
+[[noreturn]]
 void throw_value_unique (xmlNode *a_node, const char* name, const int value);
 
+[[noreturn]]
 void throw_string_unique (xmlNode *a_node, const char* name, std::string& str);
 
-void throw_value_consecutive (xmlNode *a_node, const char* name);
+[[noreturn]] void throw_value_consecutive (xmlNode *a_node, const char* name);
 
-void throw_invalid_expression (xmlNode *a_node);
+[[noreturn]] void throw_invalid_expression (xmlNode *a_node);
 
 void warning_element_unknown (xmlNode *a_node);
 
-void throw_xml_writer_failure (const char* err_msg);
+[[noreturn]] void throw_xml_writer_failure (const char* err_msg);
 
-void throw_xml_writer_element_failure (const char* element);
+[[noreturn]] void throw_xml_writer_element_failure (const char* element);
 
+[[noreturn]]
 void throw_xml_writer_attribute_failure (const char* element, const char* attribute);
 
-void throw_xml_writer_comment_failure (const char* comment);
+[[noreturn]] void throw_xml_writer_comment_failure (const char* comment);
 
 #define KvaXmlValOffset -1000
 bool get_error_text (int code, const char* &msg);

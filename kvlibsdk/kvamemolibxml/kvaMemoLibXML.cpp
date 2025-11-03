@@ -234,16 +234,16 @@ KvaXmlStatus WINAPI kvaXmlDebugOutput (int on)
 }
 
 // ----------------------------------------------------------------------------
-static KvaXmlStatus parseXmlAndCreateBinaryBuffer(xmlDocPtr &doc,
-                                                  xmlParserCtxtPtr &ctxt,
+static KvaXmlStatus parseXmlAndCreateBinaryBuffer(xmlDocPtr doc,
+                                                  xmlParserCtxtPtr ctxt,
                                                   unsigned char *&buf,
                                                   size_t &buflen)
 {
   xmlNode *root_element = NULL;
-  xmlErrorPtr xml_err = NULL;
+  const xmlError *xml_err = NULL;
   XmlStruct xr;
 
-  xml_err = xmlGetLastError();
+  xml_err = xmlCtxtGetLastError(ctxt);
   if (!doc || xml_err) {
     set_error(KvaXmlStatusFail, "xmlCtxtReadFile: Error close to XML line: %lu:\n  %s\n", xml_err->line, xml_err->message);
     if (xml_err->domain == XML_FROM_PARSER) set_error_status(KvaXmlStatusERR_XML_PARSER);
@@ -325,10 +325,6 @@ KvaXmlStatus WINAPI kvaXmlToBuffer (const char *xmlbuf, unsigned int xmllen, cha
     return get_error_status();
   }
 
-  // Count the lines to create nice error messages
-  xmlLineNumbersDefault(1);
-  initGenericErrorDefaultFunc(NULL);
-
   // Parse the file
   doc = xmlCtxtReadMemory(ctxt, xmlbuf, xmllen, "kvaser.xml", NULL, ParserOptions);
 
@@ -381,10 +377,6 @@ KvaXmlStatus WINAPI kvaXmlToFile (const char *infile, const char *outfile)
     return get_error_status();
   }
 
-  // Count the lines to create nice error messages
-  xmlLineNumbersDefault(1);
-  initGenericErrorDefaultFunc(NULL);
-
   // Parse the file
   doc = xmlCtxtReadFile(ctxt, infile, NULL, ParserOptions);
 
@@ -415,7 +407,7 @@ KvaXmlStatus WINAPI kvaBufferToXml(const char *inbuf, unsigned int inlen,
                                    long * /*version*/, const char *scriptpath)
 {
   PRINTF(("API->kvaBufferToXml"));
-  xmlErrorPtr xml_err = NULL;
+  const xmlError *xml_err = NULL;
   xmlTextWriterPtr xml_writer = NULL;
   xmlBufferPtr xml_writer_buf = NULL;
   XmlStruct xr;
@@ -494,7 +486,7 @@ KvaXmlStatus WINAPI kvaXmlValidate (const char *xmlbuf, unsigned int xmllen)
   xmlDocPtr doc;
   xmlParserCtxtPtr ctxt;
   xmlNode *root_element = NULL;
-  xmlErrorPtr xml_err = NULL;
+  const xmlError *xml_err = NULL;
 
   set_error_status(KvaXmlStatusOK);
 
@@ -510,13 +502,9 @@ KvaXmlStatus WINAPI kvaXmlValidate (const char *xmlbuf, unsigned int xmllen)
     return get_error_status();
   }
 
-  // Count the lines to create nice error messages
-  xmlLineNumbersDefault(1);
-  initGenericErrorDefaultFunc(NULL);
-
   // Parse the file
   doc = xmlCtxtReadMemory(ctxt, xmlbuf, xmllen, "kvaser.xml", NULL, ParserOptions);
-  xml_err = xmlGetLastError();
+  xml_err = xmlCtxtGetLastError(ctxt);
   if (!doc || xml_err) {
     set_error(KvaXmlStatusFail, "%s: Error close to XML line: %lu:\n  %s\n", __FUNCTION__, xml_err->line, xml_err->message);
     if (xml_err->domain == XML_FROM_PARSER) set_error_status(KvaXmlStatusERR_XML_PARSER);
