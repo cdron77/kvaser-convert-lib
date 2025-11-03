@@ -13,4 +13,5 @@ The project contains:
 - *linuxcan* folder with *Kvaser canlib* driver. It is not used directly by the project, but build as a dependency and used for header files.
 - *kvlibsdk* The main support library from Kvaser. **NOTE:** Currently, only **kvlclib** and **kvadblib** libraries are built and maintained, mainly to support file conversion between CAN data acquisition files.
 - *Makefile* Used to build Linux targets
-- *Makefile.win32* Used to build Windows targets using MinGW.
+- *Makefile.win32* Used to build 32 bit Windows targets using MinGW.
+- *Makefile.win64* Used to build 64 bit Windows targets using MinGW.
