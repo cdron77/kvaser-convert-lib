@@ -117,11 +117,17 @@
  *   Motorola forward LSB with the start bit being the position of the
  *   least-significant bit (8*4 + 2 = 34).
  * \ingroup grp_kvadb
+ * \defgroup kvadb_signal_groups Signal groups
+ * \brief Access signal groups.
+ * \ingroup grp_kvadb
  * \defgroup kvadb_nodes       Nodes
  * \brief Add, delete and modify nodes.
  * \ingroup grp_kvadb
  * \defgroup kvadb_attributes   Attributes
  * \brief Add, delete and modify attributes for messages, signals and nodes.
+ * \ingroup grp_kvadb
+ * \defgroup kvadb_schedule_tables  LIN Schedule tables
+ * \brief Access LIN schedule tables.
  * \ingroup grp_kvadb
  */
 
@@ -164,6 +170,9 @@ typedef enum {
     kvaDbErr_InUse               = -13, ///< An item is in use
     kvaDbErr_BufferSize          = -14, ///< The supplied buffer is too small to hold the result
     kvaDbErr_DbFileParse         = -15, ///< Could not parse the database file
+    kvaDbErr_NoSignalGroup       = -16, ///< No signal group was found
+    kvaDbErr_NoScheduleTable     = -17, ///< No schedule table was found
+    kvaDbErr_NoScheduleTableEntry= -18, ///< No schedule table entry was found
 } KvaDbStatus;
 /** @} */
 
@@ -181,7 +190,7 @@ typedef enum {
 
 /**
  * \name Kvaser CAN Message Flags
- * 
+ *
  * @{
  */
 #define canMSG_STD              0x0002    ///< Message has a standard (11-bit) identifier
@@ -284,8 +293,8 @@ typedef enum {
  * \sa \kvaDbMsgDlcToBytes()
  */
 typedef struct {
-  unsigned int maxMessageDlc;
-  unsigned int maxSignalLength;
+    unsigned int maxMessageDlc;
+    unsigned int maxSignalLength;
 } KvaDbProtocolProperties;
 
 // Database flags
@@ -298,24 +307,27 @@ typedef struct {
  */
 #define KVADB_DATABASE_J1939   0x0001  ///< The database uses the J1939 protocol
 
-/** 
+/**
  * \name Kvaser Database Handle Types
  * @{
  */
-typedef void* KvaDbHnd;              ///< Database handle
-typedef void* KvaDbMessageHnd;       ///< Message handle
-typedef void* KvaDbSignalHnd;        ///< Signal handle
-typedef void* KvaDbNodeHnd;          ///< Node handle
-typedef void* KvaDbAttributeHnd;     ///< Attribute handle
-typedef void* KvaDbAttributeDefHnd;  ///< Attribute definition handle
-typedef void* KvaDbEnumValueHnd;     ///< Enumeration value handle
+typedef void* KvaDbHnd;                   ///< Database handle
+typedef void* KvaDbMessageHnd;            ///< Message handle
+typedef void* KvaDbSignalHnd;             ///< Signal handle
+typedef void* KvaDbSignalGroupHnd;        ///< Signal group handle
+typedef void* KvaDbNodeHnd;               ///< Node handle
+typedef void* KvaDbAttributeHnd;          ///< Attribute handle
+typedef void* KvaDbAttributeDefHnd;       ///< Attribute definition handle
+typedef void* KvaDbEnumValueHnd;          ///< Enumeration value handle
+typedef void* KvaDbScheduleTableHnd;      ///< Schedule table handle
+typedef void* KvaDbScheduleTableEntryHnd; ///< Schedule table entry handle
 /** @} */
 
 /**
  * \name Kvaser Database Multiplexer Mode values
  * \anchor KVADB_MUX_xxx
  * @{
-*/
+ */
 #define KVADB_MUX_SIGNAL -2  ///< Multiplex mode value of a multiplexer signal
 #define KVADB_MUX_INDEPENDENT -1 ///< Multiplex mode value of an independent signal
 /** @} */
@@ -372,7 +384,7 @@ KvaDbStatus WINAPI kvaDbSetDummyFileName(KvaDbHnd dh, const char *filename);
  * \ref kvaDbOpen(). There are three ways to call this function:
  *
  * \li To load data from an existing database file, set \a localName to \c NULL
- * and set \a filename to the database file.
+ * and set \a filename to the database file. Both DBC files and LDF files are supported.
  *
  * \li To add an empty database, set \a localName to any name and set \a
  * filename to \c NULL.
@@ -448,7 +460,7 @@ KvaDbStatus WINAPI kvaDbGetErrorText(KvaDbStatus error, char *buf, size_t buflen
 
 /**
  * \ingroup kvadb_database
- * This function retrieves error messages. 
+ * This function retrieves error messages.
  * Run directly after function when recieving error code.
  * Currently only applies to {kvaDbAddFile, kvaDbCreate, kvaDbReadFile}
  *
@@ -478,6 +490,7 @@ KvaDbStatus WINAPI kvaDbClose(KvaDbHnd dh);
 /**
  * \ingroup kvadb_database
  * Write a database to file.
+ * Only DBC files are supported.
  * This function will attempt to use period as decimal separator
  * by setting an appropriate locale.
  * Note that setting locale is not thread safe.
@@ -495,6 +508,7 @@ KvaDbStatus WINAPI kvaDbWriteFile(KvaDbHnd dh, char* filename);
 /**
  * \ingroup kvadb_database
  * Load a database from file into a handle created with \ref kvaDbOpen().
+ * Both DBC files and LDF files are supported.
  * This function will attempt to use period as decimal separator by setting
  * an appropriate locale.
  * Note that setting locale is not thread safe.
@@ -540,7 +554,6 @@ KvaDbStatus WINAPI kvaDbGetFlags(KvaDbHnd dh, unsigned int *flags);
  */
 KvaDbStatus WINAPI kvaDbGetProtocol(KvaDbHnd dh, KvaDbProtocolType *prot);
 
-
 /**
  * \ingroup kvadb_database
  * Returns properties of a given protocol, see \ref KvaDbProtocolProperties
@@ -554,7 +567,6 @@ KvaDbStatus WINAPI kvaDbGetProtocol(KvaDbHnd dh, KvaDbProtocolType *prot);
  * \sa \ref kvaDbGetProtocol()
  */
 KvaDbStatus WINAPI kvaDbGetProtocolProperties(KvaDbProtocolType prot, KvaDbProtocolProperties *prop);
-
 
 /**
  * \ingroup kvadb_messages
@@ -605,8 +617,6 @@ KvaDbStatus WINAPI kvaDbGetMsgById(KvaDbHnd dh,
                                    unsigned int id,
                                    KvaDbMessageHnd *mh);
 
-
-
 /**
  * \ingroup kvadb_messages
  * Get a handle to a message with a specific identifier.
@@ -625,11 +635,9 @@ KvaDbStatus WINAPI kvaDbGetMsgById(KvaDbHnd dh,
  * \sa \ref kvaDbGetMsgByName()
  */
 KvaDbStatus WINAPI kvaDbGetMsgByIdEx(KvaDbHnd dh,
-                                   unsigned int id,
-                                   unsigned int flags,
-                                   KvaDbMessageHnd *mh);
-
-
+                                     unsigned int id,
+                                     unsigned int flags,
+                                     KvaDbMessageHnd *mh);
 
 /**
  * \ingroup kvadb_messages
@@ -651,7 +659,6 @@ KvaDbStatus WINAPI kvaDbGetMsgByPGN(KvaDbHnd dh,
                                     unsigned int id,
                                     KvaDbMessageHnd *mh);
 
-
 /**
  * \ingroup kvadb_messages
  * Get a handle to a J1939 message using the PGN-identifier within the CAN id.
@@ -667,8 +674,8 @@ KvaDbStatus WINAPI kvaDbGetMsgByPGN(KvaDbHnd dh,
  * \sa \ref kvaDbGetMsgByName()
  */
 KvaDbStatus WINAPI kvaDbGetMsgByPGNEx(KvaDbHnd dh,
-                                    unsigned int id,
-                                    KvaDbMessageHnd *mh);
+                                      unsigned int id,
+                                      KvaDbMessageHnd *mh);
 
 /**
  * \ingroup kvadb_messages
@@ -727,7 +734,7 @@ KvaDbStatus WINAPI kvaDbGetMsgQualifiedName(KvaDbMessageHnd mh, char *buf, size_
  *
  * Get the comment for a message as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- * 
+ *
  * \param[in]  mh      A message handle
  * \param[out] buf     The buffer that will hold the message comment
  * \param[in]  buflen  The length of the buffer
@@ -760,7 +767,7 @@ KvaDbStatus WINAPI kvaDbGetMsgId(KvaDbMessageHnd mh,
                                  unsigned int *id,
                                  unsigned int *flags);
 
-                                 /**
+/**
  * \ingroup kvadb_messages
  * Get the message identifier.
  * The message identifier will not contain any flags.
@@ -970,7 +977,6 @@ KvaDbStatus WINAPI kvaDbSetMsgIdEx(KvaDbMessageHnd mh, unsigned int id);
  */
 KvaDbStatus WINAPI kvaDbSetMsgFlags(KvaDbMessageHnd mh, unsigned int flags);
 
-
 /**
  * \ingroup kvadb_messages
  * Set the data length code for a message.
@@ -1082,7 +1088,7 @@ KvaDbStatus WINAPI kvaDbSetSignalMode(KvaDbSignalHnd sh, int mux);
  * \return \ref kvaDbOK (zero) if success
  * \return \ref kvaDbErr_xxx (negative) if failure
  * \sa \ref KVADB_MUX_xxx
-*/
+ */
 
 KvaDbStatus WINAPI kvaDbGetSignalMode(KvaDbSignalHnd sh, int *mux);
 
@@ -1097,7 +1103,7 @@ KvaDbStatus WINAPI kvaDbGetSignalMode(KvaDbSignalHnd sh, int *mux);
  * \return \ref kvaDbErr_xxx (negative) if failure
  *
  * \sa \ref kvaDbStoreSignalValuePhys()
-*/
+ */
 
 KvaDbStatus WINAPI kvaDbGetSignalMessage(KvaDbSignalHnd sh, KvaDbMessageHnd *mh);
 
@@ -1117,28 +1123,27 @@ KvaDbStatus WINAPI kvaDbGetSignalMessage(KvaDbSignalHnd sh, KvaDbMessageHnd *mh)
  * \return \ref kvaDbErr_xxx (negative) if failure
  *
  * \sa \ref kvaDbStoreSignalValuePhys()
-*/
-
+ */
 
 KvaDbStatus WINAPI kvaDbGetSignalValueFloat(KvaDbSignalHnd sh, double *f, void *data, size_t len);
 
 /**
  * \ingroup kvadb_signals
-  * Retrieve signal's raw (integer) value from can data.
-  *
-  * This function is deprecated and should not be used.
-  * Consider \ref kvaDbRetrieveSignalValueRaw() instead
-  *
-  * \param[in]  sh    A signal handle
-  * \param[out] f     The converted value
-  * \param[in]  data  The data buffer to be converted
-  * \param[in]  len   The length of the data buffer
-  *
-  * \return \ref kvaDbOK (zero) if success
-  * \return \ref kvaDbErr_xxx (negative) if failure
-  *
-  * \sa \ref kvaDbStoreSignalValueRaw()
-*/
+ * Retrieve signal's raw (integer) value from can data.
+ *
+ * This function is deprecated and should not be used.
+ * Consider \ref kvaDbRetrieveSignalValueRaw() instead
+ *
+ * \param[in]  sh    A signal handle
+ * \param[out] f     The converted value
+ * \param[in]  data  The data buffer to be converted
+ * \param[in]  len   The length of the data buffer
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbStoreSignalValueRaw()
+ */
 KvaDbStatus WINAPI kvaDbGetSignalValueInteger(KvaDbSignalHnd sh, int *f, void *data, size_t len);
 
 /**
@@ -1154,39 +1159,39 @@ KvaDbStatus WINAPI kvaDbGetSignalValueInteger(KvaDbSignalHnd sh, int *f, void *d
  * \return \ref kvaDbErr_xxx (negative) if failure
  *
  * \sa \ref kvaDbStoreSignalValuePhys()
-*/
+ */
 KvaDbStatus WINAPI kvaDbRetrieveSignalValuePhys(KvaDbSignalHnd sh, double *value, void *data, size_t len);
 
 /**
  * \ingroup kvadb_signals
-  * Retrieve signal's raw (integer) value from can data.
-  *
-  * \param[in]  sh    A signal handle
-  * \param[out] value The converted value
-  * \param[in]  data  The data buffer to be converted
-  * \param[in]  len   The length of the data buffer
-  *
-  * \return \ref kvaDbOK (zero) if success
-  * \return \ref kvaDbErr_xxx (negative) if failure
-  *
-  * \sa \ref kvaDbStoreSignalValueRaw()
-*/
+ * Retrieve signal's raw (integer) value from can data.
+ *
+ * \param[in]  sh    A signal handle
+ * \param[out] value The converted value
+ * \param[in]  data  The data buffer to be converted
+ * \param[in]  len   The length of the data buffer
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbStoreSignalValueRaw()
+ */
 KvaDbStatus WINAPI kvaDbRetrieveSignalValueRaw(KvaDbSignalHnd sh, int *value, void *data, size_t len);
 
 /**
  * \ingroup kvadb_signals
-  * Retrieve signal's raw (integer) value from can data.
-  *
-  * \param[in]  sh    A signal handle
-  * \param[out] value The converted value (64-bits)
-  * \param[in]  data  The data buffer to be converted
-  * \param[in]  len   The length of the data buffer
-  *
-  * \return \ref kvaDbOK (zero) if success
-  * \return \ref kvaDbErr_xxx (negative) if failure
-  *
-  * \sa \ref kvaDbStoreSignalValueRaw64()
-*/
+ * Retrieve signal's raw (integer) value from can data.
+ *
+ * \param[in]  sh    A signal handle
+ * \param[out] value The converted value (64-bits)
+ * \param[in]  data  The data buffer to be converted
+ * \param[in]  len   The length of the data buffer
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbStoreSignalValueRaw64()
+ */
 KvaDbStatus WINAPI kvaDbRetrieveSignalValueRaw64(KvaDbSignalHnd sh, uint64_t *value, void *data, size_t len);
 
 /**
@@ -1206,7 +1211,6 @@ KvaDbStatus WINAPI kvaDbRetrieveSignalValueRaw64(KvaDbSignalHnd sh, uint64_t *va
  */
 
 KvaDbStatus WINAPI kvaDbGetSignalValueEnum(KvaDbSignalHnd sh, char *buf, size_t buflen, void *data, size_t len);
-
 
 /**
  * \ingroup kvadb_signals
@@ -1258,10 +1262,10 @@ KvaDbStatus WINAPI kvaDbGetSignalValueSize(KvaDbSignalHnd sh, int *startbit, int
 
 /**
  * \ingroup kvadb_signals
- * 
+ *
  * Get the name of a signal as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- * 
+ *
  * \param[in]  sh      A signal handle.
  * \param[out] buf     The signal name.
  * \param[in]  buflen  The length of the buffer that will hold the signal name.
@@ -1279,7 +1283,7 @@ KvaDbStatus WINAPI kvaDbGetSignalName(KvaDbSignalHnd sh, char *buf, size_t bufle
  * Get the qualified signal name, which is the database, message and signal
  * names separated by dots, as a null-terminated string.
  * An empty string will be returned if \a buf is too small and status will be kvaDbOK.
- * 
+ *
  * \param[in]  sh      A signal handle
  * \param[out] buf     The qualified signal name
  * \param[in]  buflen  The length of the buffer that will hold the qualified
@@ -1311,10 +1315,10 @@ KvaDbStatus WINAPI kvaDbGetSignalComment(KvaDbSignalHnd sh, char *buf, size_t bu
 
 /**
  * \ingroup kvadb_signals
- * 
+ *
  * Get the signal unit as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in]  sh      A signal handle
  * \param[out] buf     The signal unit
  * \param[in]  buflen  The length of the buffer that will hold the signal unit
@@ -1527,6 +1531,85 @@ KvaDbStatus WINAPI kvaDbSetSignalEncoding(KvaDbSignalHnd sh, KvaDbSignalEncoding
 KvaDbStatus WINAPI kvaDbSetSignalRepresentationType(KvaDbSignalHnd sh, KvaDbSignalType t);
 
 /**
+ * \ingroup kvadb_signal_groups
+ * @{
+ */
+
+/**
+ * Get the first signal group of a message.
+ *
+ * \param      mh   A message handle.
+ * \param[out] sgh  A handle to the first signal group.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetNextSignalGroup()
+ */
+KvaDbStatus WINAPI kvaDbGetFirstSignalGroup(KvaDbMessageHnd mh, KvaDbSignalGroupHnd *sgh);
+
+/**
+ * Get the next signal group of a message.
+ *
+ * Should be called after \ref kvaDbGetFirstSignalGroup(). The order
+ * in which signal groups are returned is unspecified.
+ *
+ * \param         mh  A message handle.
+ * \param[in,out] sgh  A handle to the current, and afterward, next, signal group.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetFirstSignalGroup
+ */
+KvaDbStatus WINAPI kvaDbGetNextSignalGroup(KvaDbMessageHnd mh, KvaDbSignalGroupHnd *sgh);
+
+/**
+ * Get the name of a signal group as a null-terminated string.
+ *
+ * A truncated string will be returned if \a buf is too small and
+ * status will be \ref kvaDbOK. The actual byte size, including
+ * null-terminator, will be stored to \c *len.
+ *
+ * \param         sgh  A signal group handle.
+ * \param[out]    buf  The signal group name.
+ * \param[in,out] len  The length of the buffer that will hold the signal group name.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ */
+KvaDbStatus WINAPI kvaDbGetSignalGroupName(KvaDbSignalGroupHnd sgh, char *buf, size_t *len);
+
+/**
+ * Get the number of signals in the signal group \a sgh.
+ *
+ * \param      sgh  A signal group handle.
+ * \param[out] out  The signal group cardinality.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ */
+KvaDbStatus WINAPI kvaDbGetSignalGroupSize(KvaDbSignalGroupHnd sgh, size_t *out);
+
+/**
+ * Get the signal group signal at index \a i.
+ *
+ * Indices are stable only in the absense of insertions/removals.
+ * Valid values of \a i are below the result of \ref
+ * kvaDbGetSignalGroupSize.
+ *
+ * \param      sgh  A signal group handle.
+ * \param      i    The signal index.
+ * \param[out] out  The resulting signal.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ */
+KvaDbStatus WINAPI kvaDbIndexSignalGroup(KvaDbSignalGroupHnd sgh, size_t i, KvaDbSignalHnd *out);
+
+///@}
+
+/**
  * \ingroup kvadb_nodes
  * Get the first node.
  *
@@ -1627,10 +1710,10 @@ KvaDbStatus WINAPI kvaDbSetNodeName(KvaDbNodeHnd nh, char *buf);
 
 /**
  * \ingroup kvadb_nodes
- * 
+ *
  * Get the name of a node as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in] nh   A node handle
  * \param[out] buf  The buffer that will contain the node name
  * \param[in] buflen  The length of the data buffer
@@ -1654,10 +1737,10 @@ KvaDbStatus WINAPI kvaDbSetNodeComment(KvaDbNodeHnd nh, char *buf);
 
 /**
  * \ingroup kvadb_nodes
- * 
+ *
  * Get the comment for a node as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in] nh   A node handle
  * \param[out] buf  The buffer that will contain the node comment
  * \param[in] buflen The length of the data buffer
@@ -1703,7 +1786,6 @@ KvaDbStatus WINAPI kvaDbRemoveReceiveNodeFromSignal(KvaDbSignalHnd sh, KvaDbNode
  * \return \ref kvaDbErr_xxx (negative) if failure
  */
 KvaDbStatus WINAPI kvaDbSignalContainsReceiveNode(KvaDbSignalHnd sh, KvaDbNodeHnd nh);
-
 
 /**
  * \ingroup kvadb_signals
@@ -1824,10 +1906,10 @@ KvaDbStatus WINAPI kvaDbGetAttributeDefinitionOwner(KvaDbAttributeDefHnd adh, Kv
 
 /**
  * \ingroup kvadb_attributes
- * 
+ *
  * Get the name of an attribute definition as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in]  adh     A handle to an attribute
  * \param[out] buf     The buffer that will hold the attribute name
  * \param[in]  buflen  The length of the buffer.
@@ -1869,10 +1951,10 @@ KvaDbStatus WINAPI kvaDbGetAttributeDefinitionFloat(KvaDbAttributeDefHnd adh, fl
 
 /**
  * \ingroup kvadb_attributes
- * 
+ *
  * Get default value for an attribute definition of type string as a null-terminated string.
- * A truncated string will be returned if \a buf is too small and status will be kvaDbOK. 
- *  
+ * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
+ *
  * \param[in]  adh     A handle to an attribute definition
  * \param[out] buf     The buffer that holds the default value of the attribute
  * \param[out] buflen  The length of the buffer.
@@ -2226,7 +2308,7 @@ KvaDbStatus WINAPI kvaDbGetNextEnumValue(KvaDbSignalHnd sh, KvaDbEnumValueHnd *e
  * Get the enumeration value and name.
  * The name is returned as a null-terminated string.
  * If \a buf is to small, the name will be truncated and status will be kvaDbOK.
- *  
+ *
  * \param[in]  eh      An enumeration value handle
  * \param[out] val     The enumeration value
  * \param[out] buf     The buffer that will hold the enumeration name
@@ -2245,7 +2327,7 @@ KvaDbStatus WINAPI kvaDbGetEnumValue(KvaDbEnumValueHnd eh, int *val, char *buf, 
  * Get the enumeration value and name for the first enumeration value for a signal.
  * The name is returned as a null-terminated string.
  * If \a buf is to small, the name will be truncated and status will be kvaDbOK.
- *  
+ *
  * \param[in]  sh      A signal handle.
  * \param[out] eh      An enumeration value handle.
  * \param[out] val     The enumeration value.
@@ -2265,7 +2347,7 @@ KvaDbStatus WINAPI kvaDbGetFirstEnumValuePair(KvaDbSignalHnd sh, KvaDbEnumValueH
  * The name is returned as a null-terminated string.
  * If \a buf is to small, the name will be truncated and status will be kvaDbOK.
  * Should be called after \ref kvaDbGetFirstEnumValuePair().
- *  
+ *
  * \param[in]  sh      A signal handle.
  * \param[out] eh      An enumeration value handle.
  * \param[out] val     The enumeration value.
@@ -2493,7 +2575,7 @@ KvaDbStatus WINAPI kvaDbGetAttributeType(KvaDbAttributeHnd ah, KvaDbAttributeTyp
  *
  * Get the name of an attribute as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in]  ah      A handle to an attribute
  * \param[out] buf     The buffer that will hold the attribute name
  * \param[in]  buflen  The length of the buffer.
@@ -2581,7 +2663,7 @@ KvaDbStatus WINAPI kvaDbSetAttributeValueString(KvaDbAttributeHnd ah, const char
  *
  * Get the value for an attribute of type string as a null-terminated string.
  * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
- *  
+ *
  * \param[in]  ah   A handle to an attribute
  * \param[out] buf     The buffer that holds the attribute value
  * \param[out]  buflen  The length of the buffer.
@@ -2621,7 +2703,6 @@ KvaDbStatus WINAPI kvaDbSetAttributeValueEnumeration(KvaDbAttributeHnd ah, int v
  */
 KvaDbStatus WINAPI kvaDbGetAttributeValueEnumeration(KvaDbAttributeHnd ah, int *val);
 
-
 /**
  * \ingroup kvadb_messages
  * Translates message dlc to number of bytes for a given protocol
@@ -2651,6 +2732,144 @@ KvaDbStatus WINAPI kvaDbMsgDlcToBytes(KvaDbProtocolType prot, unsigned int dlc, 
  * \sa kvaDbGetProtocol()
  */
 KvaDbStatus WINAPI kvaDbBytesToMsgDlc(KvaDbProtocolType prot, unsigned int numBytes, unsigned int *dlc);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get the first LIN schedule table in a database.
+ *
+ * \param[in]  dh  A handle to a database
+ * \param[out] th  A handle to the first schedule table
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetNextScheduleTable()
+ */
+KvaDbStatus WINAPI kvaDbGetFirstScheduleTable(KvaDbHnd dh, KvaDbScheduleTableHnd *th);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get a handle to the next LIN schedule table in a database. Should be called after
+ * \ref kvaDbGetFirstScheduleTable().
+ *
+ * \param[in]  dh  A database handle
+ * \param[out] th  A schedule table handle
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetFirstScheduleTable()
+ */
+KvaDbStatus WINAPI kvaDbGetNextScheduleTable(KvaDbHnd dh, KvaDbScheduleTableHnd *th);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get a handle to a LIN schedule table with a specific name.
+ *
+ * \param[in]  dh                   A database handle
+ * \param[in]  schedule_table_name  The schedule table name to search for
+ * \param[out] th                   A schedule table handle
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ */
+KvaDbStatus WINAPI kvaDbGetScheduleTableByName(KvaDbHnd dh,
+                                               const char *schedule_table_name,
+                                               KvaDbScheduleTableHnd *th);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ *
+ * Get the name of a schedule table as a null-terminated string.
+ * A truncated string will be returned if \a buf is too small and status will be kvaDbOK.
+ *
+ * \param[in]  th      A schedule table handle
+ * \param[out] buf     The buffer that will hold the schedule table name
+ * \param[in]  buflen  The length of the buffer.
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetScheduleTableQualifiedName()
+ */
+KvaDbStatus WINAPI kvaDbGetScheduleTableName(KvaDbScheduleTableHnd th, char *buf, size_t buflen);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ *
+ * Get the qualified schedule table name, which is the database name and the schedule table
+ * name separated by a dot, as a null-terminated string.
+ * An empty string will be returned if \a buf is too small and status will be kvaDbOK.
+ *
+ * \param[in]  th      A schedule table handle
+ * \param[out] buf     The buffer that will hold the qualified schedule table name
+ * \param[in]  buflen  The length of the buffer
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetScheduleTableName()
+ */
+KvaDbStatus WINAPI kvaDbGetScheduleTableQualifiedName(KvaDbScheduleTableHnd th, char *buf, size_t buflen);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get the first entry in a LIN schedule table.
+ *
+ * \param[in]  th  A schedule table handle
+ * \param[out] eh  A handle to the first schedule table entry
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetNextScheduleTableEntry()
+ */
+KvaDbStatus WINAPI kvaDbGetFirstScheduleTableEntry(KvaDbScheduleTableHnd th, KvaDbScheduleTableEntryHnd *eh);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get the next entry in a LIN schedule table. Should be called after
+ * \ref kvaDbGetFirstScheduleTableEntry().
+ *
+ * \param[in]  th  A schedule table handle
+ * \param[out] eh  A handle to the next schedule table entry
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetFirstScheduleTableEntry
+ */
+KvaDbStatus WINAPI kvaDbGetNextScheduleTableEntry(KvaDbScheduleTableHnd th, KvaDbScheduleTableEntryHnd *eh);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get message for a LIN schedule table entry
+ *
+ * \param[in]  eh  A schedule table entry handle
+ * \param[out] mh  A message handle
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetFirstScheduleTableEntry
+ */
+KvaDbStatus WINAPI kvaDbGetScheduleTableEntryMsg(KvaDbScheduleTableEntryHnd eh, KvaDbMessageHnd *mh);
+
+/**
+ * \ingroup kvadb_schedule_tables
+ * Get LIN schedule table entry delay in milliseconds. The delay before the message is sent
+ * after the previous message in the schedule table has been sent.
+ *
+ * \param[in]  eh     A schedule table entry handle
+ * \param[out] delay  The delay in milliseconds
+ *
+ * \return \ref kvaDbOK (zero) if success
+ * \return \ref kvaDbErr_xxx (negative) if failure
+ *
+ * \sa \ref kvaDbGetFirstScheduleTableEntry
+ */
+KvaDbStatus WINAPI kvaDbGetScheduleTableEntryDelay(KvaDbScheduleTableEntryHnd eh,
+                                                   double *delay);
 
 /**
  * \page page_kvadblib Database API (kvaDbLib)

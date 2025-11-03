@@ -792,7 +792,7 @@ kvmStatus WINAPI kvmLogFileReadEvent(kvmHandle h, kvmLogEventEx *e);
 kvmStatus WINAPI kvmLogFileDeleteAll(kvmHandle h);
 
 /**
- * \ingroup kvm_sytem_information
+ * \ingroup kvm_system_information
  *
  * \source_cs       <b>static Kvmlib.STATUS DeviceDiskStatus(Handle h, out Int32 present);</b>
  * \source_end
