@@ -254,7 +254,7 @@ CanHandle CANLIBAPI canOpenChannel(int channel, int flags)
         return canERR_PARAM;
     }
 
-    hData = (HandleData *)calloc(sizeof(HandleData), 1);
+    hData = (HandleData *)calloc(1, sizeof(HandleData));
     if (hData == NULL) {
         DEBUGPRINT((TXT("ERROR: cannot allocate memory (%d)\n"), (int)sizeof(HandleData)));
         return canERR_NOMEM;
