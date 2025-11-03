@@ -368,7 +368,7 @@ KvlcStatus KvaLogWriter_DiademSignal::close_file()
 #define EXTENSION   "dat"
 #define DESCRIPTION "Selected signals in DIAdem format"
 
-class KvaWriterMaker_DiademSignal : public KvaWriterMaker
+static class KvaWriterMaker_DiademSignal : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_DiademSignal() : KvaWriterMaker(KVLC_FILE_FORMAT_DIADEM) {
@@ -394,4 +394,3 @@ class KvaWriterMaker_DiademSignal : public KvaWriterMaker
       return writer;
     }
 }  registerKvaLogWriter_DiademSignal;
-

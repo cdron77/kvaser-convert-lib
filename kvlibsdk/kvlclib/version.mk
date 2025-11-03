@@ -1,4 +1,4 @@
 LIBNAME = libkvlclib.so
 MAJOR = 1
 MINOR = 7
-BUILD = 8
+BUILD = 13

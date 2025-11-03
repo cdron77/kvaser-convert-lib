@@ -1,3 +1,4 @@
+#include <cstdio>
 /*
 **             Copyright 2017 by Kvaser AB, Molndal, Sweden
 **                         http://www.kvaser.com
@@ -204,6 +205,7 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_header()
     for (i = 0; i < databases.size(); i++) {
       KvaDbHnd dh = databases[i];
       KvaDbMessageHnd mh;
+      KvaDbNodeHnd nh;
       KvaDbSignalHnd sh, mux_signal;
       char msgname[500], signame[500], unit[500], fullname[500];
       unsigned int dbid;
@@ -256,6 +258,18 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_header()
 
           while (dbstat == kvlcOK) {
             int mux_value = 0;
+
+            char source_info[40]; /* CANnnn.nodename is max 7 + 32 characters of [A-z0-9_] */
+            bool msg_has_sender_name = (kvaDbGetMsgSendNode(mh, &nh) == kvaDbOK);
+            /* Set si_tx_path to CANnnn. Append a dot if there is a node name to be added below. */
+            snprintf(source_info, sizeof(source_info), "CAN%d%s", channel + 1, msg_has_sender_name ? "." : "");
+            if (msg_has_sender_name) {
+              size_t path_len = strlen(source_info);
+              kvaDbGetNodeName(nh, source_info + path_len, sizeof(source_info) - path_len);
+            } else if (dbstat != kvaDbErr_NoNode) {
+              PRINTF(("kvaDbGetMsgSendNode error %d\n", dbstat));
+            }
+
             dbstat = kvaDbGetSignalMode(sh, &mux_value);
             if (dbstat != kvlcOK) {
               PRINTF(("kvaDbGetSignalMode error %d\n", dbstat));
@@ -387,7 +401,8 @@ KvlcStatus KvaLogWriter_Mdf4Signal::write_header()
                         mdf_signal_type,
                         MDF_CONVERSION_TYPE_PARAMETRIC_LINEAR,
                         factor,
-                        offset
+                        offset,
+                        source_info
                         );
 
             switch (stat) {
@@ -548,7 +563,8 @@ KvlcStatus KvaLogWriter_Mdf4Signal::create_mdf_converter()
 #define NAME        "MDF v4.1 Signal"
 #define EXTENSION   "mf4"
 #define DESCRIPTION "Selected signals in MDF v4.1 for Vector CANalyzer"
-class KvaWriterMaker_Mdf4Signal : public KvaWriterMaker
+
+static class KvaWriterMaker_Mdf4Signal : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Mdf4Signal() : KvaWriterMaker(KVLC_FILE_FORMAT_MDF_4X_SIGNAL) {
@@ -575,4 +591,3 @@ class KvaWriterMaker_Mdf4Signal : public KvaWriterMaker
       return new KvaLogWriter_Mdf4Signal();
     }
 }  registerKvaLogWriter_Mdf4Signal;
-

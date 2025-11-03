@@ -60,44 +60,25 @@
 **
 ** -----------------------------------------------------------------------------
 */
+#ifndef KVALOGWRITER_VECTORBLFFD_H_
+#define KVALOGWRITER_VECTORBLFFD_H_
 
-#ifndef KVALOGREADER_H_
-#define KVALOGREADER_H_
+#include "VectorBlfFd.h"
 
-#include <stdint.h>
+#include "KvaLogWriter.h"
 
-#include <stdio.h>
-#include "KvaConverterMisc.h"
-
-
-class KvaLogReader {
-  protected:
-    FILE *infile;
-    int64_t file_size;
-    int64_t file_position;
-    int64_t get_file_size(const char *filename);
-    KvlcStatus read_file(char *string, size_t num);
-    KvlcStatus read_line(char *string, int num);
-    KvlcStatus move_fpos(size_t num);
-    time_uint64 start_of_measurement64;
-    bool isOpened;
-
+class KvaLogWriter_VectorBlfFd : public KvaLogWriter {
   public:
-    KvaLogReader();
-    virtual ~KvaLogReader();
-    // Reads an event from a file, interprets it and places info in logEvent
-    virtual KvlcStatus read_row(imLogData *logEvent) = 0;
-    virtual uint64 event_count() = 0;
-    virtual bool isBinary() = 0;
-    virtual KvlcStatus open_file(const char *filename);
-    virtual KvlcStatus close_file();
-    // Interpret event is like read_row but gets its input from the caller.
-    virtual KvlcStatus interpret_event(void* /* event */, imLogData* /* logEvent */);
-   
-    virtual KvlcStatus next_file();
-    virtual KvlcStatus verify_signals() {return kvlcERR_NOT_IMPLEMENTED;}
+    KvaLogWriter_VectorBlfFd();
+    ~KvaLogWriter_VectorBlfFd();
+    KvlcStatus write_header();
+    KvlcStatus write_row(imLogData *logEvent);
+    bool isBinary() { return true; }
+    KvlcStatus close_file();
+  private:
+    int header_written;
+    uint32_t object_count;
 };
 
-#include "KvaReaderMaker.h"
+#endif /* KVALOGWRITER_VECTORBLFFD_H_ */
 
-#endif /*KVALOGREADER_H_*/

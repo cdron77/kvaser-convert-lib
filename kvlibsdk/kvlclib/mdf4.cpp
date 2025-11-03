@@ -387,11 +387,12 @@ MdfStatus Mdf4::new_sig(MDF_UINT32 canId,
             MDF_UINT16 SigDataType,
             MDF_UINT16 ChannelConversionType,
             MDF_REAL Factor,
-            MDF_REAL Offset)
+            MDF_REAL Offset,
+            char *sourceInfo)
 {
   if (hd) {
     return hd->new_sig( canId, longname, shortname, unit, StartOffset, NumBits,
-                        SigDataType, ChannelConversionType, Factor, Offset);
+                        SigDataType, ChannelConversionType, Factor, Offset, sourceInfo);
   }
   return MDF_ERROR_MEMORY;
 }
@@ -665,11 +666,7 @@ fhNode::fhNode(int version)
   struct tm newtime;
   localtime_r(&aclock, &newtime);
   fh.fh_time_ns = mktime(&newtime) * 1000000000LL;
-#ifdef _BSD_SOURCE
   fh.fh_tz_offset_min = (MDF_INT16) (newtime.tm_gmtoff / 60);
-#else
-	fh.fh_tz_offset_min = 0;
-#endif
   if (newtime.tm_isdst > 0) {
     // Turn off day light saving to get fh_tz_offset_min
     newtime.tm_isdst = 0;
@@ -1243,7 +1240,8 @@ MdfStatus cgNode::new_cn(
                   MDF_UINT16 SigDataType,
                   MDF_UINT16 ChannelConversionType,
                   MDF_REAL Factor,
-                  MDF_REAL Offset)
+                  MDF_REAL Offset,
+                  char *sourceInfo)
 {
   cnNode *local_cn;
 
@@ -1267,6 +1265,8 @@ MdfStatus cgNode::new_cn(
     return MDF_ERROR_MEMORY;
   }
 
+  cn->cn_si_source = new siNode(getVersion(), 0);
+  cn->cn_si_source->tx_path = new txNode(getVersion(), sourceInfo);
   // Reinsert previously first cn at second place
   cn->next = local_cn;
   setSizeDirty();
@@ -2228,16 +2228,16 @@ int dgNode::write_data(FILE *mdfFile)
   return 0;
 }
 
-MdfStatus dgNode::new_sig(MDF_UINT32 id, char *longname, char *shortname, char *unit, MDF_UINT16 StartOffset, MDF_UINT16 NumBits, MDF_UINT16 SigDataType, MDF_UINT16 ChannelConversionType, MDF_REAL Factor, MDF_REAL Offset)
+MdfStatus dgNode::new_sig(MDF_UINT32 id, char *longname, char *shortname, char *unit, MDF_UINT16 StartOffset, MDF_UINT16 NumBits, MDF_UINT16 SigDataType, MDF_UINT16 ChannelConversionType, MDF_REAL Factor, MDF_REAL Offset, char *sourceInfo)
 {
   if (canId == id) {
     setSizeDirty();
-    MdfStatus stat = cg->new_cn(longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset);
+    MdfStatus stat = cg->new_cn(longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset, sourceInfo);
     return stat;
   }
   if (next) {
     setSizeDirty();
-    return next->new_sig(canId, longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset);
+    return next->new_sig(canId, longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset, sourceInfo);
   }
   return MDF_ERROR_MEMORY;
 }
@@ -2478,14 +2478,14 @@ MdfStatus hdNode::new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker&
   return MDF_OK;
 }
 
-MdfStatus hdNode::new_sig(MDF_UINT32 canId, char *longname, char *shortname, char *unit, MDF_UINT16 StartOffset, MDF_UINT16 NumBits, MDF_UINT16 SigDataType, MDF_UINT16 ChannelConversionType, MDF_REAL Factor, MDF_REAL Offset)
+MdfStatus hdNode::new_sig(MDF_UINT32 canId, char *longname, char *shortname, char *unit, MDF_UINT16 StartOffset, MDF_UINT16 NumBits, MDF_UINT16 SigDataType, MDF_UINT16 ChannelConversionType, MDF_REAL Factor, MDF_REAL Offset, char *sourceInfo)
 {
   if (!cur_dg) {
     cur_dg = dg; //if not set, take the first node
   }
   if (cur_dg) {
     setSizeDirty();
-    return cur_dg->new_sig(canId, longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset);
+    return cur_dg->new_sig(canId, longname, shortname, unit, StartOffset, NumBits, SigDataType, ChannelConversionType, Factor, Offset, sourceInfo);
   }
   return MDF_ERROR_MEMORY;
 }

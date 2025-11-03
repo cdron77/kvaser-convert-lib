@@ -726,7 +726,7 @@ End TriggerBlock
 #define EXTENSION   "asc"
 #define DESCRIPTION "Vector ASCII J1587"
 
-class KvaWriterMaker_VectorJ1587Asc : public KvaWriterMaker
+static class KvaWriterMaker_VectorJ1587Asc : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_VectorJ1587Asc() : KvaWriterMaker(KVLC_FILE_FORMAT_J1587) {

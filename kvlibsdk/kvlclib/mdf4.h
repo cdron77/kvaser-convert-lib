@@ -652,7 +652,8 @@ namespace Mdf4Nodes {
                       MDF_UINT16 SigDataType,
                       MDF_UINT16 ChannelConversionType,// = MDF_CONVERSION_TYPE_ONE_TO_ONE,
                       MDF_REAL Factor = 1.0,
-                      MDF_REAL Offset = 0.0);
+                      MDF_REAL Offset = 0.0,
+                      char *sourceInfo = nullptr);
     void      increaseNumberOfMessages(int num = 1);
     MdfStatus new_vector_cn(void);
     int write(FILE *mdfFile);
@@ -741,7 +742,8 @@ namespace Mdf4Nodes {
                       MDF_UINT16 SigDataType,
                       MDF_UINT16 ChannelConversionType = MDF_CONVERSION_TYPE_ONE_TO_ONE,
                       MDF_REAL Factor = 1.0,
-                      MDF_REAL Offset = 0.0);
+                      MDF_REAL Offset = 0.0,
+                      char *sourceInfo = nullptr);
   };
 
   class fhNode : public NodeBase {
@@ -808,7 +810,8 @@ namespace Mdf4Nodes {
                       MDF_UINT16 SigDataType,
                       MDF_UINT16 ChannelConversionType = MDF_CONVERSION_TYPE_ONE_TO_ONE,
                       MDF_REAL Factor = 1.0,
-                      MDF_REAL Offset = 0.0);
+                      MDF_REAL Offset = 0.0,
+                      char *sourceInfo = nullptr);
   int addMsg(MDF_UINT32 id, KVMDF_TIMESTAMP ts, MDF_UINT8 *data);
   int createMdf4Channel(int ch, int type, MDF_UINT32 id = CAN_ID_NOT_USED, const std::string& msgname = std::string());
   };

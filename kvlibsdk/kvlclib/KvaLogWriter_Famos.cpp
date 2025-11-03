@@ -539,7 +539,7 @@ size_t KvaLogWriter_Famos::createTimeName(GroupType *gp, char *fullname) {
 #define EXTENSION   "dat"
 #define DESCRIPTION "Selected signals in FAMOS format"
 
-class KvaWriterMaker_Famos : public KvaWriterMaker
+static class KvaWriterMaker_Famos : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Famos() : KvaWriterMaker(KVLC_FILE_FORMAT_FAMOS) {
@@ -561,4 +561,3 @@ class KvaWriterMaker_Famos : public KvaWriterMaker
       return new KvaLogWriter_Famos();
     }
 }  registerKvaLogWriter_Famos;
-

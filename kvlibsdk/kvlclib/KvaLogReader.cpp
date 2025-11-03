@@ -224,8 +224,8 @@ KvaLogReader::KvaLogReader()
 {
   PRINTF(("KvaLogReader::KvaLogReader()\n"));
   start_of_measurement64 = 0;
-  last_clock_event = 0;
-  first_timestamp = 0;
+  // last_clock_event = 0;
+  // first_timestamp = 0;
   isOpened = false;
   infile = NULL;
 }

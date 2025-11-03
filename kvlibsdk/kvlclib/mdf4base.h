@@ -194,7 +194,7 @@ public:
   virtual int write_data() = 0;
 
   virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT8 dlc = 8) = 0;
-  virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string(), int channel = 1) = 0;
+  virtual MdfStatus new_dg(MDF_UINT32 canId, MDF_UINT32 canMask, const MuxChecker& mux, MDF_UINT8 dlc = 8, const std::string& msgname = std::string(), int channel=1) = 0;
   virtual MdfStatus new_sig(MDF_UINT32 canId,
               char *longname,
               char *shortname,
@@ -204,7 +204,8 @@ public:
               MDF_UINT16 SigDataType,
               MDF_UINT16 ChannelConversionType = MDF_CONVERSION_TYPE_ONE_TO_ONE,
               MDF_REAL Factor = 1.0,
-              MDF_REAL Offset = 0.0) = 0;
+              MDF_REAL Offset = 0.0,
+              char *sourceInfo = nullptr) = 0;
 
   virtual int setStartOfRecording(
     unsigned int year,
@@ -303,7 +304,8 @@ public:
               MDF_UINT16 SigDataType,
               MDF_UINT16 ChannelConversionType = MDF_CONVERSION_TYPE_ONE_TO_ONE,
               MDF_REAL Factor = 1.0,
-              MDF_REAL Offset = 0.0);
+              MDF_REAL Offset = 0.0,
+              char *sourceInfo = nullptr);
   int addMsg(MDF_UINT32 /* id */ , KVMDF_TIMESTAMP /* ts */, MDF_UINT8 * /* data */) {return -1;}; // Not used
 
   private:

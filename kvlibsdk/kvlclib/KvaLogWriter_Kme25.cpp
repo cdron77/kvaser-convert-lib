@@ -356,7 +356,7 @@ KvlcStatus KvaLogWriter_Kme25::add_periodic_events(unsigned short lastTimeHi)
 #define EXTENSION   "kme25"
 #define DESCRIPTION "Kvaser binary format (KME 2.5)"
 
-class KvaWriterMaker_Kme25: public KvaWriterMaker
+static class KvaWriterMaker_Kme25: public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Kme25() : KvaWriterMaker(KVLC_FILE_FORMAT_KME25) {

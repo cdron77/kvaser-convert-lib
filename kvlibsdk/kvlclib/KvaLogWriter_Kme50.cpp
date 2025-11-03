@@ -265,7 +265,7 @@ KvlcStatus KvaLogWriter_Kme50::write_row(imLogData *logEvent)
 #define EXTENSION   "kme50"
 #define DESCRIPTION "Kvaser binary format (KME 5.0)"
 
-class KvaWriterMaker_Kme50 : public KvaWriterMaker
+static class KvaWriterMaker_Kme50 : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Kme50() : KvaWriterMaker(KVLC_FILE_FORMAT_KME50) {
@@ -286,4 +286,3 @@ class KvaWriterMaker_Kme50 : public KvaWriterMaker
       return new KvaLogWriter_Kme50();
     }
 }  registerKvaLogWriter_Kme50;
-

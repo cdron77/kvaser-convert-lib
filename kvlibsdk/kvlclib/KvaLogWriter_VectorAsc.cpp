@@ -826,7 +826,7 @@ KvlcStatus KvaLogWriter_VectorAsc::close_file()
 #define EXTENSION   "asc"
 #define DESCRIPTION "CAN frames in Vector ASCII format"
 
-class KvaWriterMaker_VectorAsc : public KvaWriterMaker
+static class KvaWriterMaker_VectorAsc : public KvaWriterMaker
 {
 public:
   KvaWriterMaker_VectorAsc() : KvaWriterMaker(KVLC_FILE_FORMAT_VECTOR_ASC) {
@@ -866,4 +866,3 @@ private:
     return writer;
   }
 }  registerKvaLogWriter_VectorAsc;
-

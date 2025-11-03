@@ -337,7 +337,7 @@ KvlcStatus KvaLogWriter_CsvFrame::write_row(imLogData *logEvent)
 #define EXTENSION   "csv"
 #define DESCRIPTION "CAN frames in CSV format"
 
-class KvaWriterMaker_CsvFrame : public KvaWriterMaker
+static class KvaWriterMaker_CsvFrame : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_CsvFrame() : KvaWriterMaker(KVLC_FILE_FORMAT_CSV) {
@@ -376,4 +376,3 @@ class KvaWriterMaker_CsvFrame : public KvaWriterMaker
       return writer;
     }
 }  registerKvaLogWriter_CsvFrame;
-

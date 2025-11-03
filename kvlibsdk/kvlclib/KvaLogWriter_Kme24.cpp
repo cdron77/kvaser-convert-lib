@@ -320,7 +320,7 @@ KvlcStatus KvaLogWriter_Kme24::add_periodic_events(unsigned short lastTimeHi,
 #define EXTENSION   "kme"
 #define DESCRIPTION "Kvaser binary format (KME 2.4) - used for Vector CANalyzer"
 
-class KvaWriterMaker_Kme24 : public KvaWriterMaker
+static class KvaWriterMaker_Kme24 : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Kme24() : KvaWriterMaker(KVLC_FILE_FORMAT_KME24) {

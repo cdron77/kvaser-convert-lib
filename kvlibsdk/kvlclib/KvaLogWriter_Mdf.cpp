@@ -285,7 +285,7 @@ KvlcStatus KvaLogWriter_Mdf::write_row(imLogData *logEvent)
 #define EXTENSION   "log"
 #define DESCRIPTION "CAN frames in Vector Mdf"
 
-class KvaWriterMaker_Mdf : public KvaWriterMaker
+static class KvaWriterMaker_Mdf : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Mdf() : KvaWriterMaker(KVLC_FILE_FORMAT_MDF) {

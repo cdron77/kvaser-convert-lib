@@ -514,7 +514,7 @@ KvlcStatus KvaLogWriter_VectorBlf::close_file()
 #define EXTENSION   "blf"
 #define DESCRIPTION "CAN frames in Vector BLF format"
 
-class KvaWriterMaker_VectorBlf : public KvaWriterMaker
+static class KvaWriterMaker_VectorBlf : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_VectorBlf() : KvaWriterMaker(KVLC_FILE_FORMAT_VECTOR_BLF) {

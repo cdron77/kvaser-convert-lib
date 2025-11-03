@@ -262,7 +262,7 @@ KvlcStatus KvaLogWriter_CsvSignal::write_signals() {
 #define EXTENSION   "csv"
 #define DESCRIPTION "Selected signals in CSV format"
 
-class KvaWriterMaker_CsvSignal : public KvaWriterMaker
+static class KvaWriterMaker_CsvSignal : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_CsvSignal() : KvaWriterMaker(KVLC_FILE_FORMAT_CSV_SIGNAL) {
@@ -306,4 +306,3 @@ class KvaWriterMaker_CsvSignal : public KvaWriterMaker
       return writer;
     }
 }  registerKvaLogWriter_CsvSignal;
-

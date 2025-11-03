@@ -467,7 +467,7 @@ KvlcStatus KvaLogWriter_PlainAsc::write_row(imLogData *logEvent)
 #define EXTENSION   "txt"
 #define DESCRIPTION "CAN frames in plain text format"
 
-class KvaWriterMaker_PlainAsc : public KvaWriterMaker
+static class KvaWriterMaker_PlainAsc : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_PlainAsc() : KvaWriterMaker(KVLC_FILE_FORMAT_PLAIN_ASC) {

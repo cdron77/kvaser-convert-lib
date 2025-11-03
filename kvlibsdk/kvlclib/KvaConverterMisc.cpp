@@ -73,7 +73,6 @@
 #define DLC48   14
 #define DLC64   15
 
-// Convert DLC to number of bytes for CAN FD
 unsigned int dlcToNumBytesFD(unsigned int dlc)
 {
   dlc &= 0xf;
@@ -89,18 +88,17 @@ unsigned int dlcToNumBytesFD(unsigned int dlc)
   }
 }
 
-// Convert number of bytes to DLC for CAN FD
-char numBytesToDLC(unsigned int numBytes)
+signed char numBytesToDLC(unsigned int numBytes)
 {
   switch(numBytes) {
-  case 12:  return (char)DLC12;
-  case 16:  return (char)DLC16;
-  case 20:  return (char)DLC20;
-  case 24:  return (char)DLC24;
-  case 32:  return (char)DLC32;
-  case 48:  return (char)DLC48;
-  case 64:  return (char)DLC64;
-  default:  return (char)numBytes;
+  case 12:  return DLC12;
+  case 16:  return DLC16;
+  case 20:  return DLC20;
+  case 24:  return DLC24;
+  case 32:  return DLC32;
+  case 48:  return DLC48;
+  case 64:  return DLC64;
+  default:  return numBytes <= 8 ? numBytes : -1;
   }
 }
 

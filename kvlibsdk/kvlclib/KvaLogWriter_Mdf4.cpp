@@ -264,8 +264,7 @@ KvlcStatus KvaLogWriter_Mdf4::attach_file(const char *filename)
 #define EXTENSION   "mf4"
 #define DESCRIPTION "CAN frames in MDF v4.1 for Vector CANalyzer"
 
-
-class KvaWriterMaker_Mdf4 : public KvaWriterMaker
+static class KvaWriterMaker_Mdf4 : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_Mdf4() : KvaWriterMaker(KVLC_FILE_FORMAT_MDF_4X) {

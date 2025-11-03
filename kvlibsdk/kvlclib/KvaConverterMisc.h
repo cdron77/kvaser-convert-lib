@@ -146,8 +146,14 @@ typedef union {
   imLogData_version      ver;
 } imLogData;
 
+// Convert DLC to number of bytes for CAN FD
 unsigned int dlcToNumBytesFD (unsigned int dlc);
-char numBytesToDLC(unsigned int numBytes);
+/** Convert number of bytes to DLC for CAN FD.
+ *
+ * @param numBytes The number of data bytes.
+ * @return The DLC field, or -1 if @a numBytes is invalid.
+ */
+signed char numBytesToDLC(unsigned int numBytes);
 FILE* utf_fopen(const char* filename, const char* type);
 
 

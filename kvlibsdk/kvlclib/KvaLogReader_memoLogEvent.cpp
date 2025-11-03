@@ -124,6 +124,11 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
 
     case MEMOLOG_TYPE_MSG:
     {
+      signed char dlc;
+      if ((dlc = numBytesToDLC(me->x.msg.dlc)) < 0) {
+        return kvlcERR_PARAM;
+      }
+
       le->msg.frame_counter = ++current_frameno;
       le->common.new_data          = true;
       le->common.type              = ILOG_TYPE_MESSAGE;
@@ -132,7 +137,7 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
       le->msg.flags   = me->x.msg.flags;
       le->msg.id      = me->x.msg.id;
       le->msg.channel = (unsigned char)me->x.msg.channel;
-      le->msg.dlc     = numBytesToDLC(me->x.msg.dlc);
+      le->msg.dlc     = dlc;
       for (int i = 0; i < 64; i++) {
         le->msg.data[i] = (char)me->x.msg.data[i];
       }

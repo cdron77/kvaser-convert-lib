@@ -534,7 +534,7 @@ KvlcStatus KvaLogWriter_MdfSignal::create_mdf_converter()
 #define EXTENSION   "mdf"
 #define DESCRIPTION "Selected signals in MDF format for Vector CANalyzer"
 
-class KvaWriterMaker_MdfSignal : public KvaWriterMaker
+static class KvaWriterMaker_MdfSignal : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_MdfSignal() : KvaWriterMaker(KVLC_FILE_FORMAT_MDF_SIGNAL) {
@@ -559,4 +559,3 @@ class KvaWriterMaker_MdfSignal : public KvaWriterMaker
       return new KvaLogWriter_MdfSignal();
     }
 }  registerKvaLogWriter_MdfSignal;
-

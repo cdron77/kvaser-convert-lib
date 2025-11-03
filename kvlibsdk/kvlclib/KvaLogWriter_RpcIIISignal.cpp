@@ -448,7 +448,7 @@ KvlcStatus KvaLogWriter_RpcIIISignal::close_file()
 #define EXTENSION   "rpc"
 #define DESCRIPTION "Selected signals in MTS RPC III format"
 
-class KvaWriterMaker_RpcIIISignal : public KvaWriterMaker
+static class KvaWriterMaker_RpcIIISignal : public KvaWriterMaker
 {
   public:
     KvaWriterMaker_RpcIIISignal() : KvaWriterMaker(KVLC_FILE_FORMAT_RPCIII) {
@@ -474,4 +474,3 @@ class KvaWriterMaker_RpcIIISignal : public KvaWriterMaker
       return writer;
     }
 }  registerKvaLogWriter_RpcIIISignal;
-

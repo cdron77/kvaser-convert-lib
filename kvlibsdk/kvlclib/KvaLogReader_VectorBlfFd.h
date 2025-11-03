@@ -60,44 +60,59 @@
 **
 ** -----------------------------------------------------------------------------
 */
+#ifndef KVALOGREADER_VECTOR_BFL_FD_H_
+#define KVALOGREADER_VECTOR_BLF_FD_H_
 
-#ifndef KVALOGREADER_H_
-#define KVALOGREADER_H_
+#include <vector>
+#include "VectorBlfFd.h"
+#include "KvaLogReader.h"
 
-#include <stdint.h>
-
-#include <stdio.h>
-#include "KvaConverterMisc.h"
-
-
-class KvaLogReader {
-  protected:
-    FILE *infile;
-    int64_t file_size;
-    int64_t file_position;
-    int64_t get_file_size(const char *filename);
-    KvlcStatus read_file(char *string, size_t num);
-    KvlcStatus read_line(char *string, int num);
-    KvlcStatus move_fpos(size_t num);
-    time_uint64 start_of_measurement64;
-    bool isOpened;
-
+class KvaLogReader_VectorBlfFd : public KvaLogReader {
   public:
-    KvaLogReader();
-    virtual ~KvaLogReader();
-    // Reads an event from a file, interprets it and places info in logEvent
-    virtual KvlcStatus read_row(imLogData *logEvent) = 0;
-    virtual uint64 event_count() = 0;
-    virtual bool isBinary() = 0;
-    virtual KvlcStatus open_file(const char *filename);
-    virtual KvlcStatus close_file();
-    // Interpret event is like read_row but gets its input from the caller.
-    virtual KvlcStatus interpret_event(void* /* event */, imLogData* /* logEvent */);
-   
-    virtual KvlcStatus next_file();
-    virtual KvlcStatus verify_signals() {return kvlcERR_NOT_IMPLEMENTED;}
+    KvaLogReader_VectorBlfFd();
+    ~KvaLogReader_VectorBlfFd();
+
+    KvlcStatus open_file(const char *filename);
+    KvlcStatus read_row(imLogData *logEvent);
+    uint64 event_count();
+    bool isBinary() { return true; }
+
+    KvlcStatus interpret_event(void *event,
+                               imLogData *logEvent);
+
+  private:
+    bool zlib_compression;
+    bool initial_bogus_trigger;
+    bool initial_bogus_rtc;
+    bool ending_bogus_rtc;
+    bool eof;
+    uint32_t container_pos;
+    uint64_t current_eventno;
+    uint64_t current_frameno;
+    uint64_t end_of_measurement64;
+    uint64_t last_time64;
+    std::vector<unsigned char> container_data;
+    KvlcStatus read_file_header();
+    KvlcStatus read_next_event(char* buf, uint64_t* len);
+    KvlcStatus read_next_container();
+    KvlcStatus interpret_CAN_MESSAGE(void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_MESSAGE2(void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_FD_MESSAGE_64(void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_ERROR (void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_ERROR_ext (void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_FD_ERROR_64(void* buf, imLogData *logEvent);
+    KvlcStatus interpret_CAN_OVERLOAD(void* buf, imLogData *logEvent);
+    KvlcStatus interpret_APP_TRIGGER(void* buf, imLogData *logEvent);
+    KvlcStatus set_can_msg_common(uint32_t id,
+                                  uint16_t channel,
+                                  uint8_t dlc,
+                                  uint64_t timestamp,
+                                  imLogData *logEvent);
+    KvlcStatus set_flags(uint8_t flags, imLogData *logEvent);
+    KvlcStatus set_flags_fd64(uint32_t flags, imLogData *logEvent);
+    KvlcStatus set_flags_error_fd(uint16_t flags, imLogData *logEvent);
+    KvlcStatus read_bogus_rtc(uint64_t t_ns, uint64_t ns_since_1970, imLogData *logEvent);
+    KvlcStatus read_bogus_trigger(uint64_t t_ns, uint64_t ns_since_1970, imLogData *logEvent);
 };
 
-#include "KvaReaderMaker.h"
-
-#endif /*KVALOGREADER_H_*/
+#endif // KVALOGREADER_VECTOR_BLF_FD_H_
