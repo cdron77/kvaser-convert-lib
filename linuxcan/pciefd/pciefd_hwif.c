@@ -167,10 +167,10 @@ MODULE_VERSION(__stringify(CANLIB_MAJOR_VERSION) "." __stringify(CANLIB_MINOR_VE
 
 /* Xilinx */
 #define DEVICE_ID_M2_4HS 0x0017
-#define DEVICE_ID_KRAKEN 0x0018 // Kvaser Linux platform #1
+#define DEVICE_ID_EDGE 0x0018
 #define DEVICE_ID_PCIE_8CAN 0x0019
 
-#define DEVICE_IS_KRAKEN(d) ((d) == DEVICE_ID_KRAKEN)
+#define DEVICE_IS_EDGE(d) ((d) == DEVICE_ID_EDGE)
 
 #define CANFD_MAX_PRESCALER_VALUE 2U
 
@@ -352,7 +352,7 @@ static struct pci_device_id pciefd_id_table[] = {
     },
     {
         .vendor = VENDOR_ID_KVASER,
-        .device = DEVICE_ID_KRAKEN,
+        .device = DEVICE_ID_EDGE,
         .subvendor = PCI_ANY_ID,
         .subdevice = PCI_ANY_ID,
         .driver_data = (kernel_ulong_t)&PCIEFD_DRIVER_DATA_XILINX_NO_SPI,
@@ -368,6 +368,8 @@ static struct pci_device_id pciefd_id_table[] = {
         0,
     },
 };
+
+MODULE_DEVICE_TABLE(pci, pciefd_id_table);
 
 static struct pci_driver pciefd_driver = {
     .name = "kv" DEVICE_NAME_STRING,
@@ -830,9 +832,9 @@ static void set_fallback_parameters(VCanCardData *vCard)
 {
     PciCanCardData *hCard = vCard->hwCardData;
 
-    if (DEVICE_IS_KRAKEN(hCard->dev->device)) {
-        // EAN for Kraken firmware = 98289-5
-        u64 ean = (0x73301ULL << 32) + 0x30982895ULL;
+    if (DEVICE_IS_EDGE(hCard->dev->device)) {
+        // EAN for  firmware = 98397-7
+        u64 ean = (0x73301ULL << 32) + 0x30983977ULL;
         memcpy(vCard->ean, &ean, sizeof(vCard->ean));
     }
     else {
@@ -1223,7 +1225,7 @@ static int pciefd_set_busparams(VCanChanData *vChd, VCanBusParams *par)
         DEBUGPRINT(2, "Set CAN FD data params: bitrate:%u, tseg1:%u, tseg2:%u, sjw:%u, tq:%u\n",
                    brs.freq, brs.tseg1, brs.tseg2, brs.sjw, brs.tq);
         if (brs.freq == 0) {
-            DEBUGPRINT(1, "Error (" DEVICE_NAME_STRING "): Bad paramter CAN FD data (freq)\n");
+            DEBUGPRINT(1, "Error (" DEVICE_NAME_STRING "): Bad parameter CAN FD data (freq)\n");
             return VCAN_STAT_BAD_PARAMETER;
         }
         if (brs.tq == 0) {
@@ -2676,7 +2678,7 @@ static void pciefd_kcan_tx_interrupt(VCanChanData *vChd)
 //======================================================================
 //  Main ISR
 //======================================================================
-irqreturn_t pciefd_pci_interrupt(int irq, void *dev_id)
+static irqreturn_t pciefd_pci_interrupt(int irq, void *dev_id)
 {
     VCanCardData *vCard = (VCanCardData *)dev_id;
     PciCanCardData *hCard;
@@ -3128,8 +3130,8 @@ void pciefd_req_tx(VCanCardData *vCard, VCanChanData *vChd)
     PciCanChanData *hChan = vChd->hwChanData;
 
     if (!pciefd_is_tx_buffer_full(vChd)) {
-#if !defined(TRY_RT_QUEUE)
-        schedule_work(&hChan->txTaskQ);
+#ifndef TRY_RT_QUEUE
+        schedule_work(&hChan->txWork);
 #else
         queue_work(hChan->txTaskQ, &hChan->txWork);
 #endif
@@ -3146,11 +3148,7 @@ void pciefd_req_tx(VCanCardData *vCard, VCanChanData *vChd)
 //======================================================================
 static void pciefd_tx_can_msgs(struct work_struct *work)
 {
-#if !defined(TRY_RT_QUEUE)
-    PciCanChanData *devChan = container_of(work, PciCanChanData, txTaskQ);
-#else
     PciCanChanData *devChan = container_of(work, PciCanChanData, txWork);
-#endif
     VCanChanData *chd = devChan->vChan;
     int queuePos;
 
@@ -3217,16 +3215,12 @@ static void pciefd_init_channel_data(VCanCardData *vCard)
     for (chNr = 0; chNr < vCard->nrChannels; chNr++) {
         VCanChanData *vChd = vCard->chanData[chNr];
         PciCanChanData *hChd = vCard->chanData[chNr]->hwChanData;
-#if !defined(TRY_RT_QUEUE)
-        spin_lock_init(&hChd->lock);
-        hChd->vChan = vChd;
-        INIT_WORK(&hChd->txTaskQ, pciefd_tx_can_msgs);
-#else
-        char name[] = "pciefd_txX";
-        name[9] = '0' + chNr; // Replace the X with channel number
         spin_lock_init(&hChd->lock);
         hChd->vChan = vChd;
         INIT_WORK(&hChd->txWork, pciefd_tx_can_msgs);
+#ifdef TRY_RT_QUEUE
+        char name[] = "pciefd_txX";
+        name[9] = '0' + chNr; // Replace the X with channel number
         // Note that this will not create an RT task if the kernel
         // does not actually support it (only 2.6.28+ do).
         // In that case, you must (for now) do it manually using chrt.
@@ -3409,7 +3403,11 @@ static int pciefd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
     {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0))
+        int ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_INTX | PCI_IRQ_MSI);
+#else
         int ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY | PCI_IRQ_MSI);
+#endif /* KERNEL_VERSION >= 6.10 */
         if (ret < 0) {
             DEBUGPRINT(1, "pci_alloc_irq_vectors failed\n");
             goto cleanup_pci;
@@ -3461,7 +3459,7 @@ static int pciefd_probe(struct pci_dev *dev, const struct pci_device_id *id)
         goto cleanup_spi_stop;
 
     // Read/set parameters
-    if (DEVICE_IS_KRAKEN(id->device)) {
+    if (DEVICE_IS_EDGE(id->device)) {
         set_fallback_parameters(vCard);
     } else {
         int status = -1;

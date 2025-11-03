@@ -140,7 +140,7 @@ static_assert(SPI_FLASH_STATUS_SUCCESS == XST_SUCCESS);
 * @param base_addr  is a pointer to the AXI SPI block
 * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_init(struct spi_flash *spif, void *base_addr)
+static int SPI_FLASH_xilinx_init(struct spi_flash *spif, void *base_addr)
 {
     int status;
     XSpi_Config config = {
@@ -196,7 +196,7 @@ error_exit:
 *
 * @param spif       Pointer to spi_flash struct
 */
-void SPI_FLASH_xilinx_deinit(struct spi_flash *spif)
+static void SPI_FLASH_xilinx_deinit(struct spi_flash *spif)
 {
     K_ASSERT(spif != NULL);
 
@@ -213,7 +213,7 @@ void SPI_FLASH_xilinx_deinit(struct spi_flash *spif)
 * @return int   XST_SUCCESS if successful or XST_DEVICE_IS_STARTED if the
 *               device was already started.
 */
-int SPI_FLASH_xilinx_start(struct spi_flash *spif)
+static int SPI_FLASH_xilinx_start(struct spi_flash *spif)
 {
     int status;
 
@@ -236,7 +236,7 @@ int SPI_FLASH_xilinx_start(struct spi_flash *spif)
 *                XST_DEVICE_BUSY if a transfer is in progress and cannot be
 *                stopped.
 */
-int SPI_FLASH_xilinx_stop(struct spi_flash *spif)
+static int SPI_FLASH_xilinx_stop(struct spi_flash *spif)
 {
     K_ASSERT(spif != NULL);
     K_ASSERT(XSPI(spif) != NULL);
@@ -251,7 +251,7 @@ int SPI_FLASH_xilinx_stop(struct spi_flash *spif)
 * @param result Pointer to the read status.
 * @return int   SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_get_status(struct spi_flash *spif, u8 *result)
+static int SPI_FLASH_xilinx_get_status(struct spi_flash *spif, u8 *result)
 {
     u8 buf[EXTRA_STATUS_READ] = { 0 };
     int status;
@@ -283,7 +283,7 @@ int SPI_FLASH_xilinx_get_status(struct spi_flash *spif, u8 *result)
 * @note This function reads the status register and waits
 *       until the WIP bit of the status register becomes 0.
 */
-int SPI_FLASH_xilinx_wait_ready(struct spi_flash *spif, u32 timeout_ms)
+static int SPI_FLASH_xilinx_wait_ready(struct spi_flash *spif, u32 timeout_ms)
 {
     timespec_t timeout;
     int status;
@@ -349,7 +349,7 @@ static int send_one_byte_cmd(struct spi_flash *spif, u8 cmd)
 * @param spif   Pointer to spi_flash struct
 * @return int   SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_write_enable(struct spi_flash *spif)
+static int SPI_FLASH_xilinx_write_enable(struct spi_flash *spif)
 {
     return send_one_byte_cmd(spif, CMD_WRITE_ENABLE);
 }
@@ -360,7 +360,7 @@ int SPI_FLASH_xilinx_write_enable(struct spi_flash *spif)
 * @param spif   Pointer to spi_flash struct
 * @return int   SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_write_disable(struct spi_flash *spif)
+static int SPI_FLASH_xilinx_write_disable(struct spi_flash *spif)
 {
     return send_one_byte_cmd(spif, CMD_WRITE_DISABLE);
 }
@@ -372,7 +372,7 @@ int SPI_FLASH_xilinx_write_disable(struct spi_flash *spif)
  * @param jedec JEDEC id
  * @return int  SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_xilinx_get_jedec(struct spi_flash *spif, u32 *jedec)
+static int SPI_FLASH_xilinx_get_jedec(struct spi_flash *spif, u32 *jedec)
 {
     u8 buf[EXTRA_JEDEC_ID] = { 0 };
     int status;
@@ -401,7 +401,7 @@ int SPI_FLASH_xilinx_get_jedec(struct spi_flash *spif, u32 *jedec)
  * @param spif  Pointer to spi_flash struct
  * @return bool True if expected JEDEC id, false otherwise
  */
-bool SPI_FLASH_xilinx_verify_jedec(struct spi_flash *spif)
+static bool SPI_FLASH_xilinx_verify_jedec(struct spi_flash *spif)
 {
     int status;
     u32 jedec;
@@ -479,7 +479,7 @@ static int flash_erase_cmd(struct spi_flash *spif, u32 addr, u8 cmd, u32 timeout
 *
 * @note 64K erase is the smallest working erase command.
 */
-int SPI_FLASH_xilinx_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
+static int SPI_FLASH_xilinx_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
 {
     K_ASSERT((addr % (64 * 1024U)) == 0);
 
@@ -506,7 +506,7 @@ int SPI_FLASH_xilinx_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
  *
  * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_xilinx_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
+static int SPI_FLASH_xilinx_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
                                      u32 timeout_ms)
 {
     const u32 chunk_size = 64 * 1024U;
@@ -556,7 +556,7 @@ int SPI_FLASH_xilinx_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_b
 *
 * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_xilinx_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     u8 tx_buf[FLASH_PAGE_SIZE + EXTRA_READ_WRITE];
     int status;
@@ -611,7 +611,7 @@ int SPI_FLASH_xilinx_write_page(struct spi_flash *spif, u32 addr, const u8 *buf,
  *
  * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_xilinx_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
+static int SPI_FLASH_xilinx_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
                                       u32 num_bytes)
 {
     const u32 loop_sleep_ms = 1;
@@ -704,7 +704,7 @@ static int SPI_FLASH_xilinx_read_page(struct spi_flash *spif, u32 addr, u8 *buf,
 *
 * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_xilinx_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
+static int SPI_FLASH_xilinx_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
 {
     const u32 loop_sleep_ms = 1;
     u32 offset;
@@ -749,7 +749,7 @@ int SPI_FLASH_xilinx_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_byt
 *                   If buffers are not equal: -1
 *                   If error: error code > 0
 */
-int SPI_FLASH_xilinx_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_xilinx_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     const u32 loop_sleep_ms = 1;
     u32 offset;

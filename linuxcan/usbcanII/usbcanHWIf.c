@@ -1643,7 +1643,7 @@ static void usbcan_start(VCanCardData *vCard)
     complete(&dev->write_finished);
 
     INIT_WORK(&dev->txWork, usbcan_send);
-    dev->txTaskQ = create_workqueue("usbcan_tx");
+    dev->txTaskQ = alloc_workqueue("usbcan_tx", WQ_MEM_RECLAIM, 1);
 
     kthread_run(usbcan_rx_thread, vCard, "Kvaser kernel thread");
 
@@ -1857,9 +1857,6 @@ static void usbcan_remove(struct usb_interface *interface)
             schedule_timeout(msecs_to_jiffies(10));
         }
     }
-
-    // Terminate workqueues
-    flush_scheduled_work();
 
     // Give back our minor
     //usb_deregister_dev(interface, &usbcan_class);

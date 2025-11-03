@@ -142,11 +142,9 @@ typedef struct PciCanChanData {
         busOnCompletion; // Used to make sure that multiple bus on commands in a row is not executed.
 
     spinlock_t lock;
-#if !defined(TRY_RT_QUEUE)
-    struct work_struct txTaskQ;
-#else
-    struct workqueue_struct *txTaskQ;
     struct work_struct txWork;
+#ifdef TRY_RT_QUEUE
+    struct workqueue_struct *txTaskQ;
 #endif
 
     // Flags set if an overrun has been detected

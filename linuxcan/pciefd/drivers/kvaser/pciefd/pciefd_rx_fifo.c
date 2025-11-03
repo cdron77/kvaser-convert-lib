@@ -226,7 +226,7 @@ static int expectEop(void *base, char *str)
     return 0;
 }
 
-void dumpPacket(void *base_data, void *base_ctrl)
+static void dumpPacket(void *base_data, void *base_ctrl)
 {
     int i;
 

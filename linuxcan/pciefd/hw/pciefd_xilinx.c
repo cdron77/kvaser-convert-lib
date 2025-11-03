@@ -67,6 +67,7 @@
 #include "xspi.h"
 #include "debugprint.h"
 #include "kcan_int.h"
+#include "kcan_led.h"
 #include "spi_flash.h"
 #include "pciefd_hwif.h"
 #include "flash_meta_xilinx.h"
@@ -203,6 +204,18 @@ static int xilinx_setup_dma_address_translation(PciCanCardData *hCard, int bar,
     return VCAN_STAT_OK;
 }
 
+static void display_update_state_xilinx(void *data, bool on)
+{
+    VCanCardData *vCard = data;
+    int i;
+
+    for (i = 0; i < vCard->nrChannels; i++) {
+        PciCanChanData *hChd = vCard->chanData[i]->hwChanData;
+
+        KCAN_LED_set(hChd->canControllerBase, on);
+    }
+}
+
 const struct pciefd_card_ops XILINX_CARD_OPS = {
     .setup_dma_address_translation = &xilinx_setup_dma_address_translation,
     .pci_irq_get = &xilinx_pci_irq_get,
@@ -211,9 +224,15 @@ const struct pciefd_card_ops XILINX_CARD_OPS = {
     .pci_irq_clear_mask_bits = &xilinx_pci_irq_clear_mask_bits,
 };
 
+const struct hydra_flash_device_ops hydra_flash_device_ops_xilinx = {
+    .firmware_upgrade_trigger_update = NULL,
+    .display_update_state = &display_update_state_xilinx,
+};
+
 const struct pciefd_driver_data PCIEFD_DRIVER_DATA_XILINX = {
     .ops = &XILINX_CARD_OPS,
     .spi_ops = &SPI_FLASH_xilinx_ops,
+    .hydra_flash_ops = &hydra_flash_device_ops_xilinx,
     .irq_def = &XILINX_IRQ_DEFINES,
     .offsets = {
         .tech = {
@@ -272,7 +291,7 @@ const struct pciefd_driver_data PCIEFD_DRIVER_DATA_XILINX_NO_SPI = {
         },
     },
     .hw_const = {
-        .supported_fpga_major = 0,
+        .supported_fpga_major = 1,
         .flash_meta.size = 0U,
         .flash_meta.fpga_image_offset = 0U,
         .flash_meta.param_image_size_max = 0U,

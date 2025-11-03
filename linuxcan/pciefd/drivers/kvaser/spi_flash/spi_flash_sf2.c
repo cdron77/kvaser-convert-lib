@@ -134,7 +134,7 @@ static_assert(SPI_FLASH_PAGE_SIZE == 256U);
  *
  * @return int           SPI_FLASH_STATUS_SUCCESS.
  */
-int SPI_FLASH_sf2_init(struct spi_flash *spif, void __iomem *base_addr)
+static int SPI_FLASH_sf2_init(struct spi_flash *spif, void __iomem *base_addr)
 {
     K_ASSERT(spif != NULL);
     K_ASSERT(base_addr != NULL);
@@ -152,7 +152,7 @@ int SPI_FLASH_sf2_init(struct spi_flash *spif, void __iomem *base_addr)
  *
  * @param[in,out] spif   Pointer to an spi_flash structure.
  */
-void SPI_FLASH_sf2_deinit(struct spi_flash *spif)
+static void SPI_FLASH_sf2_deinit(struct spi_flash *spif)
 {
     K_ASSERT(spif != NULL);
 
@@ -171,7 +171,7 @@ void SPI_FLASH_sf2_deinit(struct spi_flash *spif)
  *
  * @return int      SPI_FLASH_STATUS_SUCCESS.
  */
-int SPI_FLASH_sf2_start(struct spi_flash *spif)
+static int SPI_FLASH_sf2_start(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -186,7 +186,7 @@ int SPI_FLASH_sf2_start(struct spi_flash *spif)
  *
  * @return int      SPI_FLASH_STATUS_SUCCESS.
  */
-int SPI_FLASH_sf2_stop(struct spi_flash *spif)
+static int SPI_FLASH_sf2_stop(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -201,7 +201,7 @@ int SPI_FLASH_sf2_stop(struct spi_flash *spif)
  * @return int          SPI_FLASH_STATUS_SUCCESS or
  *                      SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_get_status(struct spi_flash *spif, u8 *status)
+static int SPI_FLASH_sf2_get_status(struct spi_flash *spif, u8 *status)
 {
     u8 command = SPI_OPCODE_RDSR;
     int ret;
@@ -230,7 +230,7 @@ int SPI_FLASH_sf2_get_status(struct spi_flash *spif, u8 *status)
  * @return int            SPI_FLASH_STATUS_SUCCESS or
  *                        SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_wait_ready(struct spi_flash *spif, u32 timeout_ms)
+static int SPI_FLASH_sf2_wait_ready(struct spi_flash *spif, u32 timeout_ms)
 {
     u8 command = SPI_OPCODE_RDSR;
     u8 status;
@@ -269,7 +269,7 @@ int SPI_FLASH_sf2_wait_ready(struct spi_flash *spif, u32 timeout_ms)
  * @return int      SPI_FLASH_STATUS_SUCCESS or
  *                  SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_write_enable(struct spi_flash *spif)
+static int SPI_FLASH_sf2_write_enable(struct spi_flash *spif)
 {
     u8 command = SPI_OPCODE_WREN;
     int ret;
@@ -295,7 +295,7 @@ int SPI_FLASH_sf2_write_enable(struct spi_flash *spif)
  * @return int      SPI_FLASH_STATUS_SUCCESS or
  *                  SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_write_disable(struct spi_flash *spif)
+static int SPI_FLASH_sf2_write_disable(struct spi_flash *spif)
 {
     u8 command = SPI_OPCODE_WRDI;
     int ret;
@@ -320,7 +320,7 @@ int SPI_FLASH_sf2_write_disable(struct spi_flash *spif)
  * @return int          SPI_FLASH_STATUS_SUCCESS or
  *                      SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_get_jedec(struct spi_flash *spif, u32 *jedec_id)
+static int SPI_FLASH_sf2_get_jedec(struct spi_flash *spif, u32 *jedec_id)
 {
     u8 command = SPI_OPCODE_RDID;
     u8 read_buffer[6] = { 0 };
@@ -353,7 +353,7 @@ int SPI_FLASH_sf2_get_jedec(struct spi_flash *spif, u32 *jedec_id)
  * @return bool         true or
  *                      false if no match.
  */
-bool SPI_FLASH_sf2_verify_jedec(struct spi_flash *spif)
+static bool SPI_FLASH_sf2_verify_jedec(struct spi_flash *spif)
 {
     u32 jedec_id = 0;
     int ret;
@@ -379,7 +379,7 @@ bool SPI_FLASH_sf2_verify_jedec(struct spi_flash *spif)
  * @return int            SPI_FLASH_STATUS_SUCCESS or
  *                        SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
+static int SPI_FLASH_sf2_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
 {
     u8 command[4];
     int ret;
@@ -428,7 +428,7 @@ error:
  * @return int            SPI_FLASH_STATUS_SUCCESS or
  *                        SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes, u32 timeout_ms)
+static int SPI_FLASH_sf2_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes, u32 timeout_ms)
 {
     u32 offset;
     u32 perc_reported = 0;
@@ -471,7 +471,7 @@ int SPI_FLASH_sf2_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_byte
  * @return int              SPI_FLASH_STATUS_SUCCESS or
  *                          SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_write_page(struct spi_flash *spif, u32 addr, const u8 *write_buffer,
+static int SPI_FLASH_sf2_write_page(struct spi_flash *spif, u32 addr, const u8 *write_buffer,
                              u32 num_bytes)
 {
     u8 command[SPI_FLASH_PAGE_SIZE + 4];
@@ -524,7 +524,7 @@ error:
  * @return int              SPI_FLASH_STATUS_SUCCESS or
  *                          SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *write_buffer,
+static int SPI_FLASH_sf2_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *write_buffer,
                                    u32 num_bytes)
 {
     u32 offset;
@@ -565,7 +565,7 @@ int SPI_FLASH_sf2_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *w
  * @return int              SPI_FLASH_STATUS_SUCCESS or
  *                          SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_read(struct spi_flash *spif, u32 addr, u8 *read_buffer, u32 num_bytes)
+static int SPI_FLASH_sf2_read(struct spi_flash *spif, u32 addr, u8 *read_buffer, u32 num_bytes)
 {
     u32 offset;
     u32 perc_reported = 0;
@@ -626,7 +626,7 @@ error:
  *                      -1 if content mismatch, or
  *                      SPI_FLASH_STATUS_TIMEOUT.
  */
-int SPI_FLASH_sf2_compare(struct spi_flash *spif, u32 addr, const u8 *buffer, u32 num_bytes)
+static int SPI_FLASH_sf2_compare(struct spi_flash *spif, u32 addr, const u8 *buffer, u32 num_bytes)
 {
     u32 offset;
     u32 perc_reported = 0;

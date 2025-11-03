@@ -95,7 +95,7 @@
  * @param base_addr Pointer to the SPI IOMEM block
  * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_init(struct spi_flash *spif, void __iomem *base_addr)
+static int SPI_FLASH_altera_init(struct spi_flash *spif, void __iomem *base_addr)
 {
     alt_flash_epcs_dev *spi;
     int ret;
@@ -122,7 +122,7 @@ int SPI_FLASH_altera_init(struct spi_flash *spif, void __iomem *base_addr)
  *
  * @param spif      Pointer to spi_flash struct
  */
-void SPI_FLASH_altera_deinit(struct spi_flash *spif)
+static void SPI_FLASH_altera_deinit(struct spi_flash *spif)
 {
     K_ASSERT(spif != NULL);
 
@@ -138,7 +138,7 @@ void SPI_FLASH_altera_deinit(struct spi_flash *spif)
  * @param spif      Pointer to spi_flash struct (not used)
  * @return int      SPI_FLASH_STATUS_SUCCESS
  */
-int SPI_FLASH_altera_start(struct spi_flash *spif)
+static int SPI_FLASH_altera_start(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return 0;
@@ -150,7 +150,7 @@ int SPI_FLASH_altera_start(struct spi_flash *spif)
  * @param spif      Pointer to spi_flash struct (not used)
  * @return int      SPI_FLASH_STATUS_SUCCESS
  */
-int SPI_FLASH_altera_stop(struct spi_flash *spif)
+static int SPI_FLASH_altera_stop(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return 0;
@@ -163,7 +163,7 @@ int SPI_FLASH_altera_stop(struct spi_flash *spif)
  * @param status    Pointer to status return variable
  * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_get_status(struct spi_flash *spif, u8 *status)
+static int SPI_FLASH_altera_get_status(struct spi_flash *spif, u8 *status)
 {
     alt_flash_epcs_dev *spi;
 
@@ -183,7 +183,7 @@ int SPI_FLASH_altera_get_status(struct spi_flash *spif, u8 *status)
  * @param timeout_ms    Timeout in ms
  * @return int          SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_wait_ready(struct spi_flash *spif, u32 timeout_ms)
+static int SPI_FLASH_altera_wait_ready(struct spi_flash *spif, u32 timeout_ms)
 {
     u8 status_reg;
     int res;
@@ -216,7 +216,7 @@ int SPI_FLASH_altera_wait_ready(struct spi_flash *spif, u32 timeout_ms)
  * @param spif  Pointer to spi_flash struct
  * @return int  SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_write_enable(struct spi_flash *spif)
+static int SPI_FLASH_altera_write_enable(struct spi_flash *spif)
 {
     alt_flash_epcs_dev *spi;
 
@@ -234,7 +234,7 @@ int SPI_FLASH_altera_write_enable(struct spi_flash *spif)
  * @param spif  Pointer to spi_flash struct
  * @return int  SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_write_disable(struct spi_flash *spif)
+static int SPI_FLASH_altera_write_disable(struct spi_flash *spif)
 {
     alt_flash_epcs_dev *spi;
 
@@ -253,7 +253,7 @@ int SPI_FLASH_altera_write_disable(struct spi_flash *spif)
  * @param jedec_id  JEDEC id
  * @return          SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_get_jedec(struct spi_flash *spif, u32 *jedec_id)
+static int SPI_FLASH_altera_get_jedec(struct spi_flash *spif, u32 *jedec_id)
 {
     alt_flash_epcs_dev *spi;
 
@@ -274,7 +274,7 @@ int SPI_FLASH_altera_get_jedec(struct spi_flash *spif, u32 *jedec_id)
  * @return true     If expected JEDEC id
  * @return false    If read fails or unexpected JEDEC id
  */
-bool SPI_FLASH_altera_verify_jedec(struct spi_flash *spif)
+static bool SPI_FLASH_altera_verify_jedec(struct spi_flash *spif)
 {
     u32 jedec_id;
 
@@ -293,7 +293,7 @@ bool SPI_FLASH_altera_verify_jedec(struct spi_flash *spif)
  * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
  *
  */
-int SPI_FLASH_altera_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
+static int SPI_FLASH_altera_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
 {
     alt_flash_epcs_dev *spi;
     alt_flash_dev *spi_dev;
@@ -328,7 +328,7 @@ int SPI_FLASH_altera_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
  *
  * @return int       SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
+static int SPI_FLASH_altera_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
                                      u32 timeout_ms)
 {
     const u32 chunk_size = 64 * 1024U;
@@ -370,7 +370,7 @@ int SPI_FLASH_altera_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_b
  *
  * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_altera_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     alt_flash_epcs_dev *spi;
     alt_flash_dev *spi_dev;
@@ -401,7 +401,7 @@ int SPI_FLASH_altera_write_page(struct spi_flash *spif, u32 addr, const u8 *buf,
  *
  * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
  */
-int SPI_FLASH_altera_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
+static int SPI_FLASH_altera_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
                                       u32 num_bytes)
 {
     u32 offset;
@@ -445,7 +445,7 @@ int SPI_FLASH_altera_write_multi_page(struct spi_flash *spif, u32 addr, const u8
 *
 * @return int      SPI_FLASH_STATUS_SUCCESS or error code != 0
 */
-int SPI_FLASH_altera_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
+static int SPI_FLASH_altera_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
 {
     alt_flash_epcs_dev *spi;
     alt_flash_dev *spi_dev;
@@ -475,7 +475,7 @@ int SPI_FLASH_altera_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_byt
 *                  If buffers are not equal: -1
 *                  If error: error code > 0
 */
-int SPI_FLASH_altera_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_altera_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     alt_flash_epcs_dev *spi;
     alt_flash_dev *spi_dev;

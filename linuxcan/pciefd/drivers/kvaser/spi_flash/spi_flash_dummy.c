@@ -27,7 +27,7 @@
 * @param base_addr  Ignored
 * @return int       SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_init(struct spi_flash *spif, void *base_addr)
+static int SPI_FLASH_dummy_init(struct spi_flash *spif, void *base_addr)
 {
     NOT_USED(spif);
     NOT_USED(base_addr);
@@ -39,7 +39,7 @@ int SPI_FLASH_dummy_init(struct spi_flash *spif, void *base_addr)
 *
 * @param spif       Ignored
 */
-void SPI_FLASH_dummy_deinit(struct spi_flash *spif)
+static void SPI_FLASH_dummy_deinit(struct spi_flash *spif)
 {
     NOT_USED(spif);
 }
@@ -51,7 +51,7 @@ void SPI_FLASH_dummy_deinit(struct spi_flash *spif)
 * @param spif   Ignored
 * @return int   SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_start(struct spi_flash *spif)
+static int SPI_FLASH_dummy_start(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -63,7 +63,7 @@ int SPI_FLASH_dummy_start(struct spi_flash *spif)
 * @param spif    Ignored
 * @return int    SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_stop(struct spi_flash *spif)
+static int SPI_FLASH_dummy_stop(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -76,7 +76,7 @@ int SPI_FLASH_dummy_stop(struct spi_flash *spif)
 * @param result Ignored
 * @return int   SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_get_status(struct spi_flash *spif, u8 *result)
+static int SPI_FLASH_dummy_get_status(struct spi_flash *spif, u8 *result)
 {
     NOT_USED(spif);
     NOT_USED(result);
@@ -93,7 +93,7 @@ int SPI_FLASH_dummy_get_status(struct spi_flash *spif, u8 *result)
 * @note This function reads the status register and waits
 *       until the WIP bit of the status register becomes 0.
 */
-int SPI_FLASH_dummy_wait_ready(struct spi_flash *spif, u32 timeout_ms)
+static int SPI_FLASH_dummy_wait_ready(struct spi_flash *spif, u32 timeout_ms)
 {
     NOT_USED(spif);
     NOT_USED(timeout_ms);
@@ -106,7 +106,7 @@ int SPI_FLASH_dummy_wait_ready(struct spi_flash *spif, u32 timeout_ms)
 * @param spif   Ignored
 * @return int   SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_write_enable(struct spi_flash *spif)
+static int SPI_FLASH_dummy_write_enable(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -118,7 +118,7 @@ int SPI_FLASH_dummy_write_enable(struct spi_flash *spif)
 * @param spif   Ignored
 * @return int   SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_write_disable(struct spi_flash *spif)
+static int SPI_FLASH_dummy_write_disable(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return SPI_FLASH_STATUS_SUCCESS;
@@ -131,7 +131,7 @@ int SPI_FLASH_dummy_write_disable(struct spi_flash *spif)
  * @param jedec Ignored
  * @return int  SPI_FLASH_STATUS_SUCCESS
  */
-int SPI_FLASH_dummy_get_jedec(struct spi_flash *spif, u32 *jedec)
+static int SPI_FLASH_dummy_get_jedec(struct spi_flash *spif, u32 *jedec)
 {
     NOT_USED(spif);
     NOT_USED(jedec);
@@ -144,7 +144,7 @@ int SPI_FLASH_dummy_get_jedec(struct spi_flash *spif, u32 *jedec)
  * @param spif  Ignored
  * @return bool True
  */
-bool SPI_FLASH_dummy_verify_jedec(struct spi_flash *spif)
+static bool SPI_FLASH_dummy_verify_jedec(struct spi_flash *spif)
 {
     NOT_USED(spif);
     return true;
@@ -160,7 +160,7 @@ bool SPI_FLASH_dummy_verify_jedec(struct spi_flash *spif)
 *
 * @note 64K erase is the smallest working erase command.
 */
-int SPI_FLASH_dummy_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
+static int SPI_FLASH_dummy_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
 {
     NOT_USED(spif);
     NOT_USED(addr);
@@ -179,7 +179,7 @@ int SPI_FLASH_dummy_erase_64K(struct spi_flash *spif, u32 addr, u32 timeout_ms)
 *
 * @note 64K erase is the smallest working erase command.
 */
-int SPI_FLASH_dummy_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
+static int SPI_FLASH_dummy_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_bytes,
                                      u32 timeout_ms)
 {
     NOT_USED(spif);
@@ -199,7 +199,7 @@ int SPI_FLASH_dummy_erase_multi_64K(struct spi_flash *spif, u32 addr, u32 num_by
 * @param num_bytes  Ignored
 * @return int       SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_dummy_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     NOT_USED(spif);
     NOT_USED(addr);
@@ -218,7 +218,7 @@ int SPI_FLASH_dummy_write_page(struct spi_flash *spif, u32 addr, const u8 *buf, 
 * @param num_bytes  Ignored
 * @return int       SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
+static int SPI_FLASH_dummy_write_multi_page(struct spi_flash *spif, u32 addr, const u8 *buf,
                                       u32 num_bytes)
 {
     NOT_USED(spif);
@@ -239,7 +239,7 @@ int SPI_FLASH_dummy_write_multi_page(struct spi_flash *spif, u32 addr, const u8 
 *
 * @return int       SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
+static int SPI_FLASH_dummy_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_bytes)
 {
     NOT_USED(spif);
     NOT_USED(addr);
@@ -259,7 +259,7 @@ int SPI_FLASH_dummy_read(struct spi_flash *spif, u32 addr, u8 *buf, u32 num_byte
 *
 * @return           SPI_FLASH_STATUS_SUCCESS
 */
-int SPI_FLASH_dummy_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
+static int SPI_FLASH_dummy_compare(struct spi_flash *spif, u32 addr, const u8 *buf, u32 num_bytes)
 {
     NOT_USED(spif);
     NOT_USED(addr);

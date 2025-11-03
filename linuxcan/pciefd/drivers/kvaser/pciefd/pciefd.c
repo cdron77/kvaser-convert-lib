@@ -277,42 +277,6 @@ void irqInit(void *base)
 }
 
 // Register access
-void nominalBitRate(void *base, int seg1, int seg2, int sjw, int brp)
-{
-    uint32_t tmp;
-
-    tmp = PCIEFD_BTR_SEG2(seg2) | PCIEFD_BTR_SEG1(seg1) | PCIEFD_BTR_SJW(sjw) | PCIEFD_BTR_BRP(brp);
-
-    IOWR_PCIEFD_BTRN(base, tmp);
-}
-
-void dataPhaseBitRate(void *base, int seg1, int seg2, int sjw, int brp)
-{
-    uint32_t tmp;
-
-    tmp = PCIEFD_BTR_SEG2(seg2) | PCIEFD_BTR_SEG1(seg1) | PCIEFD_BTR_SJW(sjw) | PCIEFD_BTR_BRP(brp);
-
-    IOWR_PCIEFD_BTRD(base, tmp);
-}
-
-void busLoadPrescaler(void *base, int prescaler, int interval)
-{
-    uint32_t tmp;
-
-    tmp = PCIEFD_BLP_PRESC(prescaler) | PCIEFD_BLP_INTERV(interval);
-
-    IOWR_PCIEFD_BLP(base, tmp);
-}
-
-void init(void *base, int rm, int lom, int een, int sso, int egen, int dwh)
-{
-    uint32_t tmp;
-
-    tmp = PCIEFD_MOD_EWL(96) | PCIEFD_MOD_LOM(lom) | PCIEFD_MOD_EEN(een) | PCIEFD_MOD_SSO(sso) |
-          PCIEFD_MOD_DWH(dwh);
-
-    IOWR_PCIEFD_MOD(base, tmp);
-}
 
 void enableErrorPackets(void *base)
 {
