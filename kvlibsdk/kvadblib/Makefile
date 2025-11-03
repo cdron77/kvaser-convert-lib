@@ -85,8 +85,7 @@ CPPFLAGS += -std=c++11
 
 # Flags for reentrant, position independent code
 LIBCFLAGS = $(CFLAGS) -D_REENTRANT -fPIC
-LDFLAGS   = -lstdc++
-# LDFLAGS   = -lc -lstdc++
+LDFLAGS   = -lc -lstdc++
 
 OBJDIR = so.ndb
 
@@ -95,6 +94,7 @@ SONAME  := $(LIBNAME).$(MAJOR)
 
 SRCS := CANdb.cpp
 SRCS += CANdbDbc.cpp
+SRCS += CANdbLdf.cpp
 SRCS += kvaDBlib.cpp
 
 #look for .cpp-files and .c-files here

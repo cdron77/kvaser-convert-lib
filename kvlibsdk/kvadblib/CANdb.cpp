@@ -116,10 +116,13 @@ static CANdbFileFormat *candb_file_format_first = NULL,
 CANdbClusterDeletionCallbackType CANdbCluster::DeletionCallback = NULL;
 CANdbMessageDeletionCallbackType CANdbMessage::DeletionCallback = NULL;
 CANdbSignalDeletionCallbackType CANdbSignal::DeletionCallback = NULL;
+CANdbSignalGroupDeletionCallbackType CANdbSignalGroup::DeletionCallback = NULL;
 CANdbNodeDeletionCallbackType CANdbNode::DeletionCallback = NULL;
 CANdbAttributeDeletionCallbackType CANdbAttribute::DeletionCallback = NULL;
 CANdbAttributeDefinitionDeletionCallbackType CANdbAttributeDefinition::DeletionCallback = NULL;
 CANdbEnumValueDeletionCallbackType CANdbEnumValue::DeletionCallback = NULL;
+CANdbScheduleTableDeletionCallbackType CANdbScheduleTable::DeletionCallback = NULL;
+CANdbScheduleTableEntryDeletionCallbackType CANdbScheduleTableEntry::DeletionCallback = NULL;
 
 // Important for DIAdem stuff - don't remove it !!!
 int candb_first ()
@@ -134,13 +137,13 @@ int candb_first ()
 
 /* Frees if necessary, allocates memory for and assigns a string variable.
 */
-void candb_set_string (char **var, const char *s)
+void candb_set_string (char *&var, const char *s)
 {
-  if (*var) delete [] *var;
-  *var = NULL;
+  if (var) delete [] var;
+  var = NULL;
   if (!s) return;
-  *var = new char [strlen (s) + 1];
-  strcpy (*var, s);
+  var = new char [strlen (s) + 1];
+  strcpy (var, s);
 } /* candb_set_string */
 
 
@@ -513,6 +516,9 @@ CANdbScheduleTableEntry::~CANdbScheduleTableEntry ()
   message = NULL;
   delay = 0;
   next = NULL;
+  if (DeletionCallback != NULL) {
+    DeletionCallback(this);
+  }
 } // CANdbScheduleTableEntry::~CANdbScheduleTableEntry
 
 
@@ -524,31 +530,45 @@ CANdbScheduleTable::CANdbScheduleTable ()
   name = NULL;
   first_entry = NULL;
   last_entry = NULL;
+  current_entry = NULL;
   next = NULL;
   entry_count = 0;
+  candb = NULL;
 } // CANdbScheduleTable::CANdbScheduleTable
 
 
 CANdbScheduleTable::~CANdbScheduleTable ()
 {
   set_name (NULL);
-  first_entry = NULL;
-  last_entry = NULL;
   next = NULL;
   entry_count = 0;
+  CANdbScheduleTableEntry *e = first_entry;
+  while (e) {
+    CANdbScheduleTableEntry *ne = e->get_next();
+    delete e;
+    e = ne;
+  }
+  first_entry = current_entry = last_entry = NULL;
+  if (DeletionCallback != NULL) {
+    DeletionCallback(this);
+  }
 } // CANdbScheduleTable::~CANdbScheduleTable
 
-
-void CANdbScheduleTable::set_name (const char *n)
+char* CANdbScheduleTable::get_qualified_name (char *buffer, int buflen) const
 {
-  if (name) delete [] name;
-  name = NULL;
-  if (n) {
-    name = new char [strlen (n) + 1];
-    strcpy (name, n);
+  if (name && buffer && (buflen > 0)) {
+    strcpy (buffer, "");
+    buflen -= (int) strlen (name);
+    buflen -= 2; // for the dot & termination
+    if (candb && candb->get_name () && ((int)strlen (candb->get_name ()) <= buflen)) {
+      strcpy (buffer, candb->get_name ());
+      buflen -= (int) strlen (candb->get_name ());
+      strcat (buffer, ".");
+      strcat (buffer, name);
+    }
   }
-} // CANdbScheduleTable::set_name
-
+  return buffer;
+} // CANdbScheduleTable::get_qualified_name
 
 void CANdbScheduleTable::insert_message (CANdbMessage *message, double delay)
 {
@@ -585,6 +605,19 @@ void CANdbScheduleTable::remove_message (CANdbMessage *message)
     ste = ste->get_next ();
   }
 } // CANdbScheduleTable::remove_message
+
+CANdbScheduleTableEntry *CANdbScheduleTable::get_first_entry (void)
+{
+  current_entry = first_entry;
+  return current_entry;
+} // CANdbScheduleTable::get_first_signal
+
+
+CANdbScheduleTableEntry *CANdbScheduleTable::get_next_entry (void)
+{
+  if (current_entry) current_entry = current_entry->get_next ();
+  return current_entry;
+} // CANdbScheduleTable::get_next_signal
 
 
 // ****************************************************************************
@@ -626,28 +659,6 @@ CANdbSignalEncoding::~CANdbSignalEncoding ()
 } // CANdbSignalEncoding::~CANdbSignalEncoding
 
 
-void CANdbSignalEncoding::set_name (const char *_name)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (_name) {
-    name = new char [strlen (_name) + 1];
-    strcpy (name, _name);
-  }
-} // CANdbSignalEncoding::set_name
-
-
-void CANdbSignalEncoding::set_unit (const char *_unit)
-{
-  if (unit) delete [] unit;
-  unit = NULL;
-  if (_unit) {
-    unit = new char [strlen (_unit) + 1];
-    strcpy (unit, _unit);
-  }
-} // CANdbSignalEncoding::set_unit
-
-
 void CANdbSignalEncoding::add_scale (CANdbSignalEncodingScale *scale)
 {
   scale->next = NULL;
@@ -685,7 +696,7 @@ void CANdbSignalEncoding::add_value (int value, const char *name)
 } // CANdbSignalEncoding::add_value
 
 
-const char* CANdbSignalEncoding::get_value_string (int value) const
+const char* CANdbSignalEncoding::get_value_string (unsigned int value) const
 {
   CANdbEnumValue *v = first_value;
   while (v) {
@@ -699,7 +710,7 @@ const char* CANdbSignalEncoding::get_value_string (int value) const
 // ****************************************************************************
 
 
-CANdbEnumValue::CANdbEnumValue (int _value, const char *_name)
+CANdbEnumValue::CANdbEnumValue (unsigned int _value, const char *_name)
 {
   name = NULL;
   next = NULL;
@@ -716,23 +727,6 @@ CANdbEnumValue::~CANdbEnumValue ()
     DeletionCallback(this);
   }
 } // CANdbEnumValue::~CANdbEnumValue
-
-
-void CANdbEnumValue::set_name (const char*_name)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (_name) {
-    name = new char [strlen (_name) + 1];
-    strcpy (name, _name);
-  }
-} // CANdbEnumValue::set_name
-
-
-void CANdbEnumValue::set_value (int new_value)
-{
-  value = new_value;
-} // CANdbEnumValue::set_value
 
 
 void CANdbEnumValue::extend_memory_range (CANdbMemoryRange& mr) const
@@ -768,15 +762,13 @@ CANdbAttributeDefinition::~CANdbAttributeDefinition ()
 void CANdbAttributeDefinition::clear_property (void)
 {
   if (type == CANDB_ATTR_TYPE_ENUMERATION) {
-    EnumEntry *e = property.enumeration.first_enum_entry,
-              *ne = NULL;
+    EnumEntry *e = property.enumeration.enum_entries;
     while (e) {
-      ne = e->next;
+      EnumEntry *ne = e->next;
       delete e;
       e = ne;
     }
-    property.enumeration.first_enum_entry = NULL;
-    property.enumeration.last_enum_entry = NULL;
+    property.enumeration.enum_entries = NULL;
   }
   else if (type == CANDB_ATTR_TYPE_STRING) {
     if (property.string.default_value) delete [] property.string.default_value;
@@ -786,17 +778,6 @@ void CANdbAttributeDefinition::clear_property (void)
 } // CANdbAttributeDefinition::clear_property
 
 
-void CANdbAttributeDefinition::set_name (const char *n)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (n) {
-    name = new char [strlen (n) + 1];
-    strcpy (name, n);
-  }
-} // CANdbAttributeDefinition::set_name
-
-
 void CANdbAttributeDefinition::set_type (CANdbAttributeType t)
 {
   clear_property ();
@@ -804,26 +785,15 @@ void CANdbAttributeDefinition::set_type (CANdbAttributeType t)
   switch (type) {
 
     case CANDB_ATTR_TYPE_INTEGER:
-         property.integer.min = 0;
-         property.integer.max = 0;
-         property.integer.default_value = 0;
-         break;
-
     case CANDB_ATTR_TYPE_HEX:
-         property.hex.min = 0;
-         property.hex.max = 0;
-         property.hex.default_value = 0;
-         break;
-
     case CANDB_ATTR_TYPE_FLOAT:
-         property.fp.min = 0;
-         property.fp.max = 0;
-         property.fp.default_value = 0;
+         property.numeric.min = 0;
+         property.numeric.max = 0;
+         property.numeric.default_value = 0;
          break;
 
     case CANDB_ATTR_TYPE_ENUMERATION:
-         property.enumeration.first_enum_entry = NULL;
-         property.enumeration.last_enum_entry = NULL;
+         property.enumeration.enum_entries = NULL;
          property.enumeration.default_value = 0;
          break;
 
@@ -839,7 +809,7 @@ void CANdbAttributeDefinition::set_type (CANdbAttributeType t)
 int CANdbAttributeDefinition::get_first_enumeration (void)
 {
   if (type != CANDB_ATTR_TYPE_ENUMERATION) return -1;
-  EnumEntry *e = property.enumeration.first_enum_entry;
+  EnumEntry *e = property.enumeration.enum_entries;
 
   //printf ("get_first_enumeration 1\n");
   while (e) {
@@ -879,7 +849,7 @@ int CANdbAttributeDefinition::get_next_enumeration (void)
 int CANdbAttributeDefinition::get_enumeration_value_by_name (const char *name) const
 {
   if (type != CANDB_ATTR_TYPE_ENUMERATION) return -1;
-  EnumEntry *e = property.enumeration.first_enum_entry;
+  EnumEntry *e = property.enumeration.enum_entries;
 
   //printf ("get_enumeration_value_by_name 1 %s\n", name);
   while (e) {
@@ -898,7 +868,7 @@ int CANdbAttributeDefinition::get_enumeration_value_by_name (const char *name) c
 const char *CANdbAttributeDefinition::get_enumeration_name_by_value (int v) const
 {
   if (type != CANDB_ATTR_TYPE_ENUMERATION) return NULL;
-  EnumEntry *e = property.enumeration.first_enum_entry;
+  EnumEntry *e = property.enumeration.enum_entries;
 
   //printf ("get_enumeration_name_by_value 1 %d\n", v);
   while (e) {
@@ -921,11 +891,11 @@ int CANdbAttributeDefinition::add_enumeration (const char *name, int value)
   //printf ("add_enumeration 1 %s  %d\n", name, value);
 
   if (value > 0) {
-    if (NULL == property.enumeration.first_enum_entry) {
-      property.enumeration.first_enum_entry = new EnumEntry("reserved", 0);
-      first_enum = property.enumeration.first_enum_entry;
+    if (NULL == property.enumeration.enum_entries) {
+      property.enumeration.enum_entries = new EnumEntry("reserved", 0);
+      first_enum = property.enumeration.enum_entries;
     }
-    EnumEntry *cur_entry = property.enumeration.first_enum_entry;
+    EnumEntry *cur_entry = property.enumeration.enum_entries;
     for (int i = 1; i < value; ++i) {
       if (NULL == cur_entry) {
         return -1;
@@ -942,27 +912,23 @@ int CANdbAttributeDefinition::add_enumeration (const char *name, int value)
       next_next = cur_entry->next->next;
       delete cur_entry->next;
     }
-    cur_entry->next = new EnumEntry(name, value);
-    entry = cur_entry->next;
+    entry = new EnumEntry(name, value);
+    cur_entry->next = entry;
     entry->next = next_next;
   }
   else {
     EnumEntry* next_next = NULL;
-    if (NULL != property.enumeration.first_enum_entry) {
-      next_next = property.enumeration.first_enum_entry->next;
-      delete property.enumeration.first_enum_entry;
+    if (NULL != property.enumeration.enum_entries) {
+      next_next = property.enumeration.enum_entries->next;
+      delete property.enumeration.enum_entries;
     }
-    property.enumeration.first_enum_entry = new EnumEntry(name, 0);
-    entry = property.enumeration.first_enum_entry;
+    entry = new EnumEntry(name, 0);
+    property.enumeration.enum_entries = entry;
     entry->next = next_next;
   }
 
   if (NULL == entry) {
     return -1;
-  }
-
-  if (NULL == property.enumeration.last_enum_entry || entry->value > property.enumeration.last_enum_entry->value) {
-    property.enumeration.last_enum_entry = entry;
   }
 
   return 0;
@@ -972,7 +938,7 @@ int CANdbAttributeDefinition::add_enumeration (const char *name, int value)
 int CANdbAttributeDefinition::delete_enumeration (const char *name, int value)
 {
   if (type != CANDB_ATTR_TYPE_ENUMERATION) return -1;
-  EnumEntry *e = property.enumeration.first_enum_entry,
+  EnumEntry *e = property.enumeration.enum_entries,
             *pe = NULL;
 
   //printf ("delete_enumeration 1 %s  %d\n", name, value);
@@ -984,15 +950,12 @@ int CANdbAttributeDefinition::delete_enumeration (const char *name, int value)
       if (pe) {
 	pe->next = e->next;
       } else {
-	property.enumeration.first_enum_entry = e->next;
+	property.enumeration.enum_entries = e->next;
       }
 
       if (first_enum == e) {
 	get_next_enumeration();
       }
-
-      if (property.enumeration.last_enum_entry == e) property.enumeration.last_enum_entry = pe;
-      if (!property.enumeration.first_enum_entry) property.enumeration.last_enum_entry = NULL;
 
       delete e;
 
@@ -1003,17 +966,6 @@ int CANdbAttributeDefinition::delete_enumeration (const char *name, int value)
   }
   return -1;
 } // CANdbAttributeDefinition::delete_enumeration
-
-
-void CANdbAttributeDefinition::set_string_default (const char *d)
-{
-  if (property.fp.default_value) delete [] property.string.default_value;
-  property.string.default_value = NULL;
-  if (d) {
-    property.string.default_value = new char [strlen (d) + 1];
-    strcpy (property.string.default_value, d);
-  }
-} // CANdbAttributeDefinition::set_string_default
 
 
 // ****************************************************************************
@@ -1045,12 +997,7 @@ CANdbAttribute::~CANdbAttribute ()
 void CANdbAttribute::set_string_value (const char *s)
 {
   if (type != CANDB_ATTR_TYPE_STRING) return;
-  if (value.string) delete [] value.string;
-  value.string = NULL;
-  if (s) {
-    value.string = new char [strlen (s) + 1];
-    strcpy (value.string, s);
-  }
+  candb_set_string (value.string, s);
 } // CANdbAttribute::set_string_value
 
 
@@ -1121,7 +1068,7 @@ CANdbAttribute *CANdbAttributeList::find_by_name (const char *name) const
 } // CANdbAttributeList::find_by_name
 
 
-CANdbAttribute *CANdbAttributeList::find_by_definition (CANdbAttributeDefinition *definition)
+CANdbAttribute *CANdbAttributeList::find_by_definition (CANdbAttributeDefinition *definition) const
 {
   CANdbAttribute *a = first_attribute;
   while (a) {
@@ -1377,7 +1324,7 @@ CANdbEnumValue *CANdbSignal::get_next_value (void)
   return current_value;
 } // CANdbSignal::get_next_signal
 
-int CANdbSignal::add_value (int val, const char *name)
+int CANdbSignal::add_value (unsigned int val, const char *name)
 {
   if (!name) return -1;
   if (get_value_string (val)) return -1;
@@ -1432,36 +1379,6 @@ void CANdbSignal::extend_memory_range (CANdbMemoryRange& mr) const
     n = n->next;
   }
 } // CANdbSignal::extend_memory_range
-
-
-void CANdbSignal::set_comment (const char *c)
-{
-  if (comment) delete [] comment;
-  comment = NULL;
-  if (!c) return;
-  comment = new char [strlen (c) + 1];
-  strcpy (comment, c);
-} // CANdbSignal::set_comment
-
-
-void CANdbSignal::set_name (const char *n)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (!n) return;
-  name = new char [strlen (n) + 1];
-  strcpy (name, n);
-} // CANdbSignal::set_name
-
-
-void CANdbSignal::set_unit (const char *u)
-{
-  if (unit) delete [] unit;
-  unit = NULL;
-  if (!u) return;
-  unit = new char [strlen (u) + 1];
-  strcpy (unit, u);
-} // CANdbSignal::set_unit
 
 
 static unsigned char byte_mask [] = {
@@ -1616,9 +1533,7 @@ int CANdbSignal::store_value (unsigned char *can_data, int dlc, double value)
     return store_value_uint_internal (can_data, dlc, iValue);
   }
   else {
-    // Straight cast from negative double to unsigned is implementation defined.
-    // It returns 0 on gcc arm, passing it via signed int is portable.
-    return store_value (can_data, dlc, (uint64_t)(int64_t)value); // Just cast it to an integer.
+    return store_value (can_data, dlc, (uint64_t)llround(value));
   }
 } // CANdbSignal::store_value
 
@@ -1837,7 +1752,7 @@ int CANdbSignal::get_value_double (const unsigned char* can_data, int /* dlc */,
 
 // Get a description associated with a value
 // (Used e.g. for enumeration types.)
-const char* CANdbSignal::get_value_string (int value) const
+const char* CANdbSignal::get_value_string (unsigned int value) const
 {
   CANdbEnumValue *v = first_value;
   while (v) {
@@ -2079,6 +1994,12 @@ bool CANdbSignal::is_signal_too_large (size_t len) const
 
 // ****************************************************************************
 
+CANdbSignalGroup::~CANdbSignalGroup() {
+  if (DeletionCallback) DeletionCallback(this);
+}
+
+// ****************************************************************************
+
 
 CANdbEnvVariable::CANdbEnvVariable ()
 {
@@ -2149,7 +2070,7 @@ void CANdbEnvVariable::add_receive_node (CANdbNode *node)
 } // CANdbEnvVariable::add_receive_node
 
 
-int CANdbEnvVariable::add_value (int val, const char *n)
+int CANdbEnvVariable::add_value (unsigned int val, const char *n)
 {
   if (!n) return -1;
   if (get_value_string (val)) return -1;
@@ -2163,7 +2084,7 @@ int CANdbEnvVariable::add_value (int val, const char *n)
 } // CANdbEnvVariable::add_value
 
 
-const char* CANdbEnvVariable::get_value_string (int value) const
+const char* CANdbEnvVariable::get_value_string (unsigned int value) const
 {
   CANdbEnumValue *v = first_value;
   while (v) {
@@ -2214,6 +2135,7 @@ CANdbMessage::CANdbMessage ()
   last_signal = NULL;
   current_signal = NULL;
   signal_count = 0;
+  first_signal_group = NULL;
   dlc = 0;
   next = NULL;
   default_message_data = NULL;
@@ -2236,6 +2158,11 @@ CANdbMessage::~CANdbMessage ()
   if (name) delete [] name;
   name = NULL;
 
+  for (CANdbSignalGroup *sig_group = first_signal_group, *next; sig_group; sig_group = next) {
+    next = sig_group->next;
+    delete sig_group;
+  }
+
   CANdbSignal *s = first_signal;
   while (s) {
     CANdbSignal *ns = s->get_next ();
@@ -2246,7 +2173,6 @@ CANdbMessage::~CANdbMessage ()
   if (DeletionCallback != NULL) {
     DeletionCallback(this);
   }
-
 } // CANdbMessage::~CANdbMessage
 
 void CANdbMessage::extend_memory_range (CANdbMemoryRange& mr) const
@@ -2279,32 +2205,6 @@ char* CANdbMessage::get_qualified_name (char *buffer, int buflen) const
   }
   return buffer;
 } // CANdbMessage::get_qualified_name
-
-
-void CANdbMessage::set_name (const char *n)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (!n) return;
-  name = new char [strlen (n) + 1];
-  strcpy (name, n);
-} // CANdbMessage::set_name
-
-
-void CANdbMessage::set_send_node (CANdbNode *s)
-{
-  send_node = s;
-} // CANdbMessage::set_send_node
-
-
-void CANdbMessage::set_comment (const char *c)
-{
-  if (comment) delete [] comment;
-  comment = NULL;
-  if (!c) return;
-  comment = new char [strlen (c) + 1];
-  strcpy (comment, c);
-} // CANdbMessage::set_comment
 
 
 CANdbSignal *CANdbMessage::get_mode_signal (void) const
@@ -2366,6 +2266,18 @@ int CANdbMessage::remove_signal (CANdbSignal *signal)
     ps = s;
     s = s->get_next ();
   }
+
+  // Remove the signal from all signal groups that contain it
+  for (CANdbSignalGroup *group = first_signal_group; group; group = group->next) {
+    for (auto it = group->signals.begin(); it != group->signals.end();) {
+      if (*it == signal) {
+        it = group->signals.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
   return -1;
 } // CANdbMessage::remove_signal
 
@@ -2393,6 +2305,11 @@ CANdbSignal *CANdbMessage::get_next_signal (void)
   if (current_signal) current_signal = current_signal->get_next ();
   return current_signal;
 } // CANdbMessage::get_next_signal
+
+void CANdbMessage::insert_signal_group (CANdbSignalGroup *signal_group) {
+  signal_group->next = first_signal_group;
+  first_signal_group = signal_group;
+}
 
 void CANdbMessage::update_pgn_mask(void)
 {
@@ -2572,28 +2489,6 @@ CANdbNode::~CANdbNode ()
 } // CANdbNode::~CANdbNode
 
 
-void CANdbNode::set_name (const char *n)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (n) {
-    name = new char [strlen (n) + 1];
-    strcpy (name, n);
-  }
-} // CANdbNode::set_name
-
-
-void CANdbNode::set_comment (const char *c)
-{
-  if (comment) delete [] comment;
-  comment = NULL;
-  if (c) {
-    comment = new char [strlen (c) + 1];
-    strcpy (comment, c);
-  }
-} // CANdbNode::set_comment
-
-
 int CANdbNode::insert_attribute (CANdbAttribute *attr)
 {
   if (attr) {
@@ -2676,7 +2571,7 @@ CANdb::~CANdb ()
     delete st;
     st = nst;
   }
-  first_schedule_table = last_schedule_table = NULL;
+  first_schedule_table = current_schedule_table = last_schedule_table = NULL;
   schedule_table_count = 0;
 
   // signal encoding
@@ -2877,36 +2772,6 @@ CANdbNode *CANdb::get_next_node ()
   if (current_node) current_node = current_node->get_next ();
   return current_node;
 } // CANdb::get_next_node
-
-
-void CANdb::set_name (const char *n)
-{
-  if (name) delete [] name;
-  name = NULL;
-  if (!n) return;
-  name = new char [strlen (n) + 1];
-  strcpy (name, n);
-} // CANdb::set_name
-
-
-void CANdb::set_comment (const char *c)
-{
-  if (comment) delete [] comment;
-  comment = NULL;
-  if (!c) return;
-  comment = new char [strlen (c) + 1];
-  strcpy (comment, c);
-} // CANdb::set_comment
-
-
-void CANdb::set_filename (const char *fn)
-{
-  if (filename) delete [] filename;
-  filename = NULL;
-  if (!fn) return;
-  filename = new char [strlen (fn) + 1];
-  strcpy (filename, fn);
-} // CANdb::set_filename
 
 
 // Inserts a new node. Returns 0 if success.
@@ -3229,6 +3094,7 @@ CANdbEnvVariable* CANdb::find_env_variable_by_name (const char *name) const
 void CANdb::insert_schedule_table (CANdbScheduleTable *st)
 {
   st->set_next (NULL);
+  st->set_candb (this);
   if (first_schedule_table && last_schedule_table) {
     last_schedule_table->set_next (st);
     last_schedule_table = st;
@@ -3239,6 +3105,20 @@ void CANdb::insert_schedule_table (CANdbScheduleTable *st)
     schedule_table_count = 1;
   }
 } // CANdb::insert_schedule_table
+
+
+CANdbScheduleTable *CANdb::get_first_schedule_table ()
+{
+  current_schedule_table = first_schedule_table;
+  return current_schedule_table;
+} // CANdb::get_first_schedule_table
+
+
+CANdbScheduleTable *CANdb::get_next_schedule_table ()
+{
+  if (current_schedule_table) current_schedule_table = current_schedule_table->get_next ();
+  return current_schedule_table;
+} // CANdb::get_next_schedule_table
 
 
 CANdbScheduleTable *CANdb::find_schedule_table_by_name (const char *name) const
@@ -3311,17 +3191,6 @@ CANdbCluster::~CANdbCluster ()
   }
 
 } // CANdbCluster::~CANdbCluster
-
-
-//void CANdbCluster::set_default_name (const char *n)
-//{
-//  if (default_name) delete [] default_name;
-//  default_name = NULL;
-//  if (n) {
-//    default_name = new char [strlen (n) + 1];
-//    if (default_name) strcpy (default_name, n);
-//  }
-//} // CANdbCluster::set_default_name
 
 
 void CANdbCluster::add_db (CANdb *db)
@@ -3492,6 +3361,42 @@ CANdb* CANdbCluster::find_candb_by_message (CANdbMessage *message) const
 } // CANdbCluster::find_candb_by_message
 
 
+CANdbScheduleTable *CANdbCluster::get_first_schedule_table ()
+{
+  CANdbScheduleTable *st = NULL;
+  current_db = first_db;
+  while (!st && current_db) {
+    st = current_db->get_first_schedule_table ();
+    if (!st) current_db = current_db->get_next ();
+  }
+  return st;
+} // CANdbCluster::get_first_schedule_table
+
+
+CANdbScheduleTable *CANdbCluster::get_next_schedule_table ()
+{
+  if (!current_db) return NULL;
+  CANdbScheduleTable *st = current_db->get_next_schedule_table ();
+  while (!st && current_db) {
+    current_db = current_db->get_next ();
+    if (current_db) st = current_db->get_first_schedule_table ();
+  }
+  return st;
+} // CANdbCluster::get_next_schedule_table
+
+
+CANdbScheduleTable *CANdbCluster::find_schedule_table_by_name (const char *name) const
+{
+  CANdbScheduleTable *st = NULL;
+  CANdb *db = first_db;
+  while (!st && db) {
+    st = db->find_schedule_table_by_name (name);
+    if (!st) db = db->get_next ();
+  }
+  return st;
+} // CANdbCluster::find_schedule_table_by_name
+
+
 bool CANdbCluster::is_j1939_message (const char *message_name) const
 {
   CANdbMessage *message = find_message_by_name (message_name);
@@ -3581,22 +3486,6 @@ CANdbFileIo::~CANdbFileIo ()
 } // CANdbFileIo::~CANdbFileIo
 
 
-void CANdbFileIo::set_filename (const char *fn)
-{
-  if (filename) delete [] filename;
-  filename = NULL;
-  if (!fn) return;
-  filename = new char [strlen (fn) + 1];
-  strcpy (filename, fn);
-} // CANdbFileIo::set_filename
-
-
-void CANdbFileIo::set_file_format (CANdbFileFormat *ff)
-{
-  file_format = ff;
-} // CANdbFileIo::set_file_format
-
-
 const char *CANdbFileIo::get_db_name () const
 {
 #define MAX_DB_NAME     100
@@ -3665,15 +3554,6 @@ void CANdbFileIo::get_errorlog(char *msg, unsigned int *buflen)
   } else {
     strcpy(msg, errorlog);
   }
-}
-
-void CANdbFileIo::set_errorlog(const char *msg)
-{
-  if (errorlog) delete [] errorlog;
-  errorlog = NULL;
-  if (!msg) return;
-  errorlog = new char[strlen(msg) + 1];
-  strcpy(errorlog, msg);
 }
 
 void CANdbFileIo::append_errorlog(const char *msg)
@@ -3832,18 +3712,32 @@ CANdbFileFormat* CANdbFileFormat::get_candb_file_format_by_name (const char *nam
 } // CANdbFileFormat::get_candb_file_format_by_name
 
 
-CANdbFileIo* CANdbFileFormat::build (const char *name)
+CANdbFileIo* CANdbFileFormat::build (const char *filename)
 {
   CANdbFileIo *fio = NULL;
 
-  if (!name) return NULL;
+  if (!filename) return NULL;
 
-  CANdbFileFormat *ff = get_candb_file_format_by_name ((const char *) name);
+  CANdbFileFormat *ff = NULL;
+  std::string filePath(filename);
+  size_t dotPos = filePath.find_last_of('.');
+  if (dotPos == std::string::npos || dotPos >= (filePath.length() - 1)) {
+    // Default to DBC if no extension
+    ff = get_candb_file_format_by_name("DBC");
+  } else {
+    ff = get_candb_file_format_by_extension(filePath.substr(dotPos + 1).c_str());
+    if (!ff)
+    {
+      // Default to DBC if odd extension
+      ff = get_candb_file_format_by_name("DBC");
+    }
+  }
+  
   if (!ff) return NULL;
 
   if (ff->build_ptr) {
-    fio = ff->build_ptr ();
-    fio->set_file_format (ff);
+    fio = ff->build_ptr(filename);
+    fio->set_file_format(ff);
   }
 
   return fio;

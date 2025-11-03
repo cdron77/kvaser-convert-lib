@@ -68,26 +68,33 @@
  ** ---------------------------------------------------------------------------
  */
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <math.h>
+#include "CANdbDbc.h"
+#include <cstdlib>
+#include <cstring>
+#include <cctype>
 #include <clocale>
-#include <float.h>
+#include <cfloat>
 #include <climits>
 #include <cerrno>
+#include <string>
+#include <unordered_set>
+#include <unordered_map>
 
-#include "CANdb.h"
-#include "CANdbDbc.h"
+
+using std::string;
+using std::unordered_map;
 
  // ****************************************************************************
 
 #ifndef MAX_PATH
 #  define MAX_PATH      1024
 #endif
+
+/** printf format specifier for floating-point DBC values. */
+// ME: Changed to %lg because the result is more like the original DBC files
+//     The old format led to a buffer overrun anyway
+// db: note that .11 is needed because default precision is 6..
+#define PRI_FLOAT ".11G"
 
 #define DUMMY_RECEIVER_NODE                     "Vector__XXX"
 
@@ -126,6 +133,8 @@
 #define T_SIG_VALTYPE   1010
 #define T_CAT           1011
 #define T_ENVVAR_DATA   1012
+#define T_VERSION       1013
+#define T_SIG_GROUP     1014
 #define T_VAL           1020
 #define T_IDENT         1021
 #define T_UINT_CONST    1022
@@ -174,8 +183,10 @@ static struct s_keyword keywords[] = {
          { "CAT_",      T_CAT     },      // Category
          { "ENVVAR_DATA_",                // Environment variable of type "DATA"
                         T_ENVVAR_DATA },
+         { "SIG_GROUP_", T_SIG_GROUP },   // Signal group
          { "SIG_VALTYPE_",                // Valuetype of signal
                         T_SIG_VALTYPE },
+         { "VERSION",   T_VERSION },      // Version
          { "NS_",       T_NS      },      // New symbol
          { NULL,        0 },
        };
@@ -326,6 +337,95 @@ static unsigned motorola_forward_msb_to_lsb (unsigned i, unsigned len)
 static unsigned motorola_forward_lsb_to_msb (unsigned i, unsigned len)
 {
   return reflect (reflect (i) + 1 - len);
+}
+
+// ****************************************************************************
+
+template<typename T>
+static void propagate_long_object_name (T *x, const char *attr_name)
+{
+  CANdbAttributeList *al = x->get_attributes ();
+  CANdbAttribute *a = al->find_by_name (attr_name);
+
+  if (a && a->get_definition ()->get_type () == CANDB_ATTR_TYPE_STRING)
+    x->set_name (a->get_string_value ());
+}
+
+
+static void store_long_object_name (CANdb &db, CANdbAttributeOwner ao,
+  CANdbAttributeList *al, const char *name)
+{
+  const char *attr_name;
+  switch (ao) {
+  case CANDB_ATTR_OWNER_MESSAGE:
+    attr_name = CANDB_LONG_SYM_ATTR ("Message");
+    break;
+  case CANDB_ATTR_OWNER_NODE:
+    attr_name = CANDB_LONG_SYM_ATTR ("Node");
+    break;
+  case CANDB_ATTR_OWNER_SIGNAL:
+    attr_name = CANDB_LONG_SYM_ATTR ("Signal");
+    break;
+  case CANDB_ATTR_OWNER_ENVIRONMENT:
+    attr_name = CANDB_LONG_SYM_ATTR ("EnvVar");
+    break;
+  default:
+    return;
+  }
+
+  CANdbAttribute *attr = al->find_by_name (attr_name);
+  if (strlen (name) <= CANDB_MAX_OBJECT_NAME_LENGTH) {
+    if (attr) al->remove (attr);
+    return;
+  }
+  if (!attr) {
+    CANdbAttributeDefinition *ad = db.find_attribute_definition_by_name (attr_name);
+    if (!ad) {
+      ad = new CANdbAttributeDefinition;
+      ad->set_owner (ao);
+      ad->set_name (attr_name);
+      ad->set_type (CANDB_ATTR_TYPE_STRING);
+      db.insert_attribute_definition (ad);
+    }
+    attr = new CANdbAttribute (ad);
+    al->insert (attr);
+  }
+  attr->set_string_value (name);
+}
+
+/* Builds an injective map from DBC objects to names at most 32 characters long. */
+static unordered_map<void *, string> construct_short_syms (CANdb &db)
+{
+  unordered_map<void *, string> result;
+
+  for (CANdbNode *node = db.get_first_node (); node; node = node->get_next ())
+      result.emplace (node, node->get_name ());
+  for (CANdbMessage *msg = db.get_first_message (); msg; msg = msg->get_next ()) {
+      result.emplace (msg, msg->get_name ());
+
+    for (CANdbSignal *sig = msg->get_first_signal (); sig; sig = sig->get_next ())
+      result.emplace (sig, sig->get_name ());
+  }
+  for (CANdbEnvVariable *ev = db.get_first_env_variable ();
+      ev; ev = ev->get_next ())
+    result.emplace (ev, ev->get_name ());
+
+  std::unordered_set<std::string> syms;
+  for (const auto &it : result) syms.insert (it.second);
+
+  unsigned int i = 0;
+  for (auto &it : result) {
+    string &s = it.second;
+    if (s.size() <= CANDB_MAX_OBJECT_NAME_LENGTH) continue;
+
+    do {
+      char b[CANDB_MAX_OBJECT_NAME_LENGTH + 1];
+      sprintf(b, "%.*s_%.4u", CANDB_MAX_OBJECT_NAME_LENGTH - 5, s.c_str(), i++);
+      s.assign (b, CANDB_MAX_OBJECT_NAME_LENGTH);
+    } while (syms.find (s) != syms.end());
+  }
+
+  return result;
 }
 
 // ****************************************************************************
@@ -604,28 +704,6 @@ start:
 
   return T_UNKNOWN;
 } // CANdbDBC::lex
-
-
-// Print a value, not including any unnecessary trailing decimal points.
-void CANdbDBC::print_value (double val)
-{
-  char buf [100];
-
-  // ME: Changed to %lg because the result is more like the original DBC files
-  //     The old format led to a buffer overrun anyway
-  // db: note that .11 is needed because default precision is 6..
-  sprintf (buf, "%.11lg", val);
-
-  // I don't think we need that / ME
-  // Remove trailing zeroes after the decimal point.
-  //if (strchr (buf, '.')) {
-  //  char *p = buf + strlen (buf) - 1;
-  //  while (*p == '0') *p-- = '\0';
-  //  if (*p == '.') *p = '\0';
-  //}
-
-  fputs (buf, file);
-} // CANdbDBC::print_value
 
 
 /* Prints a '"'-delimited string. Certain control codes are escaped. The string can span
@@ -1105,8 +1183,7 @@ int CANdbDBC::read_dbc_attribute_default_value (Token& token)
     }
     ad->set_string_default (token.string_const);
   }
-
-  if (ad->get_type () == CANDB_ATTR_TYPE_ENUMERATION) {
+  else if (ad->get_type () == CANDB_ATTR_TYPE_ENUMERATION) {
     if (t != T_STRING_CONST) {
       error ("String expected");
       return -1;
@@ -1114,31 +1191,13 @@ int CANdbDBC::read_dbc_attribute_default_value (Token& token)
     int v = ad->get_enumeration_value_by_name (token.string_const);
     ad->set_enumeration_default (v);
   }
-
-  if ((ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ||
-      (ad->get_type () == CANDB_ATTR_TYPE_HEX)) {
-    if (t == T_UINT_CONST) {
-      if (ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ad->set_integer_default (token.uint_const);
-      if (ad->get_type () == CANDB_ATTR_TYPE_HEX) ad->set_hex_default (token.uint_const);
-    } else {
-      if (t != T_INT_CONST) {
-        error ("Integer value expected");
-        return -1;
-      }
-      if (ad->get_type () == CANDB_ATTR_TYPE_INTEGER) ad->set_integer_default (token.int_const);
-      if (ad->get_type () == CANDB_ATTR_TYPE_HEX) ad->set_hex_default (token.int_const);
-
-    }
-  }
-
-  else if (ad->get_type () == CANDB_ATTR_TYPE_FLOAT) {
+  else {
     double d;
     if (token_to_double (t, token, d)) { ad->set_float_default (d); }
     else {
-      error ("Float value expected");
+      error ("Numeric attribute default value expected");
       return -1;
     }
-
   }
 
   t = lex (token);
@@ -1315,7 +1374,14 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
     a->set_type (at);
     t = lex (token);
 
-    if (at == CANDB_ATTR_TYPE_ENUMERATION) {
+    if (at == CANDB_ATTR_TYPE_STRING) {
+      if (t != ';') {
+        error ("';' expected (String Attribute)");
+        delete a;
+        return -1;
+      }
+    }
+    else if (at == CANDB_ATTR_TYPE_ENUMERATION) {
       int value = 0;
 
       while ((t > 0) && (t != ';')) {
@@ -1326,61 +1392,35 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
         t = lex (token);
       }
     }
-
-    else if (at == CANDB_ATTR_TYPE_INTEGER) {
-      int i;
-      if (!token_to_int (t, token, i)) {
-        warning ("Integer attribute min value expected");
-        i = INT_MIN; // Set default value
+    else {
+      double min, max;
+      switch (at) {
+      case CANDB_ATTR_TYPE_INTEGER:
+        min = INT_MIN;
+        max = INT_MAX;
+        break;
+      case CANDB_ATTR_TYPE_HEX:
+        min = 0;
+        max = UINT_MAX;
+        break;
+      case CANDB_ATTR_TYPE_FLOAT:
+      default:
+        min = -FLT_MAX;
+        max = FLT_MAX;
+        break;
       }
-      a->set_integer_min (i);
 
-      t = lex (token);
-      if (!token_to_int (t, token, i)) {
-        warning ("Integer attribute max value expected");
-        i = INT_MAX; // Set default value
-      }
-      a->set_integer_max (i);
-
-      t = lex (token);
-    }
-    else if (at == CANDB_ATTR_TYPE_HEX) {
-      if (t != T_UINT_CONST) {
-        warning ("Hex attribute min value expected");
-        token.uint_const = 0; // Set default value
-      }
-      a->set_hex_min (token.uint_const);
-
-      t = lex (token);
-      if (t != T_UINT_CONST) {
-        warning ("Hex attribute max value expected");
-        token.uint_const = UINT_MAX; // Set default value
-      }
-      a->set_hex_max (token.uint_const);
-
-      t = lex (token);
-    }
-
-    else if (at == CANDB_ATTR_TYPE_STRING) {
-      if (t != ';') {
-        error ("';' expected (String Attribute)");
-        delete a;
-        return -1;
-      }
-    }
-
-    else if (at == CANDB_ATTR_TYPE_FLOAT) {
       double d;
       if (!token_to_double (t, token, d)) {
         warning ("Attribute min value expected");
-        d = -FLT_MAX;
+        d = min;
       }
       a->set_float_min (d);
 
       t = lex (token);
       if (!token_to_double (t, token, d)) {
         warning ("Attribute max value expected");
-        d = FLT_MAX;
+        d = max;
       }
       a->set_float_max (d);
 
@@ -1399,6 +1439,54 @@ int CANdbDBC::read_dbc_attribute_definition (Token& token)
 
   return t;
 } // CANdbDBC::read_dbc_attribute_definition
+
+
+CANdbSignalGroup *CANdbDBC::read_dbc_sig_group (Token &token) {
+  if (lex (token) != T_UINT_CONST) {
+    error ("Message Id expected");
+    return nullptr;
+  }
+  CANdbMessage *m = current_db->find_message_by_id(token.uint_const);
+  if (!m) {
+    error ("Message %d not found", token.uint_const);
+    return nullptr;
+  }
+
+  if (lex (token) != T_IDENT) {
+    error ("Signal group name expected");
+    return nullptr;
+  }
+  std::string name = token.string_const;
+
+  if (lex (token) != T_UINT_CONST) {
+    error ("Repetitions expected");
+    return nullptr;
+  }
+  unsigned int repetitions = token.uint_const;
+
+  if (lex (token) != ':') {
+    error ("':' expected");
+    return nullptr;
+  }
+
+  std::vector<CANdbSignal *> signals;
+  int t;
+  while ((t = lex (token)) != ';') {
+    if (t != T_IDENT) {
+      error ("Signal name expected");
+      return nullptr;
+    }
+
+    CANdbSignal *signal;
+    if (!(signal = m->find_signal_by_name(token.string_const))) {
+      error ("Signal not found");
+      return nullptr;
+    }
+    signals.push_back(signal);
+  }
+
+  return new CANdbSignalGroup(name, m, repetitions, signals);
+}
 
 
 int CANdbDBC::read_file (CANdb *db)
@@ -1432,13 +1520,19 @@ int CANdbDBC::read_file (CANdb *db)
   int n_err = 0;
 
   do {
-    if (t == T_NS) { // skip the stupid header
+    if (t == T_VERSION) { // Skip VERSION, CANdb_version_string and newline
+      for (unsigned int i = 0; i < 3; ++i) {
+        t = lex (token);
+      }
+    }
+
+    else if (t == T_NS) { // skip the stupid header
       do {
         t = lex (token);
       } while ((t > 0) && (t != T_BU));
     }
 
-    if (t == T_BU) { // node list
+    else if (t == T_BU) { // node list
       t = lex (token);
       if (t != ':') {
         error ("':' expected");
@@ -1603,6 +1697,14 @@ int CANdbDBC::read_file (CANdb *db)
       if (t == ';') t = lex (token);
     }
 
+    else if (t == T_SIG_GROUP) {
+      CANdbSignalGroup *signal_group;
+      if ((signal_group = read_dbc_sig_group(token))) {
+        signal_group->message->insert_signal_group(signal_group);
+      }
+      t = lex (token); // Skip ';'
+    }
+
     else if (t == T_SIG_VALTYPE) { // type i.e. float for signal
       t = lex (token);
       if (t != T_UINT_CONST) error ("Id expected for signal type");
@@ -1683,11 +1785,11 @@ int CANdbDBC::read_file (CANdb *db)
             else {
               t = lex (token);
               while (1) {
-                int num;
-                if (!token_to_int (t, token, num)) {
+                if (t != T_UINT_CONST) {
                   error ("Number expected for signal value");
                   break;
                 }
+                unsigned int num = token.uint_const;
 
                 t = lex (token);
                 if (t != T_STRING_CONST) {
@@ -1717,9 +1819,17 @@ int CANdbDBC::read_file (CANdb *db)
       }
     }
 
-    else t = lex (token);
+    else if (t == T_NEWLINE) t = lex (token);
 
-    if (t<0) {
+    else {
+      warning ("Unrecognized keyword");
+      while (t > 0) { // Skip until next keyword
+        t = lex (token);
+        if (t == ';') { t = lex (token); break; }
+      }
+    }
+
+    if (t < 0) {
       n_err += 1;
       set_read_ok (false);
     }
@@ -1737,13 +1847,19 @@ int CANdbDBC::read_file (CANdb *db)
   {
     current_db->update_j1939_flag ();
 
-    // Setup internal data structures
-    CANdbMessage *message = current_db->get_first_message ();
-    while (message) {
-      message->setup ();
+    // Setup internal data structures and propagate "System*LongSymbol" attributes
+    for (CANdbNode *node = current_db->get_first_node (); node; node = node->get_next ())
+      propagate_long_object_name (node, CANDB_LONG_SYM_ATTR ("Node"));
+    for (CANdbMessage *msg = current_db->get_first_message (); msg; msg = msg->get_next ()) {
+      msg->setup ();
+      propagate_long_object_name (msg, CANDB_LONG_SYM_ATTR ("Message"));
 
-      message = message->get_next ();
+      for (CANdbSignal *sig = msg->get_first_signal (); sig; sig = sig->get_next ())
+        propagate_long_object_name (sig, CANDB_LONG_SYM_ATTR ("Signal"));
     }
+    for (CANdbEnvVariable *ev = current_db->get_first_env_variable ();
+        ev; ev = ev->get_next ())
+      propagate_long_object_name (ev, CANDB_LONG_SYM_ATTR ("EnvVar"));
   }
 
   if (keyword_hash_table) delete [] keyword_hash_table;
@@ -1760,8 +1876,21 @@ int CANdbDBC::read_file (CANdb *db)
 // Save the database to file. Returns 0 if success.
 int CANdbDBC::save_file (CANdb *db)
 {
+  unordered_map<void *, string> obj_names = construct_short_syms (*db);
   current_db = db;
-  
+
+  // Store long object names in user defined attributes
+  for (CANdbNode *node = db->get_first_node (); node; node = node->get_next ())
+    store_long_object_name (*db, CANDB_ATTR_OWNER_NODE, node->get_attributes (), node->get_name ());
+  for (CANdbMessage *msg = db->get_first_message (); msg; msg = msg->get_next ()) {
+    store_long_object_name (*db, CANDB_ATTR_OWNER_MESSAGE, msg->get_attributes (), msg->get_name ());
+
+    for (CANdbSignal *sig = msg->get_first_signal (); sig; sig = sig->get_next ())
+      store_long_object_name (*db, CANDB_ATTR_OWNER_SIGNAL, sig->get_attributes (), sig->get_name ());
+  }
+  for (CANdbEnvVariable *ev = db->get_first_env_variable (); ev; ev = ev->get_next ())
+    store_long_object_name (*db, CANDB_ATTR_OWNER_ENVIRONMENT, ev->get_attributes (), ev->get_name ());
+
   file = fopen(get_filename(), "w");
   if (!file) {
     return -1;
@@ -1809,7 +1938,7 @@ int CANdbDBC::save_file (CANdb *db)
   fprintf (file, "BU_:");
   CANdbNode *node = db->get_first_node ();
   while (node) {
-    fprintf (file, " %s", node->get_name ());
+    fprintf (file, " %s", obj_names.at (node).c_str ());
     node = node->get_next ();
   }
   fprintf (file, "\n\n\n");
@@ -1817,17 +1946,17 @@ int CANdbDBC::save_file (CANdb *db)
   // The messages
   CANdbMessage *m = db->get_first_message ();
   while (m) {
-    fprintf (file, "BO_ %u %s: %d", m->get_id_and_ext(), m->get_name (), m->get_dlc ());
+    fprintf (file, "BO_ %u %s: %d", m->get_id_and_ext(), obj_names.at (m).c_str (), m->get_dlc ());
 
     fprintf (file,
              " %s\n",
-             (m->get_send_node () && m->get_send_node () ->get_name ()) ?
-                m->get_send_node ()->get_name () :
+             m->get_send_node () ?
+                obj_names.at (m->get_send_node ()).c_str () :
                 DUMMY_RECEIVER_NODE);
 
     CANdbSignal *s = m->get_first_signal ();
     while (s) {
-      fprintf (file, " SG_ %s", s->get_name ());
+      fprintf (file, " SG_ %s", obj_names.at (s).c_str ());
 
       if (s->is_mode_signal ()) {
         fprintf (file, " M");
@@ -1847,15 +1976,8 @@ int CANdbDBC::save_file (CANdb *db)
       fputc (s->get_type () == CANDB_UNSIGNED ? '+' : '-', file);
 
       // Print (factor,offset) [min,max]
-      fprintf (file, " (");
-      print_value (s->get_factor ());
-      fprintf (file, ",");
-      print_value (s->get_offset ());
-      fprintf (file, ") [");
-      print_value (s->get_min_val ());
-      fprintf (file, "|");
-      print_value (s->get_max_val ());
-      fprintf (file, "] ");
+      fprintf (file, " (%" PRI_FLOAT ",%" PRI_FLOAT ") [%" PRI_FLOAT "|%" PRI_FLOAT "] ",
+        s->get_factor (), s->get_offset (), s->get_min_val (), s->get_max_val ());
 
       // Print the engineering unit
       print_string (s->get_unit ());
@@ -1872,48 +1994,44 @@ int CANdbDBC::save_file (CANdb *db)
         }
         else fprintf (file, ",");
 
-        fprintf (file, "%s", ne->get_node () ->get_name ());
+        fprintf (file, "%s", obj_names.at (ne->get_node ()).c_str ());
         ne = ne->get_next ();
       }
       // No node was defined.
       if (first) fprintf (file, " %s", DUMMY_RECEIVER_NODE);
 
       fprintf (file, "\n");
-      s = m->get_next_signal ();
+      s = s->get_next ();
     }
     fprintf (file, "\n");
-    m = db->get_next_message ();
+    m = m->get_next ();
   }
 
   // EV_
-  // The enviroment variables
+  // The environment variables
   CANdbEnvVariable *ev = db->get_first_env_variable ();
   while (ev) {
-    //fprintf (file, "\nEV_ %s: %d [", ev->get_name (), ev->get_type ());
-    fprintf (file, "\nEV_ %s: ", ev->get_name ());
-
+    char type;
     switch (ev->get_type ()) {
       case CANDB_EV_INVALID:
       case CANDB_EV_INTEGER:
       case CANDB_EV_STRING:
       case CANDB_EV_DATA:
-           fprintf (file, "0");
+      default:
+           type = '0';
            break;
 
       case CANDB_EV_FLOAT:
-           fprintf (file, "1");
+           type = '1';
            break;
     }
 
-    fprintf(file, " [");
-    print_value (ev->get_min_val ());
-    fprintf (file, "|");
-    print_value (ev->get_max_val ());
-    fprintf (file, "] ");
+    fprintf (file, "\nEV_ %s: %c [%" PRI_FLOAT "|%" PRI_FLOAT "] ",
+      obj_names.at (ev).c_str (), type, ev->get_min_val (), ev->get_max_val ());
     print_string (ev->get_unit ());
-    fprintf (file, " ");
-    print_value (ev->get_start_value ());
-    fprintf (file, " %u %s", ev->get_num_id (), ev->get_dummy_node ());
+    fprintf (file, " %" PRI_FLOAT " %u %s",
+      ev->get_start_value (), ev->get_num_id (), ev->get_dummy_node ());
+
     CANdbNodeEntry *ne = ev->get_first_receive_node_entry ();
     bool first = true;
     while (ne) {
@@ -1922,7 +2040,7 @@ int CANdbDBC::save_file (CANdb *db)
         first = false;
       }
       else fprintf (file, ",");
-      fprintf (file, "%s", ne->get_node () ->get_name ());
+      fprintf (file, "%s", obj_names.at (ne->get_node ()).c_str ());
       ne = ne->get_next ();
     }
     if (first) {
@@ -1933,13 +2051,11 @@ int CANdbDBC::save_file (CANdb *db)
     ev = ev->get_next ();
   }
   // ENVVAR_DATA_
-  // The enviroment variable ata
+  // The environment variable data
   ev = db->get_first_env_variable ();
   while (ev) {
     if (ev->get_data_flag ()) {
-      fprintf (file, "ENVVAR_DATA_ %s: ", ev->get_name ());
-      print_value (ev->get_data ());
-      fprintf (file, ";\n");
+      fprintf (file, "ENVVAR_DATA_ %s: %" PRI_FLOAT ";\n", obj_names.at (ev).c_str (), ev->get_data ());
     }
     ev = ev->get_next ();
   }
@@ -1957,7 +2073,7 @@ int CANdbDBC::save_file (CANdb *db)
   CANdbNode *n = db->get_first_node ();
   while(n) {
     if (n->get_comment ()) {
-      fprintf (file, "CM_ BU_ %s ", n->get_name ());
+      fprintf (file, "CM_ BU_ %s ", obj_names.at (n).c_str ());
       print_string (n->get_comment ());
       fprintf (file, ";\n");
     }
@@ -1975,7 +2091,7 @@ int CANdbDBC::save_file (CANdb *db)
     CANdbSignal *s = msg->get_first_signal ();
     while (s) {
       if (s->get_comment ()) {
-        fprintf (file, "CM_ SG_ %u %s ", msg->get_id_and_ext (), s->get_name ());
+        fprintf (file, "CM_ SG_ %u %s ", msg->get_id_and_ext (), obj_names.at (s).c_str ());
         print_string (s->get_comment ());
         fprintf (file, ";\n");
       }
@@ -1988,7 +2104,7 @@ int CANdbDBC::save_file (CANdb *db)
   CANdbEnvVariable *v = db->get_first_env_variable ();
   while (v) {
     if (v->get_comment ()) {
-      fprintf (file, "CM_ EV_ %s ", v->get_name ());
+      fprintf (file, "CM_ EV_ %s ", obj_names.at (v).c_str ());
       print_string (v->get_comment ());
       fprintf (file, ";\n");
     }
@@ -2051,18 +2167,18 @@ int CANdbDBC::save_file (CANdb *db)
            break;
 
       case CANDB_ATTR_TYPE_INTEGER:
-           fprintf (file, "INT %d %d", ad->get_integer_min (), ad->get_integer_max ());
+           fprintf (file, "INT %" PRI_FLOAT " %" PRI_FLOAT,
+             ad->get_float_min (), ad->get_float_max ());
            break;
 
       case CANDB_ATTR_TYPE_HEX:
-           fprintf (file, "HEX %u %u", ad->get_hex_min (), ad->get_hex_max ());
+           fprintf (file, "HEX %" PRI_FLOAT " %" PRI_FLOAT,
+             ad->get_float_min (), ad->get_float_max ());
            break;
 
       case CANDB_ATTR_TYPE_FLOAT:
-           fprintf (file, "FLOAT ");
-           print_value (ad->get_float_min ());
-           fputc (' ', file);
-           print_value (ad->get_float_max ());
+           fprintf (file, "FLOAT %" PRI_FLOAT " %" PRI_FLOAT,
+             ad->get_float_min (), ad->get_float_max ());
            break;
 
       case CANDB_ATTR_TYPE_STRING:
@@ -2088,22 +2204,15 @@ int CANdbDBC::save_file (CANdb *db)
     switch (ad->get_type ()) {
       case CANDB_ATTR_TYPE_ENUMERATION: {
              int vDef = ad->get_enumeration_default();
-             const char *enumDef;
-             enumDef = ad->get_enumeration_name_by_value (vDef);
+             const char *enumDef = ad->get_enumeration_name_by_value (vDef);
              print_string (enumDef);
            }
            break;
 
       case CANDB_ATTR_TYPE_INTEGER:
-           fprintf (file, "%d", ad->get_integer_default ());
-           break;
-
       case CANDB_ATTR_TYPE_HEX:
-           fprintf (file, "%u", ad->get_hex_default ());
-           break;
-
       case CANDB_ATTR_TYPE_FLOAT:
-           print_value (ad->get_float_default ());
+           fprintf (file, "%" PRI_FLOAT, ad->get_float_default());
            break;
 
       case CANDB_ATTR_TYPE_STRING:
@@ -2135,7 +2244,7 @@ int CANdbDBC::save_file (CANdb *db)
         case CANDB_ATTR_TYPE_INTEGER:
         case CANDB_ATTR_TYPE_HEX:
         case CANDB_ATTR_TYPE_FLOAT:
-             print_value (a->get_float_value ());
+             fprintf (file, "%" PRI_FLOAT, a->get_float_value ());
              break;
 
         case CANDB_ATTR_TYPE_STRING:
@@ -2156,14 +2265,14 @@ int CANdbDBC::save_file (CANdb *db)
       while (a) {
         fprintf (file, "BA_ ");
         print_string (a->get_definition ()->get_name ());
-        fprintf (file, " SG_ %u %s ", msg->get_id_and_ext (), s->get_name ());
+        fprintf (file, " SG_ %u %s ", msg->get_id_and_ext (), obj_names.at (s).c_str ());
 
         switch (a->get_type ()) {
           case CANDB_ATTR_TYPE_ENUMERATION:
           case CANDB_ATTR_TYPE_INTEGER:
           case CANDB_ATTR_TYPE_HEX:
           case CANDB_ATTR_TYPE_FLOAT:
-               print_value (a->get_float_value ());
+               fprintf(file, "%" PRI_FLOAT, a->get_float_value ());
                break;
 
           case CANDB_ATTR_TYPE_STRING:
@@ -2190,13 +2299,13 @@ int CANdbDBC::save_file (CANdb *db)
     while (a) {
       fprintf (file, "BA_ ");
       print_string (a->get_definition ()->get_name ());
-      fprintf (file, " BU_ %s ", node->get_name ());
+      fprintf (file, " BU_ %s ", obj_names.at (node).c_str ());
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
         case CANDB_ATTR_TYPE_INTEGER:
         case CANDB_ATTR_TYPE_HEX:
         case CANDB_ATTR_TYPE_FLOAT:
-             print_value (a->get_float_value ());
+             fprintf(file, "%" PRI_FLOAT, a->get_float_value ());
              break;
 
         case CANDB_ATTR_TYPE_STRING:
@@ -2221,13 +2330,13 @@ int CANdbDBC::save_file (CANdb *db)
     while (a) {
       fprintf (file, "BA_ ");
       print_string (a->get_definition ()->get_name ());
-      fprintf (file, " EV_ %s ", ev->get_name ());
+      fprintf (file, " EV_ %s ", obj_names.at (ev).c_str ());
       switch (a->get_type ()) {
         case CANDB_ATTR_TYPE_ENUMERATION:
         case CANDB_ATTR_TYPE_INTEGER:
         case CANDB_ATTR_TYPE_HEX:
         case CANDB_ATTR_TYPE_FLOAT:
-             print_value (a->get_float_value ());
+             fprintf(file, "%" PRI_FLOAT, a->get_float_value ());
              break;
 
         case CANDB_ATTR_TYPE_STRING:
@@ -2258,7 +2367,7 @@ int CANdbDBC::save_file (CANdb *db)
         case CANDB_ATTR_TYPE_INTEGER:
         case CANDB_ATTR_TYPE_HEX:
         case CANDB_ATTR_TYPE_FLOAT:
-             print_value (a->get_float_value ());
+             fprintf(file, "%" PRI_FLOAT, a->get_float_value ());
              break;
 
         case CANDB_ATTR_TYPE_STRING:
@@ -2280,7 +2389,7 @@ int CANdbDBC::save_file (CANdb *db)
     while (s) {
       CANdbEnumValue *val = s->get_first_value ();
       if (val) {
-        fprintf (file, "VAL_ %u %s", msg->get_id_and_ext (), s->get_name ());
+        fprintf (file, "VAL_ %u %s", msg->get_id_and_ext (), obj_names.at (s).c_str ());
         while (val) {
           fprintf (file, " %d ", val->get_value ());
           print_string (val->get_name ());
@@ -2298,7 +2407,7 @@ int CANdbDBC::save_file (CANdb *db)
     while (var) {
       CANdbEnumValue *val = var->get_first_value ();
       if (val) {
-        fprintf (file, "VAL_ %s", var->get_name ());
+        fprintf (file, "VAL_ %s", obj_names.at (var).c_str ());
         while (val) {
           fprintf (file, " %d ", val->get_value ());
           print_string (val->get_name ());
@@ -2313,6 +2422,18 @@ int CANdbDBC::save_file (CANdb *db)
 
   // CAT_
 
+  // SIG_GROUP_ (per-message) signal groups
+  for (CANdbMessage *m = db->get_first_message(); m; m = m->get_next()) {
+    for (CANdbSignalGroup *signal_group = m->get_first_signal_group(); signal_group; signal_group = signal_group->next) {
+      fprintf (file, "SIG_GROUP_ %u %s %u :",
+        m->get_id(), signal_group->name.c_str(), signal_group->repetitions);
+      for (CANdbSignal *s : signal_group->signals) {
+        fprintf (file, " %s", obj_names.at (s).c_str ());
+      }
+      fputs (";\n", file);
+    }
+  }
+
   // SIG_VALTYPE_
   // Types of certain signals are defined here. Iterate over all messages and signals.
   //
@@ -2325,7 +2446,7 @@ int CANdbDBC::save_file (CANdb *db)
              fprintf (file,
                       "SIG_VALTYPE_ %u %s : %d;\n",
                       msg->get_id_and_ext (),
-                      s->get_name (),
+                      obj_names.at (s).c_str (),
                       1);
              break;
 
@@ -2333,7 +2454,7 @@ int CANdbDBC::save_file (CANdb *db)
              fprintf (file,
                       "SIG_VALTYPE_ %u %s : %d;\n",
                       msg->get_id_and_ext (),
-                      s->get_name (),
+                      obj_names.at (s).c_str (),
                       2);
              break;
 
@@ -2355,9 +2476,9 @@ finally:
 } // CANdbDBC::save_file
 
 
-CANdbFileIo* CANdbDBC::build ()
+CANdbFileIo* CANdbDBC::build(const char *filename)
 {
-  CANdbDBC *fio = new CANdbDBC ();
+  CANdbDBC *fio = new CANdbDBC(filename);
   return fio;
 } // CANdbDBC::build
 

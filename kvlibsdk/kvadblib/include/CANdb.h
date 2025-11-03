@@ -71,14 +71,16 @@
 #ifndef CANDB_H
 #define CANDB_H
 
-#include <inttypes.h>
+#include <cstdint>
 #include <cstring>
+#include <vector>
+#include <string>
+
+#include <inttypes.h>
 typedef int64_t __int64 ;
 #define _atoi64 atoll
 #define _stricmp strcasecmp
 #define stricmp strcasecmp
-
-#include <cstdint>
 
 // ****************************************************************************
 
@@ -88,6 +90,9 @@ typedef int64_t __int64 ;
 
 #define CANDB_FILE_FORMAT_FLAG_READ     (1<<0)
 #define CANDB_FILE_FORMAT_FLAG_WRITE    (1<<1)
+
+#define CANDB_MAX_OBJECT_NAME_LENGTH 32
+#define CANDB_LONG_SYM_ATTR(ty) "System" ty "LongSymbol"
 
 // ****************************************************************************
 
@@ -103,6 +108,7 @@ class CANdbFileFormat;
 class CANdbEnumValue;
 class CANdbValue;
 class CANdbSignal;
+class CANdbSignalGroup;
 class CANdbMessage;
 class CANdbNode;
 class CANdbNodeEntry;
@@ -111,19 +117,24 @@ class CANdbSignalEncoding;
 class CANdbSignalEncodingScale;
 class CANdbAttribute;
 class CANdbAttributeDefinition;
+class CANdbScheduleTable;
+class CANdbScheduleTableEntry;
 
 // ****************************************************************************
 
-typedef CANdbFileIo* (*CANdbFileIoBuildPtr) ();
+typedef CANdbFileIo* (*CANdbFileIoBuildPtr) (const char *filename);
 
 // Deletion callback typedefs
 typedef void (*CANdbClusterDeletionCallbackType)(CANdbCluster *pInstance);
 typedef void (*CANdbMessageDeletionCallbackType)(CANdbMessage *pInstance);
 typedef void (*CANdbSignalDeletionCallbackType)(CANdbSignal *pInstance);
+typedef void (*CANdbSignalGroupDeletionCallbackType)(CANdbSignalGroup *pInstance);
 typedef void (*CANdbNodeDeletionCallbackType)(CANdbNode *pInstance);
 typedef void (*CANdbAttributeDeletionCallbackType)(CANdbAttribute *pInstance);
 typedef void (*CANdbAttributeDefinitionDeletionCallbackType)(CANdbAttributeDefinition *pInstance);
 typedef void (*CANdbEnumValueDeletionCallbackType)(CANdbEnumValue *pInstance);
+typedef void (*CANdbScheduleTableDeletionCallbackType)(CANdbScheduleTable *pInstance);
+typedef void (*CANdbScheduleTableEntryDeletionCallbackType)(CANdbScheduleTableEntry *pInstance);
 
 #ifdef OPT_CANDB_INT64
 #include "pf.h"
@@ -131,7 +142,7 @@ typedef PfUInt64 CANdbLargeUnsignedInteger;
 //typedef unsigned __int64 CANdbLargeUnsignedInteger;
 #endif
 
-void candb_set_string (char **var, const char *s);
+void candb_set_string (char *&var, const char *s);
 
 // ****************************************************************************
 
@@ -201,24 +212,24 @@ class CANdbEnumValue {
         friend class CANdbSignal;
 
         char *name;
-        int  value;
+        unsigned int value;
         CANdbEnumValue *next;
 
       public:
-        CANdbEnumValue (int value, const char *name);
+        CANdbEnumValue (unsigned int value, const char *name);
         ~CANdbEnumValue ();
 
         static void register_deletion_callback(CANdbEnumValueDeletionCallbackType pFunc) {
           CANdbEnumValue::DeletionCallback = pFunc;
         }
 
-        void set_name (const char*);
-        void set_value (int v);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_value (unsigned int v) { value = v; }
 
         void set_next (CANdbEnumValue* n) { next = n; }
         CANdbEnumValue* get_next (void) const { return next; }
         const char* get_name () const { return name; }
-        int get_value () const { return value; }
+        unsigned int get_value () const { return value; }
 
         void extend_memory_range (CANdbMemoryRange& mr) const;
 
@@ -356,28 +367,15 @@ class CANdbAttributeDefinition {
 
         union {
           struct {
-            EnumEntry   *first_enum_entry,
-                        *last_enum_entry;
+            EnumEntry   *enum_entries;
             int         default_value;
           } enumeration;
 
           struct {
-            unsigned int min,
-                        max,
-                        default_value;
-          } hex;
-
-          struct {
-            int         min,
-                        max,
-                        default_value;
-          } integer;
-
-          struct {
-            double      min,
-                        max,
-                        default_value;
-          } fp;
+            double min,
+                   max,
+                   default_value;
+          } numeric;
 
           struct {
             char       *default_value;
@@ -395,7 +393,7 @@ class CANdbAttributeDefinition {
 
         void clear_property (void);
 
-        void set_name (const char *n);
+        void set_name (const char *s) { candb_set_string (name, s); }
         void set_type (CANdbAttributeType t);
         void set_owner (CANdbAttributeOwner o) { owner = o; }
         void set_next (CANdbAttributeDefinition *n) { next = n; }
@@ -419,29 +417,29 @@ class CANdbAttributeDefinition {
 
         void set_enumeration_default (int d) { property.enumeration.default_value = d; }
 
-        unsigned int get_hex_min (void) const { return property.hex.min; }
-        unsigned int get_hex_max (void) const { return property.hex.max; }
-        unsigned int get_hex_default (void) const { return property.hex.default_value; }
-        void set_hex_min (unsigned int m) { property.hex.min = m; }
-        void set_hex_max (unsigned int m) { property.hex.max = m; }
-        void set_hex_default (unsigned int d) { property.hex.default_value = d; }
+        unsigned int get_hex_min (void) const { return static_cast<unsigned int> (property.numeric.min); }
+        unsigned int get_hex_max (void) const { return static_cast<unsigned int> (property.numeric.max); }
+        unsigned int get_hex_default (void) const { return static_cast<unsigned int> (property.numeric.default_value); }
+        void set_hex_min (unsigned int m) { property.numeric.min = m; }
+        void set_hex_max (unsigned int m) { property.numeric.max = m; }
+        void set_hex_default (unsigned int d) { property.numeric.default_value = d; }
 
-        int get_integer_min (void) const { return property.integer.min; }
-        int get_integer_max (void) const { return property.integer.max; }
-        int get_integer_default (void) const { return property.integer.default_value; }
-        void set_integer_min (int m) { property.integer.min = m; }
-        void set_integer_max (int m) { property.integer.max = m; }
-        void set_integer_default (int d) { property.integer.default_value = d; }
+        int get_integer_min (void) const { return static_cast<unsigned int> (property.numeric.min); }
+        int get_integer_max (void) const { return static_cast<int> (property.numeric.max); }
+        int get_integer_default (void) const { return static_cast<int> (property.numeric.default_value); }
+        void set_integer_min (int m) { property.numeric.min = m; }
+        void set_integer_max (int m) { property.numeric.max = m; }
+        void set_integer_default (int d) { property.numeric.default_value = d; }
 
-        double get_float_min (void) const { return property.fp.min; }
-        double get_float_max (void) const { return property.fp.max; }
-        double get_float_default (void) const { return property.fp.default_value; }
-        void set_float_min (double m) { property.fp.min = m; }
-        void set_float_max (double m) { property.fp.max = m; }
-        void set_float_default (double d) { property.fp.default_value = d; }
+        double get_float_min (void) const { return property.numeric.min; }
+        double get_float_max (void) const { return property.numeric.max; }
+        double get_float_default (void) const { return property.numeric.default_value; }
+        void set_float_min (double m) { property.numeric.min = m; }
+        void set_float_max (double m) { property.numeric.max = m; }
+        void set_float_default (double d) { property.numeric.default_value = d; }
 
         const char *get_string_default (void) const { return property.string.default_value; }
-        void set_string_default (const char *d);
+        void set_string_default (const char *d) { candb_set_string (property.string.default_value, d); }
       };
 
 
@@ -497,7 +495,7 @@ class CANdbAttributeList {
         void insert (CANdbAttribute *attr);
         void remove (CANdbAttribute *attr);
         CANdbAttribute *find_by_name (const char *name) const;
-        CANdbAttribute *find_by_definition (CANdbAttributeDefinition *definition);
+        CANdbAttribute *find_by_definition (CANdbAttributeDefinition *definition) const;
         CANdbAttribute *get_first_attribute (void) const { return first_attribute; }
       };
 
@@ -650,7 +648,7 @@ class CANdbSignal {
 
         CANdbSignal &operator= (const CANdbSignal &right_side_signal);
 
-        int add_value (int value, const char *name);
+        int add_value (unsigned int value, const char *name);
         int remove_value (CANdbEnumValue *val);
         CANdbEnumValue *get_first_value (void);
         CANdbEnumValue *get_first_value (void) const { return first_value; }
@@ -663,9 +661,9 @@ class CANdbSignal {
 
         void extend_memory_range (CANdbMemoryRange& mr) const;
 
-        void set_name (const char *name);
-        void set_comment (const char *comment);
-        void set_unit (const char *unit);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_comment (const char *s) { candb_set_string (comment, s); }
+        void set_unit (const char *s) { candb_set_string (unit, s); }
         void set_min_val (double mv) { min_val = mv; }
         void set_max_val (double mv) { max_val = mv; }
         void set_offset (double o) { offset = o; update_scaled_type (); }
@@ -713,7 +711,7 @@ class CANdbSignal {
         int get_value_uint (const unsigned char* can_data, int dlc, uint64_t &value) const;
         int get_value_float (const unsigned char* can_data, int dlc, double &value) const;
         int get_value_double (const unsigned char* can_data, int dlc, double &value) const;
-        const char* get_value_string (int value) const;
+        const char* get_value_string (unsigned int value) const;
         const char* get_value_string (const unsigned char* can_data, int dlc) const;
         int convert_enum_value_to_int (const char *s);
 
@@ -741,6 +739,26 @@ class CANdbSignal {
       };
 
 
+class CANdbSignalGroup {
+  static CANdbSignalGroupDeletionCallbackType DeletionCallback;
+
+public:
+  CANdbSignalGroup(std::string name, CANdbMessage *message, unsigned int repetitions, std::vector<CANdbSignal *> signals)
+    : name(std::move(name)), message(message), repetitions(repetitions), signals(signals) {}
+  ~CANdbSignalGroup();
+
+  static void register_deletion_callback(CANdbSignalGroupDeletionCallbackType pFunc) {
+    DeletionCallback = pFunc;
+  }
+
+  std::string name;
+  CANdbMessage *message;
+  unsigned int repetitions;
+  std::vector<CANdbSignal *> signals;
+  CANdbSignalGroup *next = NULL;
+};
+
+
 class CANdbMessage {
       public:
         enum j1939Type {
@@ -760,9 +778,9 @@ class CANdbMessage {
 
         char *get_qualified_name (char *buffer, int buflen) const;
 
-        void set_name (const char *name);
-        void set_send_node (CANdbNode *sender);
-        void set_comment (const char *comment);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_send_node (CANdbNode *sender) { send_node = sender; }
+        void set_comment (const char *s) { candb_set_string (comment, s); }
         void set_id (unsigned int i) { id = i; }
         void set_dlc (int l) { dlc = l; }
         void set_extended (bool e) { extended = e; }
@@ -807,6 +825,9 @@ class CANdbMessage {
         CANdbAttributeList *get_attributes (void) { return &attributes; }
         const CANdbAttributeList *get_const_attributes (void) const { return &attributes; }
 
+        CANdbSignalGroup *get_first_signal_group () const { return first_signal_group; }
+        void insert_signal_group (CANdbSignalGroup *signal_group);
+
         void setup ();
 
       private:
@@ -818,6 +839,7 @@ class CANdbMessage {
                                 *last_signal,
                                 *current_signal;
         int                      signal_count;
+        CANdbSignalGroup *first_signal_group;
         int                      dlc;
         unsigned int             pgn_mask; //same type as id
         bool                     extended;
@@ -849,8 +871,8 @@ class CANdbNode {
         void set_candb (CANdb *_candb) { candb = _candb; }
         CANdb *get_candb (void) const { return candb; }
 
-        void set_name (const char *name);
-        void set_comment (const char *comment);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_comment (const char *s) { candb_set_string (comment, s); }
         void set_next (CANdbNode *n) { next = n; }
         void set_master (bool m) { master = m; }
 
@@ -911,16 +933,16 @@ class CANdbEnvVariable {
         CANdbEnvVariable ();
         ~CANdbEnvVariable ();
 
-        void set_name (const char *s) { candb_set_string (&name, s); }
-        void set_comment (const char *s) { candb_set_string (&comment, s); }
-        void set_unit (const char *s) { candb_set_string (&unit, s); }
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_comment (const char *s) { candb_set_string (comment, s); }
+        void set_unit (const char *s) { candb_set_string (unit, s); }
         void set_min_val (double mv) { min_val = mv; }
         void set_max_val (double mv) { max_val = mv; }
         void set_start_value (double sv) { start_value = sv; }
         void set_access (CANdbEnvVarAccess a) { access = a;}
         void set_type (CANdbEnvVarType t) { type = t; }
         void set_num_id (unsigned n) { num_id = n; }
-        void set_dummy_node (const char *s) { candb_set_string (&dummy_node, s); }
+        void set_dummy_node (const char *s) { candb_set_string (dummy_node, s); }
         void set_data(double v) { data = v; data_flag = true; }
         void set_candb (CANdb *_candb) { candb = _candb; }
 
@@ -942,8 +964,8 @@ class CANdbEnvVariable {
         void add_receive_node (CANdbNode *node);
         CANdbNodeEntry *get_first_receive_node_entry () const { return first_node; }
 
-        int add_value (int value, const char *name);
-        const char* get_value_string (int value) const;
+        int add_value (unsigned int value, const char *name);
+        const char* get_value_string (unsigned int value) const;
         CANdbEnumValue *get_first_value (void) const { return first_value; }
         bool has_symbolic_values (void) const { return first_value != 0; }
 
@@ -967,6 +989,10 @@ class CANdbScheduleTableEntry {
         CANdbScheduleTableEntry (CANdbMessage *m, double d);
         ~CANdbScheduleTableEntry ();
 
+        static void register_deletion_callback(CANdbScheduleTableEntryDeletionCallbackType pFunc) {
+          CANdbScheduleTableEntry::DeletionCallback = pFunc;
+        }
+
         CANdbMessage *get_message () const { return message; }
         //CANdbMessageData *get_message_data () const { return message_data; }
         double get_delay () const { return delay; }
@@ -976,13 +1002,17 @@ class CANdbScheduleTableEntry {
         //void set_message_data (CANdbMessageData *md) { message_data = md; }
         void set_delay (double d) { delay = d; }
         void set_next (CANdbScheduleTableEntry *n) { next = n; }
+
+      private:
+        static CANdbScheduleTableEntryDeletionCallbackType DeletionCallback;
       };
 
 
 class CANdbScheduleTable {
         char                    *name;
         CANdbScheduleTableEntry *first_entry,
-                                *last_entry;
+                                *last_entry,
+                                *current_entry;
         CANdbScheduleTable      *next;
         int                     entry_count;
 
@@ -990,17 +1020,31 @@ class CANdbScheduleTable {
         CANdbScheduleTable ();
         ~CANdbScheduleTable ();
 
-        void set_name (const char *name);
+        static void register_deletion_callback(CANdbScheduleTableDeletionCallbackType pFunc) {
+          CANdbScheduleTable::DeletionCallback = pFunc;
+        }
+
+        char *get_qualified_name (char *buffer, int buflen) const;
+
+        void set_candb (CANdb *_candb) { candb = _candb; }
+        void set_name (const char *s) { candb_set_string (name, s); }
         void set_next (CANdbScheduleTable *n) { next = n; }
+
+        CANdb *get_candb (void) const { return candb; }
 
         void insert_message (CANdbMessage *message, double delay);
         void remove_message (CANdbMessage *message);
 
-        CANdbScheduleTableEntry *get_first_entry () const { return first_entry; }
+        CANdbScheduleTableEntry *get_first_entry ();
+        CANdbScheduleTableEntry *get_next_entry ();
 
         const char *get_name () const { return name; }
         CANdbScheduleTable *get_next () const { return next; }
         int get_entry_count () const { return entry_count; }
+
+      private:
+        static CANdbScheduleTableDeletionCallbackType DeletionCallback;
+        CANdb                                         *candb; // pointer to parent object
       };
 
 
@@ -1049,8 +1093,8 @@ class CANdbSignalEncoding {
         CANdbSignalEncoding ();
         ~CANdbSignalEncoding ();
 
-        void set_name (const char *name);
-        void set_unit (const char *name);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_unit (const char *s) { candb_set_string (unit, s); }
         void set_next (CANdbSignalEncoding *n) { next = n; }
 
         const char *get_name () const { return name; }
@@ -1063,7 +1107,7 @@ class CANdbSignalEncoding {
 
         void add_value (CANdbEnumValue *value);
         void add_value (int value, const char *name);
-        const char* get_value_string (int value) const;
+        const char* get_value_string (unsigned int value) const;
         CANdbEnumValue *get_first_value (void) { return first_value; }
       };
 
@@ -1089,9 +1133,9 @@ class CANdb {
         j1939Type get_j1939Type ()         const { return j1939; }
         void      set_j1939Type (j1939Type to)   { j1939 = to; };
 
-        void set_name (const char *name);
-        void set_filename (const char *filename);
-        void set_comment (const char *comment);
+        void set_name (const char *s) { candb_set_string (name, s); }
+        void set_filename (const char *s) { candb_set_string (filename, s); }
+        void set_comment (const char *s) { candb_set_string (comment, s); }
         void set_next (CANdb *n) { next = n; }
 
         char *get_name (void) const { return name; }
@@ -1144,7 +1188,8 @@ class CANdb {
         int get_schedule_table_count () const { return schedule_table_count; }
         void insert_schedule_table (CANdbScheduleTable *st);
         CANdbScheduleTable *find_schedule_table_by_name (const char *name) const;
-        CANdbScheduleTable *get_first_schedule_table () const { return first_schedule_table; }
+        CANdbScheduleTable *get_first_schedule_table ();
+        CANdbScheduleTable *get_next_schedule_table ();
 
       // signal encoding
         bool has_signal_encoding () const { return signal_encoding_count != 0; }
@@ -1198,7 +1243,8 @@ class CANdb {
 
         // schedule tables
         CANdbScheduleTable      *first_schedule_table,
-                                *last_schedule_table;
+                                *last_schedule_table,
+                                *current_schedule_table;
         int                     schedule_table_count;
 
         // signal encoding
@@ -1230,7 +1276,7 @@ class CANdbCluster {
 
         unsigned int get_candb_count () const { return candb_count; }
 
-        //void set_default_name (const char *);
+        //void set_default_name (const char *s) { candb_set_string (default_name, s); }
         //const char *get_default_name () const { return default_name; }
 
         void add_db (CANdb *db);
@@ -1252,6 +1298,10 @@ class CANdbCluster {
         CANdbNode *find_node_by_name (const char *name) const;
 
         CANdb* find_candb_by_message (CANdbMessage *message) const;
+
+        CANdbScheduleTable *get_first_schedule_table ();
+        CANdbScheduleTable *get_next_schedule_table ();
+        CANdbScheduleTable *find_schedule_table_by_name (const char *name) const;
 
         bool is_j1939_message (const char *message_name) const;
 
@@ -1299,19 +1349,19 @@ class CANdbFileIo {
         bool is_read_ok () const { return read_ok; }
         void set_read_ok (bool r) { read_ok = r; }
 
-        void set_filename (const char *filename);
+        void set_filename (const char *s) { candb_set_string (filename, s); }
         const char *get_filename () const { return filename; }
 
         const char *get_db_name () const;
         void set_dbname (CANdb *db);
 
-        void set_file_format (CANdbFileFormat *ff);
+        void set_file_format (CANdbFileFormat *ff) { file_format = ff; }
         CANdbFileFormat *get_file_format () const { return file_format; }
 
         virtual int read_file (CANdb *db) = 0;
         virtual int save_file (CANdb *db) = 0;
 
-        void set_errorlog(const char* msg);
+        void set_errorlog(const char* msg) { candb_set_string (errorlog, msg); }
         void append_errorlog(const char* msg);
         void get_errorlog(char *msg, unsigned int *buflen);
       };
@@ -1354,7 +1404,7 @@ class CANdbFileFormat {
         static CANdbFileFormat* get_first_candb_file_format ();
         static CANdbFileFormat* get_candb_file_format_by_name (const char *name);
         static CANdbFileFormat* get_candb_file_format_by_extension (const char *extension);
-        static CANdbFileIo* build (const char *name);
+        static CANdbFileIo* build (const char *filename);
       };
 
 

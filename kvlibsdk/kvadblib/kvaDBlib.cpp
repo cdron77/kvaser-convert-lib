@@ -71,18 +71,21 @@
 #include "kvaDbLib.h"
 #include "CANdb.h"
 #include "CANdbDbc.h"
+#include "CANdbLdf.h"
 #include "kvdebug.h"
-#include "compilerassert.h"
 
 #include "handle_template.h"
 
-static handle_class<CANdbCluster*,             KvaDbHnd>             kvadbhnd;
-static handle_class<CANdbMessage*,             KvaDbMessageHnd>      kvadbmessagehnd;
-static handle_class<CANdbSignal*,              KvaDbSignalHnd>       kvadbsignalhnd;
-static handle_class<CANdbNode*,                KvaDbNodeHnd>         kvadbnodehnd;
-static handle_class<CANdbAttribute*,           KvaDbAttributeHnd>    kvadbattributehnd;
-static handle_class<CANdbAttributeDefinition*, KvaDbAttributeDefHnd> kvadbattributedefhnd;
-static handle_class<CANdbEnumValue*,           KvaDbEnumValueHnd >   kvadbenumvaluehnd;
+static handle_class<CANdbCluster*,             KvaDbHnd>                   kvadbhnd;
+static handle_class<CANdbMessage*,             KvaDbMessageHnd>            kvadbmessagehnd;
+static handle_class<CANdbSignal*,              KvaDbSignalHnd>             kvadbsignalhnd;
+static handle_class<CANdbSignalGroup*,         KvaDbSignalGroupHnd>        kvadbsignalgrouphnd;
+static handle_class<CANdbNode*,                KvaDbNodeHnd>               kvadbnodehnd;
+static handle_class<CANdbAttribute*,           KvaDbAttributeHnd>          kvadbattributehnd;
+static handle_class<CANdbAttributeDefinition*, KvaDbAttributeDefHnd>       kvadbattributedefhnd;
+static handle_class<CANdbEnumValue*,           KvaDbEnumValueHnd>          kvadbenumvaluehnd;
+static handle_class<CANdbScheduleTable*,       KvaDbScheduleTableHnd>      kvadbscheduletablehnd;
+static handle_class<CANdbScheduleTableEntry*,  KvaDbScheduleTableEntryHnd> kvadbscheduletableentryhnd;
 
 static KvaDbStatus get_enum_value(CANdbEnumValue *e, int *val, char *buf, size_t buflen);
 static int roundi(double x) { return (int)(x+(x>0.0?0.5:-0.5)); }
@@ -115,6 +118,8 @@ void NodeDeletionCallback(CANdbNode *pNode) { kvadbnodehnd.remove(pNode); }
 void AttributeDeletionCallback(CANdbAttribute *pAttr) { kvadbattributehnd.remove(pAttr); }
 void AttributeDefinitionDeletionCallback(CANdbAttributeDefinition *pAttrDef) { kvadbattributedefhnd.remove(pAttrDef); }
 void EnumValueDeletionCallback(CANdbEnumValue *pEnumValue) { kvadbenumvaluehnd.remove(pEnumValue); }
+void ScheduleTableDeletionCallback(CANdbScheduleTable *pScheduleTable) { kvadbscheduletablehnd.remove(pScheduleTable); }
+void ScheduleTableEntryDeletionCallback(CANdbScheduleTableEntry *pScheduleTableEntry) { kvadbscheduletableentryhnd.remove(pScheduleTableEntry); }
 
 /**
  * Register deletion callbacks if not already done
@@ -134,6 +139,8 @@ static void RegisterDeletionCallbacks(void)
     CANdbAttribute::register_deletion_callback(AttributeDeletionCallback);
     CANdbAttributeDefinition::register_deletion_callback(AttributeDefinitionDeletionCallback);
     CANdbEnumValue::register_deletion_callback(EnumValueDeletionCallback);
+    CANdbScheduleTable::register_deletion_callback(ScheduleTableDeletionCallback);
+    CANdbScheduleTableEntry::register_deletion_callback(ScheduleTableEntryDeletionCallback);
     hasRegisteredCallbacks = true;
   }
 }
@@ -163,14 +170,20 @@ KvaDbStatus WINAPI kvaDbAddFile(KvaDbHnd dh, const char *filename)
   CANdbCluster *dc = kvadbhnd.convert(dh);
   CANdb        *db = new CANdb;
 
-  CANdbDBC dbcio (filename);
-
-  if (dbcio.read_file(db) != 0) {
+  CANdbFileIo* dbfio = CANdbFileFormat::build(filename);
+  if (dbfio == NULL)
+  {
+    delete db;
+    return kvaDbErr_DbFileOpen;
+  }
+  
+  if (dbfio->read_file(db) != 0) {
 
     unsigned int buflen = ERRORLOG_MAXLEN;
-    dbcio.get_errorlog(errorlog, &buflen);
+    dbfio->get_errorlog(errorlog, &buflen);
 
     delete db;
+    delete dbfio;
 
     if (strlen(errorlog)>0)
       return kvaDbErr_DbFileParse;
@@ -181,10 +194,10 @@ KvaDbStatus WINAPI kvaDbAddFile(KvaDbHnd dh, const char *filename)
     errorlog[0] = '\0';
   }
 
-  db->set_name(dbcio.get_db_name());
+  db->set_name(dbfio->get_db_name());
   db->set_filename(filename);
   dc->add_db(db);
-
+  delete dbfio;
   return kvaDbOK;
 }
 
@@ -227,13 +240,20 @@ KvaDbStatus WINAPI kvaDbCreate (KvaDbHnd dh, const char *localName, const char *
     CANdbCluster *dc = kvadbhnd.convert(dh);
     CANdb        *db = new CANdb;
 
-    CANdbDBC dbcio (filename);
-    if (dbcio.read_file(db) != 0) {
+    CANdbFileIo* dbfio = CANdbFileFormat::build(filename);
+    if (dbfio == NULL)
+    {
+      delete db;
+      return kvaDbErr_DbFileOpen;
+    }
+
+    if (dbfio->read_file(db) != 0) {
 
       unsigned int buflen = ERRORLOG_MAXLEN;
-      dbcio.get_errorlog(errorlog, &buflen);
+      dbfio->get_errorlog(errorlog, &buflen);
 
       delete db;
+      delete dbfio;
 
       if (strlen(errorlog)>0)
         return kvaDbErr_DbFileParse;
@@ -246,6 +266,7 @@ KvaDbStatus WINAPI kvaDbCreate (KvaDbHnd dh, const char *localName, const char *
     db->set_name(localName);
     db->set_filename(filename);
     dc->add_db(db);
+    delete dbfio;
     return kvaDbOK;
   }
 }
@@ -292,9 +313,12 @@ static const char *errmsg[] = {"OK",
                                "Wrong owner for attribute",
                                "An item is in use",
                                "The supplied buffer is too small to hold the result",
-                               "Could not parse the database file"};
-#define KVADB_NUM_ERRORS (-kvaDbErr_DbFileParse + 1)
-CompilerAssert(sizeof(errmsg) == KVADB_NUM_ERRORS * sizeof(char*));
+                               "Could not parse the database file",
+                               "No signal group was found",
+                               "No schedule table was found",
+                               "No schedule table entry was found"};
+#define KVADB_NUM_ERRORS (-kvaDbErr_NoScheduleTableEntry + 1)
+static_assert(sizeof(errmsg) / sizeof(char*) == KVADB_NUM_ERRORS, "Wrong number of error strings");
 
 //===========================================================================
 // Provides description of error code to specified buffer
@@ -385,13 +409,20 @@ KvaDbStatus WINAPI kvaDbReadFile(KvaDbHnd dh, char* filename)
   CANdbCluster *dc = kvadbhnd.convert(dh);
   CANdb        *db = new CANdb;
 
-  CANdbDBC dbcio (filename);
-  if (dbcio.read_file(db) != 0) {
+  CANdbFileIo* dbfio = CANdbFileFormat::build(filename);
+  if (dbfio == NULL)
+  {
+    delete db;
+    return kvaDbErr_DbFileOpen;
+  }
+
+  if (dbfio->read_file(db) != 0) {
 
     unsigned int buflen = ERRORLOG_MAXLEN;
-    dbcio.get_errorlog(errorlog, &buflen);
+    dbfio->get_errorlog(errorlog, &buflen);
 
     delete db;
+    delete dbfio;
 
     if (strlen(errorlog)>0)
       return kvaDbErr_DbFileParse;
@@ -401,10 +432,10 @@ KvaDbStatus WINAPI kvaDbReadFile(KvaDbHnd dh, char* filename)
   } else {
     errorlog[0] = '\0';
   }
-  db->set_name(dbcio.get_db_name());
+  db->set_name(dbfio->get_db_name());
   db->set_filename(filename);
   dc->add_db(db);
-
+  delete dbfio;
   return kvaDbOK;
 }
 
@@ -434,7 +465,8 @@ KvaDbStatus WINAPI kvaDbGetFlags(KvaDbHnd dh, unsigned int *flags)
 #define KVADB_NUM_PROTOCOLS (kvaDb_ProtocolUnknown + 1)
 static const char *KVADBPROTOCOL_STRINGS[] = {"CAN", "Van", "Lin", "MOST", "FlexRay", "BEAN",
                                                  "Ethernet", "AFDX", "J1708", "CAN FD", ""};
-CompilerAssert(sizeof(KVADBPROTOCOL_STRINGS) == KVADB_NUM_PROTOCOLS * sizeof(char*));
+static_assert(sizeof(KVADBPROTOCOL_STRINGS) == KVADB_NUM_PROTOCOLS * sizeof(char*),
+  "Wrong number of protocol strings");
 
 static const char *KVADBPROTOCOL_ATTRNAME = "BusType";
 static const KvaDbProtocolProperties KVADB_PROTOCOL_PROPERTIES[KVADB_NUM_PROTOCOLS] = \
@@ -585,7 +617,7 @@ KvaDbStatus WINAPI kvaDbSetProtocol(KvaDbHnd dh, KvaDbProtocolType prot)
   }
 
   if (NULL != prot_attr) {
-    prot_attr->set_string_value(KVADBPROTOCOL_STRINGS[prot]); //note earlier CompilerAssert
+    prot_attr->set_string_value(KVADBPROTOCOL_STRINGS[prot]); //note earlier static_assert
   }
 
   return kvaDbOK;
@@ -1847,6 +1879,69 @@ KvaDbStatus WINAPI kvaDbSetSignalRepresentationType(KvaDbSignalHnd sh, KvaDbSign
       return kvaDbErr_Param;
   }
 
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetFirstSignalGroup(KvaDbMessageHnd mh, KvaDbSignalGroupHnd *sgh) {
+  if (!kvadbmessagehnd.is_valid(mh) || !sgh) return kvaDbErr_Param;
+
+  CANdbMessage *m = kvadbmessagehnd.convert(mh);
+  CANdbSignalGroup *sg = m->get_first_signal_group();
+  if (!sg) {
+    *sgh = NULL;
+    return kvaDbErr_NoSignalGroup;
+  }
+
+  KvaDbStatus status;
+  status = kvadbsignalgrouphnd.find_or_add(sg, sgh);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+KvaDbStatus WINAPI kvaDbGetNextSignalGroup(KvaDbMessageHnd mh, KvaDbSignalGroupHnd *sgh) {
+  (void) mh;
+  if (!kvadbsignalgrouphnd.is_valid(*sgh)) return kvaDbErr_Param;
+
+  CANdbSignalGroup *sg = kvadbsignalgrouphnd.convert(*sgh);
+  if (!sg->next) {
+    *sgh = nullptr;
+    return kvaDbErr_NoSignalGroup;
+  }
+
+  KvaDbStatus status;
+  status = kvadbsignalgrouphnd.find_or_add(sg->next, sgh);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+  return kvaDbOK;
+}
+
+KvaDbStatus WINAPI kvaDbGetSignalGroupName(KvaDbSignalGroupHnd sgh, char *buf, size_t *len) {
+  if (!kvadbsignalgrouphnd.is_valid(sgh) || !len) return kvaDbErr_Param;
+  CANdbSignalGroup *sg = kvadbsignalgrouphnd.convert(sgh);
+  if (*len) {
+    size_t n = *len - 1 < sg->name.length() ? *len - 1 : sg->name.length();
+    memcpy(buf, sg->name.c_str(), n);
+    buf[n] = 0;
+  }
+  *len = sg->name.length() + 1;
+  return kvaDbOK;
+}
+
+KvaDbStatus WINAPI kvaDbGetSignalGroupSize(KvaDbSignalGroupHnd sgh, size_t *out) {
+  if (!kvadbsignalgrouphnd.is_valid(sgh) || !out) return kvaDbErr_Param;
+  CANdbSignalGroup *sg = kvadbsignalgrouphnd.convert(sgh);
+  *out = sg->signals.size();
+  return kvaDbOK;
+}
+
+KvaDbStatus WINAPI kvaDbIndexSignalGroup(KvaDbSignalGroupHnd sgh, size_t i, KvaDbSignalHnd *out) {
+  if (!kvadbsignalgrouphnd.is_valid(sgh)) return kvaDbErr_Param;
+  CANdbSignalGroup *sg = kvadbsignalgrouphnd.convert(sgh);
+  if (i >= sg->signals.size()) return kvaDbErr_NoSignal;
+  KvaDbStatus status;
+  status = kvadbsignalhnd.find_or_add(sg->signals[i], out);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
   return kvaDbOK;
 }
 
@@ -3411,6 +3506,178 @@ static KvaDbStatus get_enum_value(CANdbEnumValue *e, int *val, char *buf, size_t
   *val = e->get_value();
   strncpy(buf, e->get_name(), buflen);
   buf[buflen-1] = 0;
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetFirstScheduleTable(KvaDbHnd dh, KvaDbScheduleTableHnd *th)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *th = NULL;
+
+  if (!kvadbhnd.is_valid(dh) || !th) return kvaDbErr_Param;
+
+  CANdbCluster *dc = kvadbhnd.convert(dh);
+  if (!dc) return kvaDbErr_NoDatabase;
+
+  CANdbScheduleTable *st = dc->get_first_schedule_table();
+  if (!st) return kvaDbErr_NoScheduleTable;
+
+  status = kvadbscheduletablehnd.find_or_add(st, th);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetNextScheduleTable(KvaDbHnd dh, KvaDbScheduleTableHnd *th)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *th = NULL;
+
+  if (!kvadbhnd.is_valid(dh) || !th) return kvaDbErr_Param;
+
+  CANdbCluster *dc = kvadbhnd.convert(dh);
+  if (!dc) return kvaDbErr_NoDatabase;
+
+  CANdbScheduleTable *st = dc->get_next_schedule_table();
+  if (!st) return kvaDbErr_NoScheduleTable;
+
+  status = kvadbscheduletablehnd.find_or_add(st, th);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetScheduleTableByName(KvaDbHnd dh, const char *schedule_table_name, KvaDbScheduleTableHnd *th)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *th = NULL;
+
+  if (!kvadbhnd.is_valid(dh) || !th) return kvaDbErr_Param;
+
+  CANdbCluster *dc = kvadbhnd.convert(dh);
+  if (!dc) return kvaDbErr_NoDatabase;
+
+  CANdbScheduleTable *st = dc->find_schedule_table_by_name(schedule_table_name);
+  if (!st) return kvaDbErr_NoScheduleTable;
+
+  status = kvadbscheduletablehnd.find_or_add(st, th);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetScheduleTableName(KvaDbScheduleTableHnd th, char *buf, size_t buflen)
+{
+  RegisterDeletionCallbacks();
+  if (!kvadbscheduletablehnd.is_valid(th)) return kvaDbErr_Param;
+  if (!buf || (buflen == 0))               return kvaDbErr_Param;
+
+  CANdbScheduleTable *st = kvadbscheduletablehnd.convert(th);
+  if (st && st->get_name()) strncpy(buf, st->get_name(), buflen);
+  else strcpy(buf, "");
+  buf[buflen-1] = 0;
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetScheduleTableQualifiedName(KvaDbScheduleTableHnd th, char *buf, size_t buflen)
+{
+  RegisterDeletionCallbacks();
+  if (!kvadbscheduletablehnd.is_valid(th)) return kvaDbErr_Param;
+  if (!buf || (buflen == 0))               return kvaDbErr_Param;
+
+  CANdbScheduleTable *st = kvadbscheduletablehnd.convert(th);
+
+  st->get_qualified_name(buf, (int)buflen);
+  if (buflen > 0) {
+    buf[buflen-1] = 0;
+  }
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetFirstScheduleTableEntry(KvaDbScheduleTableHnd th, KvaDbScheduleTableEntryHnd *eh)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *eh = NULL;
+
+  if (!kvadbscheduletablehnd.is_valid(th) || !eh) return kvaDbErr_Param;
+
+  CANdbScheduleTable *st = kvadbscheduletablehnd.convert(th);
+  if (!st) return kvaDbErr_NoScheduleTable;
+
+  CANdbScheduleTableEntry *e = st->get_first_entry();
+  if (!e) return kvaDbErr_NoScheduleTableEntry;
+
+  status = kvadbscheduletableentryhnd.find_or_add(e, eh);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetNextScheduleTableEntry(KvaDbScheduleTableHnd th, KvaDbScheduleTableEntryHnd *eh)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *eh = NULL;
+
+  if (!kvadbscheduletablehnd.is_valid(th) || !eh) return kvaDbErr_Param;
+
+  CANdbScheduleTable *st = kvadbscheduletablehnd.convert(th);
+  if (!st) return kvaDbErr_NoScheduleTable;
+
+  CANdbScheduleTableEntry *e = st->get_next_entry();
+  if (!e) return kvaDbErr_NoScheduleTableEntry;
+
+  status = kvadbscheduletableentryhnd.find_or_add(e, eh);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetScheduleTableEntryMsg(KvaDbScheduleTableEntryHnd eh, KvaDbMessageHnd *mh)
+{
+  RegisterDeletionCallbacks();
+  KvaDbStatus status;
+  *mh = NULL;
+
+  if (!kvadbscheduletableentryhnd.is_valid(eh) || !mh) return kvaDbErr_Param;
+
+  CANdbScheduleTableEntry *e = kvadbscheduletableentryhnd.convert(eh);
+  if (!e) return kvaDbErr_NoScheduleTableEntry;
+
+  CANdbMessage *m = e->get_message();
+  if (!m) return kvaDbErr_NoMsg;
+
+  status = kvadbmessagehnd.find_or_add(m, mh);
+  if (status != kvaDbOK) return kvaDbErr_Internal;
+
+  return kvaDbOK;
+}
+
+//===========================================================================
+KvaDbStatus WINAPI kvaDbGetScheduleTableEntryDelay(KvaDbScheduleTableEntryHnd eh, double *delay)
+{
+  RegisterDeletionCallbacks();
+
+  if (!kvadbscheduletableentryhnd.is_valid(eh) || !delay) return kvaDbErr_Param;
+
+  CANdbScheduleTableEntry *e = kvadbscheduletableentryhnd.convert(eh);
+  if (!e) return kvaDbErr_NoScheduleTableEntry;
+
+  *delay = e->get_delay();
   return kvaDbOK;
 }
 
