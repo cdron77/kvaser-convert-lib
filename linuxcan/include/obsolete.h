@@ -62,8 +62,11 @@
  * \file obsolete.h
  * \brief Definitions which are retained for compatibility.
  * \details
+ * \defgroup Obsolete Obsolete API Reference
+ * \ingroup grp_canlib
+ * \brief Definitions which are retained for compatibility.
+ * @{
 */
-
 
 #ifndef _OBSOLETE_H_
 #define _OBSOLETE_H_
@@ -77,7 +80,9 @@
 #define canCHANNEL_CAP_DIAGNOSTICS      0x10000000L               ///< Obsolete, use canCHANNEL_CAP_CANTEGRITY instead.
 #define canCHANNEL_CAP_CAN_DIAGNOSTICS  canCHANNEL_CAP_RESERVED_2 ///< Obsolete, can report CAN diagnostics. Only used by LAPcan driver.
 #define canCHANNEL_CAP_REMOTE           canCHANNEL_CAP_RESERVED_1 ///< Obsolete, use \ref canCHANNEL_CAP_REMOTE_ACCESS or \ref canCHANNELDATA_IS_REMOTE
-
 /** @} */
 
+
 #endif /* _OBSOLETE_H_ */
+
+/** @} */

@@ -235,7 +235,7 @@ typedef struct VCanChanData {
     unsigned int busOnCount;
     struct VCanOpenFileNode *openFileList;
 
-    struct completion busOnCountCompletion;
+    struct mutex busOnCountLock;
 
     spinlock_t openLock;
     void *hwChanData;

@@ -1562,7 +1562,7 @@ canStatus CANLIBAPI canTranslateBaud(long *const freq,
  * \param[in]     hnd       A handle to an open circuit.
  * \param[in]     freq      Bitrate constant, \ref canBITRATE_xxx.
  * \param[in,out] nominal   A pointer to a \ref kvBusParamsTq, upon return receives
- *                          the bus busparamters specified by \a freq.
+ *                          the bus busparameters specified by \a freq.
  *
  * \return \ref canOK (zero) is success
  * \return \ref canERR_xxx (negative) if failure
@@ -1589,9 +1589,9 @@ canStatus CANLIBAPI kvBitrateToBusParamsTq(const canHandle hnd,
  * \param[in]     freqA       Bitrate constant, \ref canFD_BITRATE_xxx.
  * \param[in]     freqD       Bitrate constant, \ref canFD_BITRATE_xxx.
  * \param[in,out] arbitration A pointer to a \ref kvBusParamsTq, upon return receives
- *                            the bus busparamters specified by \a freqA.
+ *                            the bus busparameters specified by \a freqA.
  * \param[in,out] data        A pointer to a \ref kvBusParamsTq, upon return receives
- *                            the bus busparamters specified by \a freqD.
+ *                            the bus busparameters specified by \a freqD.
  *
  * \return \ref canOK (zero) is success
  * \return \ref canERR_xxx (negative) if failure
@@ -1959,7 +1959,7 @@ canStatus CANLIBAPI canGetChannelData(int channel,
    * \a buffer points to a 8-byte area which receives the UPC (EAN) number for
    * the card. If there is no UPC number, the buffer is filled with zeros. The
    * UPC (EAN) number is coded as a BCD string with the LSB first, so
-   * e.g. 733-0130-00122-0 is coded as 0x30001220 0x00073301.
+   * e.g. 73-30130-00122-0 is coded as 0x30001220 0x00073301.
    */
 #define canCHANNELDATA_CARD_UPC_NO                11
 
@@ -1970,7 +1970,7 @@ canStatus CANLIBAPI canGetChannelData(int channel,
    * \a buffer points to a 8-byte area which receives the UPC (EAN) number for
    * the transceiver. If there is no UPC number, the buffer is filled with
    * zeros. The UPC (EAN) number is coded as a BCD string with the LSB first,
-   * so e.g. 733-0130-00122-0 is coded as 0x30001220 0x00073301.
+   * so e.g. 73-30130-00122-0 is coded as 0x30001220 0x00073301.
    * \note Not implemented in linux.
    */
 #define canCHANNELDATA_TRANS_UPC_NO               12
@@ -5290,7 +5290,7 @@ kvStatus CANLIBAPI kvScriptTxeGetData(const char *filePathOnPC,
 
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileCopyToDevice(CanHandle hnd, String hostFileName, String deviceFileName);</b>
  *
@@ -5317,7 +5317,7 @@ kvStatus CANLIBAPI kvFileCopyToDevice(const CanHandle hnd,
                                       char *deviceFileName);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileCopyFromDevice(CanHandle hnd, String deviceFileName, String hostFileName);</b>
  *
@@ -5343,7 +5343,7 @@ kvStatus CANLIBAPI kvFileCopyFromDevice(const CanHandle hnd,
                                         char *hostFileName);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileDelete(CanHandle hnd, String deviceFileName);</b>
  *
@@ -5366,7 +5366,7 @@ kvStatus CANLIBAPI kvFileCopyFromDevice(const CanHandle hnd,
 kvStatus CANLIBAPI kvFileDelete(const CanHandle hnd, char *deviceFileName);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileGetName(CanHandle hnd, Int32 fileNo, out String name);</b>
  *
@@ -5393,7 +5393,7 @@ kvStatus CANLIBAPI kvFileGetName(const CanHandle hnd,
                                  int namelen);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileGetCount(CanHandle hnd, out Int32 count);</b>
  *
@@ -5414,7 +5414,7 @@ kvStatus CANLIBAPI kvFileGetName(const CanHandle hnd,
 kvStatus CANLIBAPI kvFileGetCount(const CanHandle hnd, int *count);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.kvStatus kvFileGetSystemData(CanHandle hnd, Int32 itemCode, out Int32 result);</b>
  *
@@ -5440,7 +5440,7 @@ kvStatus CANLIBAPI kvFileGetSystemData(const CanHandle hnd,
                                        int *result);
 
 /**
- * \ingroup grp_kvFile
+ * \ingroup grp_kvfile
  *
  * \source_cs       <b>static Canlib.canStatus  kvFileDiskFormat(CanHandle hnd);</b>
  *

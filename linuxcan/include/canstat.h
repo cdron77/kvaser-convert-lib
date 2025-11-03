@@ -67,12 +67,11 @@
 /**
  * \file canstat.h
  * \brief Definitions for the CANLIB API.
- * \details
- * \ingroup can_status_codes Status Codes
  *
 */
 
 /**
+ * \addtogroup can_status_codes Status Codes
  * \anchor canERR_xxx
  *
  * @{

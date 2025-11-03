@@ -93,6 +93,26 @@ typedef struct {
 } hcmdParameterReadResp;
 
 
+#define SET_UNLOCK_CODE_TYPE_SIMPLE 1 
+typedef struct {  
+  uint32_t code;
+  uint8_t type;
+  uint8_t reserved[3];
+  uint8_t unused[20];
+} hcmdSetUnlockCodeReq;
+
+#define OEM_UNLOCK_CODE_STATUS_UNLOCK_OK     0
+#define OEM_UNLOCK_CODE_STATUS_UNLOCK_FAILED 1
+#define OEM_UNLOCK_CODE_STATUS_UNK_TYPE      2
+#define OEM_UNLOCK_CODE_STATUS_NO_LOCK       3
+typedef struct {  
+  uint32_t code;
+  uint8_t status;
+  uint8_t reserved[3];
+  uint8_t unused[20];
+} hcmdSetUnlockCodeResp;
+
+
 typedef union {
     hcmdParameterReadReq parameterReadReq;
     hcmdParameterReadResp parameterReadResp;

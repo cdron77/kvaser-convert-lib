@@ -95,6 +95,7 @@
 #define PARAM_FW_FREE_SIGNALS                 241
 #define PARAM_FW_LOWWATER_SIGNALS             242
 #define PARAM_HW_CHIP_TEMPERATURE             243
+#define PARAM_OEM_UNLOCK_CODE                 244
 
 // Parameter length, in bytes.
 #define PARAM_SERIAL_NUMBER_LEN               4
@@ -112,6 +113,7 @@
 #define PARAM_NIC_GROUP_BRANDED_LEN           1
 #define PARAM_EAN_NUMBER_PRODUCT_LEN          8
 #define PARAM_MAX_BITRATE_LEN                 4
+#define PARAM_OEM_UNLOCK_CODE_LEN             4
 
 #define PARAM_HW_FLASH_SIZE_LEN               4
 #define PARAM_FW_FREE_SIGNALS_LEN             4

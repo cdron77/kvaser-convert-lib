@@ -96,7 +96,7 @@ typedef unsigned int DWORD;
 typedef unsigned int BOOL;
 
 /**
- * \ingroup lin_status_codes Status Codes
+ * \ingroup lin_status_codes
  * \anchor linERR_xxx
  *
  * Generally, a return code greater than or equal to zero means success. A
