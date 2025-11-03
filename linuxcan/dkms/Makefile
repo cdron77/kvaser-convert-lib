@@ -91,8 +91,6 @@ define print_versions
 	echo '$1 building linuxcan v'`sed -n 's/^version=//g; s/_/./g; s/\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\).\(beta\)\?/\1 \2/p' moduleinfo.txt`
 	echo '  User    : '$(USER)
 	echo '  System  : '`uname -a`
-	echo '  CC      : '$(CC)
-	echo '  CC ver. : '`$(CC) -dumpfullversion -dumpversion`
 	echo '  KDIR    : '$(KDIR)
 	echo '  Kernel  : '$(KV_KERNEL_VERSION)
 	echo ''
