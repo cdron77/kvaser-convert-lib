@@ -415,7 +415,7 @@ static unsigned short printf_message_type_to_flag(unsigned char type)
     return flags;
 }
 
-int devhnd_dispatchhw_printf(VCanCardData *vCard, VCanChanData *vChan, VCAN_EVENT *printf_evHeader,
+static int devhnd_dispatchhw_printf(VCanCardData *vCard, VCanChanData *vChan, VCAN_EVENT *printf_evHeader,
                              char *data)
 {
     if (vCard && vCard->cardPresent) {

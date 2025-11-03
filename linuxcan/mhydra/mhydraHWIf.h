@@ -193,7 +193,7 @@ typedef struct MhydraUsbPipeInfo {
 } MhydraUsbPipeInfo;
 
 typedef struct MhydraMemoInfo {
-    struct workqueue_struct *bulkQ;
+    int is_present;
     struct work_struct bulkWork;
     struct completion completion;
     int status;
@@ -284,6 +284,8 @@ typedef struct MhydraCardData {
 
     hydraHostCmdExt txCmdBuffer[KV_MHYDRA_TX_CMD_BUF_SIZE]; /* Control messages */
     Queue txCmdQueue;
+
+    struct task_struct *rx_thread;
 
     struct usb_device *udev; // save off the usb device pointer
     struct usb_interface *interface; // the interface for this device

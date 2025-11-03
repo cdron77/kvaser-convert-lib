@@ -377,6 +377,8 @@ static int mhydra_send_and_wait_reply_memo(VCanCardData *vCard, hydraHostCmd *cm
 #define USB_VINING_800_PRODUCT_ID            281 // VINING 800 (EAN 01442-8)
 #define USB_USBCAN_PRO_5XCAN_PRODUCT_ID      282 // Kvaser USBcan Pro 5xCAN (EAN 01524-1)
 #define USB_MINI_PCIE_1XCAN_PRODUCT_ID       283 // Kvaser Mini PCIe 1xCAN (EAN 01368-1)
+#define USB_EASYSCAN_CAN_PRODUCT_ID          284 // Easyscan CAN (EAN 01677-4)
+#define USB_CAN_LOGGER_READ_ONLY_PRODUCT_ID  285 // CAN Logger - Read only (EAN 01748-1)
 
 // Table of devices that work with this driver
 static struct usb_device_id mhydra_table[] = {
@@ -406,6 +408,8 @@ static struct usb_device_id mhydra_table[] = {
     { USB_DEVICE(KVASER_VENDOR_ID, USB_VINING_800_PRODUCT_ID) },
     { USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN_PRO_5XCAN_PRODUCT_ID) },
     { USB_DEVICE(KVASER_VENDOR_ID, USB_MINI_PCIE_1XCAN_PRODUCT_ID) },
+    { USB_DEVICE(KVASER_VENDOR_ID, USB_EASYSCAN_CAN_PRODUCT_ID) },
+    { USB_DEVICE(KVASER_VENDOR_ID, USB_CAN_LOGGER_READ_ONLY_PRODUCT_ID) },
     { 0 } // Terminating entry
 };
 
@@ -421,7 +425,7 @@ static struct usb_driver mhydra_driver = {
 
 //============================================================================
 
-void print_reply(uint32_t cmd)
+static void print_reply(uint32_t cmd)
 {
     switch (cmd) {
     case CMD_SET_DEVICE_MODE:
@@ -633,21 +637,13 @@ static int mhydra_rx_thread(void *context)
     VCanCardData *vCard = context;
     MhydraCardData *dev = vCard->hwCardData;
     int result = 0;
-    int len;
-    int usbErrorCounter;
-
-    if (!try_module_get(THIS_MODULE)) {
-        return -ENODEV;
-    }
+    int usbErrorCounter = 0;
 
     DEBUGPRINT(3, (TXT("rx thread started\n")));
 
-    usbErrorCounter = 0;
-
-    while (vCard->cardPresent) {
+    while (!kthread_should_stop()) {
         int ret;
-
-        len = 0;
+        int len = 0;
         // Do a blocking bulk read to get data from the device
         // dev->bulk_in[0].buffer is the first "normal" pipe
         // Timeout after 30 seconds
@@ -748,16 +744,9 @@ static int mhydra_rx_thread(void *context)
                 }
             }
         }
-    } // while (vCard->cardPresent)
+    }
 
     DEBUGPRINT(3, (TXT("rx thread Ended - finalised\n")));
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
-    module_put(THIS_MODULE);
-    do_exit(result);
-#else
-    module_put_and_kthread_exit(result);
-#endif
 
     return result;
 } // _rx_thread
@@ -1152,7 +1141,7 @@ static void mhydra_handle_cmd_tx_acknowledge(hydraHostCmd *cmd, VCanCardData *vC
                 DEBUGPRINT(6, (TXT("txack flag=%x\n"), flags));
             }
 
-            DEBUGPRINT(2, (TXT("CMD_TX_ACKNOWLEDGE flags 0x%x\n"), e.tagData.msg.flags));
+            DEBUGPRINT(4, (TXT("CMD_TX_ACKNOWLEDGE flags 0x%x\n"), e.tagData.msg.flags));
 
             vCanDispatchEvent(vChan, &e);
         }
@@ -1942,32 +1931,21 @@ static void mhydra_send(struct work_struct *work)
     VCanCardData *vCard = dev->vCard;
     VCanChanData *vChan = NULL;
     int tx_needed = 0;
-    int timeout;
     DEBUGPRINT(4, (TXT("dev = 0x%p  vCard = 0x%p\n"), dev, vCard));
-
-    if (!vCard->cardPresent) {
-        // The device was unplugged before the file was released
-        // We cannot deallocate here, it is too early and handled elsewhere
-        return;
-    }
 
     // Wait for a previous write to finish up.
     // Use a timeout to escape situation of unresponsive port or device.
-    timeout = wait_for_completion_timeout(&dev->write_finished,
-                                          msecs_to_jiffies(MHYDRA_CMD_RESP_WAIT_TIME));
+    while (wait_for_completion_timeout(&dev->write_finished,
+            msecs_to_jiffies(MHYDRA_CMD_RESP_WAIT_TIME)) == 0) {
+        // Send timed out
+        DEBUGPRINT(1, (TXT("mhydra_send -- time out waiting for write_finished\n")));
+        usb_unlink_urb(dev->write_urb); // Abort USB write request
+    }
 
     if (!vCard->cardPresent) {
         // The device was unplugged before the file was released
-        // We cannot deallocate here it is to early and handled elsewhere
         complete(&dev->write_finished);
         return;
-    }
-
-    if (timeout == 0) {
-        // Send timed out. This is perhaps followed by a burst of errors and
-        // device removal.
-        DEBUGPRINT(1, (TXT("mhydra_send -- time out waiting for write_finished\n")));
-        complete(&dev->write_finished);
     }
 
     // Do we have any cmd to send
@@ -2026,8 +2004,6 @@ static void mhydra_send(struct work_struct *work)
     } else {
         complete(&dev->write_finished);
     }
-
-    return;
 } // _send
 
 //============================================================================
@@ -2287,7 +2263,10 @@ static int mhydra_transmit(VCanCardData *vCard /*, void *cmd*/)
 
     retval = usb_submit_urb(dev->write_urb, GFP_KERNEL);
     if (retval) {
-        DEBUGPRINT(1, (TXT("%s - failed submitting write urb, error %d"), __FUNCTION__, retval));
+        // Submit may have failed simply because we are shutting down
+        if (vCard->cardPresent) {
+            DEBUGPRINT(1, (TXT("%s - failed submitting write urb, error %d"), __FUNCTION__, retval));
+        }
         retval = VCAN_STAT_FAIL;
     } else {
         // The semaphore is released on successful transmission
@@ -2665,7 +2644,9 @@ static int mhydra_plugin(struct usb_interface *interface, const struct usb_devic
          (udev->descriptor.idProduct != USB_USBCAN_PRO_4HS_SILENT_PRODUCT_ID) &&
          (udev->descriptor.idProduct != USB_VINING_800_PRODUCT_ID) &&
          (udev->descriptor.idProduct != USB_USBCAN_PRO_5XCAN_PRODUCT_ID) &&
-         (udev->descriptor.idProduct != USB_MINI_PCIE_1XCAN_PRODUCT_ID))) {
+         (udev->descriptor.idProduct != USB_MINI_PCIE_1XCAN_PRODUCT_ID) &&
+         (udev->descriptor.idProduct != USB_EASYSCAN_CAN_PRODUCT_ID) &&
+         (udev->descriptor.idProduct != USB_CAN_LOGGER_READ_ONLY_PRODUCT_ID))) {
         DEBUGPRINT(2, (TXT("==================\n")));
         DEBUGPRINT(2, (TXT("Vendor:  %d\n"), udev->descriptor.idVendor));
         DEBUGPRINT(2, (TXT("Product:  %d\n"), udev->descriptor.idProduct));
@@ -2951,7 +2932,7 @@ static int mhydra_start(VCanCardData *vCard)
         DEBUGPRINT(2, (TXT("vCard chnr: %d\n"), vCard->nrChannels));
     } else {
         DEBUGPRINT(2, (TXT("vCard is NULL\n")));
-        return ret;
+        goto err;
     }
 
     dev = vCard->hwCardData;
@@ -2977,20 +2958,25 @@ static int mhydra_start(VCanCardData *vCard)
 
     INIT_WORK(&dev->txWork, mhydra_send);
     if (dev->bulk_in[EP_ADDR_TO_INDEX(EP_IN_ADDR_FAT)].endpointAddr != 0) {
+        dev->memo.is_present = 1;
         INIT_WORK(&dev->memo.bulkWork, mhydra_memo_bulk);
     }
-    dev->txTaskQ = create_workqueue("mhydra_tx");
-    if (dev->bulk_in[EP_ADDR_TO_INDEX(EP_IN_ADDR_FAT)].endpointAddr != 0) {
-        dev->memo.bulkQ = create_workqueue("mhydra_bulk");
-    } else {
-        dev->memo.bulkQ = NULL;
+    if (!(dev->txTaskQ = alloc_workqueue("mhydra_tx", WQ_MEM_RECLAIM, 1))) {
+        goto err;
     }
 
-    kthread_run(mhydra_rx_thread, vCard, "Kvaser kernel thread");
+    if (IS_ERR(dev->rx_thread = kthread_create(
+                mhydra_rx_thread, vCard, "Kvaser kernel thread"))) {
+        goto err_destroy_tx_wq;
+    }
+    // Thread may exit early: Hold extra reference to call kthread_stop regardless
+    get_task_struct(dev->rx_thread);
+    wake_up_process(dev->rx_thread);
+
     mhydra_map_channels(vCard);
     ret = device_request_firmware_info(vCard);
     if (ret != VCAN_STAT_OK) {
-        goto error_exit;
+        goto err_stop_rx_thread;
     }
 
     vCard->driverData = &driverData;
@@ -3087,13 +3073,18 @@ static int mhydra_start(VCanCardData *vCard)
     vCard->enable_softsync = 1;
     ret = mhydra_softsync_onoff(vCard, vCard->enable_softsync);
     if (ret != VCAN_STAT_OK) {
-        goto error_exit;
+        goto err_stop_rx_thread;
     }
-
     return ret;
 
-error_exit:
-
+    // Join threads before deallocating
+err_stop_rx_thread:
+    kthread_stop(dev->rx_thread);
+    put_task_struct(dev->rx_thread);
+err_destroy_tx_wq:
+    dev->vCard->cardPresent = 0;
+    destroy_workqueue(dev->txTaskQ);
+err:
     return ret;
 } // _start
 
@@ -3117,13 +3108,12 @@ static int mhydra_allocate(VCanCardData **in_vCard)
     DEBUGPRINT(3, (TXT("mhydra: _allocate\n")));
 
     // Allocate data area for this card
-    vCard = kmalloc(sizeof(VCanCardData) + sizeof(MhydraCardData), GFP_KERNEL);
+    vCard = kzalloc(sizeof(VCanCardData) + sizeof(MhydraCardData), GFP_KERNEL);
     DEBUGPRINT(2, (TXT("MALLOC _allocate\n")));
     if (!vCard) {
         DEBUGPRINT(1, (TXT("alloc error\n")));
         goto card_alloc_err;
     }
-    memset(vCard, 0, sizeof(VCanCardData) + sizeof(MhydraCardData));
 
     // hwCardData is directly after VCanCardData
     vCard->hwCardData = vCard + 1;
@@ -3175,9 +3165,6 @@ static void mhydra_deallocate(VCanCardData *vCard)
 
     DEBUGPRINT(3, (TXT("mhydra: _deallocate\n")));
 
-    // Make sure all workqueues are finished
-    //flush_workqueue(&dev->txTaskQ);
-
     for (pipe_id = 0; pipe_id < NUM_IN_PIPES; pipe_id++) {
         if (dev->bulk_in[pipe_id].buffer != NULL) {
             kfree(dev->bulk_in[pipe_id].buffer);
@@ -3204,11 +3191,8 @@ static void mhydra_deallocate(VCanCardData *vCard)
     }
 
     spin_lock(&driverData.canCardsLock);
-
     local_vCard = driverData.canCards;
-
     // Identify the card to remove in the global list
-
     if (local_vCard == vCard) {
         // The first entry is the one to remove
         driverData.canCards = local_vCard->next;
@@ -3229,7 +3213,6 @@ static void mhydra_deallocate(VCanCardData *vCard)
             DEBUGPRINT(1, (TXT("ERROR: Bad vCard in mhydra_dealloc()\n")));
         }
     }
-
     spin_unlock(&driverData.canCardsLock);
 
     for (i = 0; i < HYDRA_MAX_CARD_CHANNELS; i++) {
@@ -3315,23 +3298,24 @@ static void mhydra_remove(struct usb_interface *interface)
         }
     }
 
-    // Terminate workqueues
-    flush_scheduled_work();
 
+    DEBUGPRINT(2, (TXT("mhydra: Stopping RX thread\n")));
+    kthread_stop(dev->rx_thread);
+    put_task_struct(dev->rx_thread);
 
     // Terminate an ongoing write
-    DEBUGPRINT(6, (TXT("Ongoing write terminated\n")));
-    usb_kill_urb(dev->write_urb);
-    DEBUGPRINT(6, (TXT("Unlinking urb\n")));
-    wait_for_completion(&dev->write_finished);
+    DEBUGPRINT(2, (TXT("mhydra: Terminating any ongoing write by unlinking urb\n")));
+    usb_poison_urb(dev->write_urb);
 
-    // Flush and destroy tx workqueue
+    // Flush and destroy workqueues
     DEBUGPRINT(2, (TXT("destroy_workqueue\n")));
     destroy_workqueue(dev->txTaskQ);
-    if (dev->memo.bulkQ != NULL) {
-        destroy_workqueue(dev->memo.bulkQ);
-        dev->memo.bulkQ = NULL;
+    if (dev->memo.is_present) {
+        cancel_work_sync(&dev->memo.bulkWork);
     }
+
+    // Wait for cancelled URB to call completion handler
+    wait_for_completion(&dev->write_finished);
 
     driverData.noOfDevices -= vCard->nrChannels;
 
@@ -5152,7 +5136,7 @@ static int mhydra_memo_config_mode(const VCanChanData *chd, int interval)
     return r;
 }
 
-size_t minSize(size_t sourceSize, size_t destSize)
+static size_t minSize(size_t sourceSize, size_t destSize)
 {
     return (destSize <= sourceSize ? destSize : sourceSize);
 }
@@ -5177,8 +5161,8 @@ static int mhydra_memo_get_data(const VCanChanData *chd, int subcmd, void *buf, 
 
     if (subcmd == MEMO_SUBCMD_FASTREAD_LOGICAL_SECTOR ||
         subcmd == MEMO_SUBCMD_FASTREAD_PHYSICAL_SECTOR) {
-        if (dev->memo.bulkQ == NULL) {
-            // Endpoint not pressent
+        if (!dev->memo.is_present) {
+            // Endpoint not present
             return VCAN_STAT_NOT_IMPLEMENTED;
         }
 
@@ -5191,7 +5175,7 @@ static int mhydra_memo_get_data(const VCanChanData *chd, int subcmd, void *buf, 
         }
 
         dev->memo.buffer = buf;
-        queue_work(dev->memo.bulkQ, &dev->memo.bulkWork);
+        schedule_work(&dev->memo.bulkWork);
         bulk_data_is_arriving = 1;
     } else if (data2 > 1) {
         // When in "slow" mode, the application should never ask for more than a
