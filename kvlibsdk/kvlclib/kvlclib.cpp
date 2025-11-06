@@ -218,22 +218,31 @@ KvlcStatus WINAPI kvlcDeleteConverter(KvlcHandle handle)
     return kvlcERR_PARAM;
   }
 
+  /* NOTE DR 2025-09-17: compiler complains that handle is
+   * used after deletion in clearInUse function. This makes
+   * sense, as it is called after delete, and conv and handle
+   * point to the same object. It doesn't seem important
+   * to catch an exception on the delete operation, so move
+   * clearInUse before deleting. */
+
   KvaConverter *conv = static_cast<KvaConverter*>(handle);
   if (conv) {
     // Flush any remaing values
     PRINTF(("Will flush any pushed events first.\n"));
     conv->flush_events();
     PRINTF(("Will delete the KvaConverter @ 0x%p\n", conv));
+    clearInUse(handle);
     try {
       delete conv;
     }
     catch(...) {
       PRINTF(("kvlcDeleteConverter failed 1 (exception thrown)\n\n"));
-      clearInUse(handle);
+      // clearInUse(handle);
       return kvlcERR_INTERNAL_ERROR;
     }
     PRINTF(("Deleted the KvaConverter @ 0x%p\n", conv));
-    clearInUse(handle);
+    conv = NULL;
+    // clearInUse(handle);
     return kvlcOK;
   }
   else

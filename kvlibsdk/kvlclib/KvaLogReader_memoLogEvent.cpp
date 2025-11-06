@@ -95,8 +95,12 @@ KvlcStatus KvaLogReader_memoLogEvent::interpret_event(
 
     case MEMOLOG_TYPE_CLOCK:
     {
-      time_uint64 caltim = ONE_BILLION * me->x.rtc.calendarTime,
-        timestamp = me->x.rtc.timeStamp;
+      /* NOTE DR 2025-11-06: calendarTime has second resolution,
+       * and this causes a lot of confusion in subsequent
+       * calculation of offsets. */
+      // time_uint64 caltim = ONE_BILLION * me->x.rtc.calendarTime,
+      time_uint64 caltim = me->x.rtc.timeStamp;
+      time_uint64 timestamp = me->x.rtc.timeStamp;
 
       if (!start_of_measurement64) {
         start_of_measurement64 = caltim;

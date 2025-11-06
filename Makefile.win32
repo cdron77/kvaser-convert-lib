@@ -1,14 +1,23 @@
 # Makefile to build the Kvaser conversion library for LynXLog.
 
+# Configuration variables, which can be overriden from the environment
+BUILD_TYPE=Release
+DESTDIR=
+PREFIX=usr
+
 CROSS_COMPILER_NAME=i686-w64-mingw32
 CROSS_LIBRARY_DIR=$(HOME)/Documents/Lavoro/Codice/mingw_deps/install/
 COMPILER_VERSION=`ls -1 /usr/lib/gcc/$(CROSS_COMPILER_NAME) | grep win32 | cut -f 1 -d- `
 STDCPP_LIBRARY_DIR=/usr/lib/gcc/$(CROSS_COMPILER_NAME)/$(COMPILER_VERSION)-win32
 CC=$(CROSS_COMPILER_NAME)-gcc
-CFLAGS="-I$(PWD)/linuxcan/include -I$(CROSS_LIBRARY_DIR)/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
+ifeq ($(BUILD_TYPE), Release)
+  OPTIMFLAGS=-O2
+else
+  OPTIMFLAGS=-O0 -g -ggdb -fno-inline -fno-omit-frame-pointer
+endif
+
+CFLAGS="${OPTIMFLAGS} -I$(PWD)/linuxcan/include -I$(CROSS_LIBRARY_DIR)/include -fpermissive -Wno-unused-parameter -D_POSIX_C_SOURCE"
 LDFLAGS="-L$(CROSS_LIBRARY_DIR)/lib -L$(STDCPP_LIBRARY_DIR)"
-DESTDIR=
-PREFIX=usr
 
 # As canlib does, import library name and version
 include linuxcan/canlib/version.mk
